@@ -1,0 +1,29 @@
+﻿{
+  "expo": {
+    "name": "Sollviera PMS",
+    "slug": "sollviera-pms",
+    "version": "2.4.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FAF7F3",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sollviera.pms"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FAF7F3"
+      },
+      "package": "com.sollviera.pms"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
