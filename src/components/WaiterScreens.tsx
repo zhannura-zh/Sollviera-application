@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Utensils, Calendar, Clock, Check, ChevronRight, ChevronLeft, Search, 
-  AlertCircle, AlertTriangle, MessageSquare, Bell, Settings, Phone, 
-  RotateCcw, User, Lock, Headphones, LogOut, Plus, Minus, Info, 
-  CheckCircle2, Coffee, Pin, Send, Wine, Flame, Eye, ChefHat, 
-  Receipt, Users, HelpCircle
+import {
+  Utensils, Calendar, Clock, Check, ChevronRight, ChevronLeft, Search,
+  AlertCircle, AlertTriangle, MessageSquare, Bell, Settings, Phone,
+  RotateCcw, User, Lock, Headphones, LogOut, Plus, Minus, Info,
+  CheckCircle2, Coffee, Pin, Send, Wine, Flame, Eye, ChefHat,
+  Receipt, Users, HelpCircle, ConciergeBell, Sparkles, RefreshCw
 } from 'lucide-react';
 import { Language, CleanerProfile, HotelRoom } from '../types';
 
@@ -29,30 +29,18 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
   onToggleOffline,
   activeTab
 }) => {
-  // ----------------------------------------------------
-  // SUB-SCREEN / MODAL STATES
-  // ----------------------------------------------------
-  const [selectedTable, setSelectedTable] = useState<any | null>(null);
-  const [selectedDelivery, setSelectedDelivery] = useState<any | null>(null);
-  const [showAddItemModal, setShowAddItemModal] = useState<boolean>(false);
-  const [showSeatGuestsModal, setShowSeatGuestsModal] = useState<boolean>(false);
-  const [showNewDeliveryModal, setShowNewDeliveryModal] = useState<boolean>(false);
-  const [menuSearchQuery, setMenuSearchQuery] = useState<string>('');
-  const [menuCategoryFilter, setMenuCategoryFilter] = useState<'ALL' | 'STARTER' | 'MAIN' | 'DESSERT' | 'DRINK'>('ALL');
-
-  // Profile Sub-screens
+  // Sub-screen / Modal States
   const [showChats, setShowChats] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showShiftReportModal, setShowShiftReportModal] = useState<boolean>(false);
-  const [showOrdersHistoryModal, setShowOrdersHistoryModal] = useState<boolean>(false);
   const [showScheduleModal, setShowScheduleModal] = useState<boolean>(false);
   const [showBanquetsModal, setShowBanquetsModal] = useState<boolean>(false);
 
   // Settings states
   const [pushNotifications, setPushNotifications] = useState<boolean>(true);
-  const [soundOnNewTask, setSoundOnNewTask] = useState<boolean>(true);
-  const [lastSyncTime, setLastSyncTime] = useState<string>('09:41');
+  const [soundOnNewTask, setSoundOnNewTask] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>('12:04');
   const [showPersonalDataModal, setShowPersonalDataModal] = useState<boolean>(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState<boolean>(false);
   const [showSupportModal, setShowSupportModal] = useState<boolean>(false);
@@ -60,9 +48,7 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
   // Shift Status
   const [shiftStatus, setShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('ON_SHIFT');
 
-  // ----------------------------------------------------
-  // 01. СЕГОДНЯ (TODAY) DATA & STATE
-  // ----------------------------------------------------
+  // 01. СЕГОДНЯ (TODAY) & 02. ЗАЛ (HALL ATTENDANCE) DATA
   const [guestSearchQuery, setGuestSearchQuery] = useState<string>('');
   const [mealAttendanceList, setMealAttendanceList] = useState([
     {
@@ -104,268 +90,13 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
   ]);
 
   // ----------------------------------------------------
-  // 02. ЗАЛ (HALL / TABLES) DATA & STATE
-  // ----------------------------------------------------
-  const [hallFilterScope, setHallFilterScope] = useState<'MY' | 'ALL'>('MY');
-  const [hallStatusFilter, setHallStatusFilter] = useState<'ALL' | 'BUSY' | 'BILL' | 'CLEAN'>('ALL');
-  
-  const [tablesList, setTablesList] = useState([
-    {
-      id: 'tbl-7',
-      number: 'Стол 7',
-      category: 'ATTENTION',
-      statusRu: 'счёт · 12 мин',
-      statusEn: 'bill · 12 min',
-      dotColor: 'bg-[#B3261E]',
-      descRu: '2 гостя · № 208 · BB · 14 200 ₸',
-      descEn: '2 guests · № 208 · BB · 14 200 ₸',
-      isMyTable: true,
-      package: 'BB',
-      roomNumber: '№ 208',
-      timer: '12:00',
-      sum: '14 200 ₸'
-    },
-    {
-      id: 'tbl-3',
-      number: 'Стол 3',
-      category: 'ATTENTION',
-      statusRu: 'готово на выдаче',
-      statusEn: 'ready for pickup',
-      dotColor: 'bg-[#E4762B]',
-      descRu: '3 гостя · № 105 · FB · основное',
-      descEn: '3 guests · № 105 · FB · main course',
-      isMyTable: true,
-      package: 'FB',
-      roomNumber: '№ 105',
-      timer: '18:40',
-      sum: '0 ₸'
-    },
-    {
-      id: 'tbl-12',
-      number: 'Стол 12',
-      category: 'BUSY',
-      tag: 'HB',
-      statusRu: '24 мин',
-      statusEn: '24 min',
-      dotColor: 'bg-[#E4762B]',
-      descRu: '4 гостя · № 304 · на кухне',
-      descEn: '4 guests · № 304 · in kitchen',
-      isMyTable: true,
-      package: 'HB',
-      roomNumber: '№ 304',
-      timer: '24:06',
-      sum: '8 400 ₸'
-    },
-    {
-      id: 'tbl-5',
-      number: 'Стол 5',
-      category: 'BUSY',
-      tag: 'AI',
-      statusRu: '31 мин',
-      statusEn: '31 min',
-      dotColor: 'bg-[#E4762B]',
-      descRu: '2 гостя · № 412 · подано',
-      descEn: '2 guests · № 412 · served',
-      isMyTable: true,
-      package: 'AI',
-      roomNumber: '№ 412',
-      timer: '31:15',
-      sum: '0 ₸'
-    },
-    {
-      id: 'tbl-9',
-      number: 'Стол 9',
-      category: 'BUSY',
-      tag: '',
-      statusRu: '8 мин',
-      statusEn: '8 min',
-      dotColor: 'bg-[#E4762B]',
-      descRu: '2 гостя · без брони · заказ не принят',
-      descEn: '2 guests · walk-in · order pending',
-      isMyTable: false,
-      package: 'WALK_IN',
-      roomNumber: '—',
-      timer: '08:20',
-      sum: '0 ₸'
-    },
-    {
-      id: 'tbl-1',
-      number: 'Стол 1',
-      category: 'BUSY',
-      tag: 'BB',
-      statusRu: '42 мин',
-      statusEn: '42 min',
-      dotColor: 'bg-[#E4762B]',
-      descRu: '3 гостя · № 311 · десерт',
-      descEn: '3 guests · № 311 · dessert',
-      isMyTable: true,
-      package: 'BB',
-      roomNumber: '№ 311',
-      timer: '42:10',
-      sum: '6 800 ₸'
-    },
-    {
-      id: 'tbl-4',
-      number: 'Стол 4',
-      category: 'CLEAN',
-      statusRu: 'убрать',
-      statusEn: 'to clean',
-      dotColor: 'bg-[#5C6B7A]',
-      descRu: 'освободился 6 мин назад',
-      descEn: 'freed 6 min ago',
-      isMyTable: true,
-      package: '',
-      roomNumber: '',
-      timer: '',
-      sum: ''
-    },
-    {
-      id: 'tbl-2',
-      number: 'Стол 2',
-      category: 'FREE',
-      statusRu: 'свободен · 4 места',
-      statusEn: 'free · 4 seats',
-      dotColor: 'bg-[#E5E2DD]',
-      descRu: '',
-      descEn: '',
-      isMyTable: true,
-      package: '',
-      roomNumber: '',
-      timer: '',
-      sum: ''
-    },
-    {
-      id: 'tbl-6',
-      number: 'Стол 6',
-      category: 'FREE',
-      statusRu: 'свободен · 2 места',
-      statusEn: 'free · 2 seats',
-      dotColor: 'bg-[#E5E2DD]',
-      descRu: '',
-      descEn: '',
-      isMyTable: false,
-      package: '',
-      roomNumber: '',
-      timer: '',
-      sum: ''
-    }
-  ]);
-
-  // ----------------------------------------------------
-  // 04. ДОБАВИТЬ ПОЗИЦИЮ (ADD ITEM STATE)
-  // ----------------------------------------------------
-  const [addItemCategory, setAddItemCategory] = useState<'MAIN' | 'STARTER' | 'DESSERT' | 'DRINK' | 'BAR'>('MAIN');
-  const [dishSearchQuery, setDishSearchQuery] = useState<string>('');
-  const [selectedDishesOrder, setSelectedDishesOrder] = useState<Record<string, number>>({
-    'ribeye': 2,
-    'carbonara': 1
-  });
-  const [kitchenComment, setKitchenComment] = useState<string>('Без лука в салате, средняя прожарка стейка');
-
-  // ----------------------------------------------------
-  // 05. В НОМЕР (ROOM SERVICE) DATA & STATE
-  // ----------------------------------------------------
-  const [roomServiceFilter, setRoomServiceFilter] = useState<'DELIVERY' | 'BREAKFAST' | 'TRAYS'>('DELIVERY');
-
-  const [roomDeliveries, setRoomDeliveries] = useState([
-    {
-      id: 'del-412',
-      roomNumber: '№ 412',
-      guestName: 'Абдиров К.',
-      guestInitials: 'АК',
-      suiteType: 'Presidential Suite',
-      package: 'AI · всё включено',
-      tag: '+6 МИН',
-      tagColor: 'bg-[#FAF0EF] text-[#B3261E]',
-      dueTime: 'до 12:56',
-      timer: '36:12',
-      statusRu: 'в пути',
-      statusEn: 'in transit',
-      dotColor: 'bg-[#B3261E]',
-      itemsDescRu: 'Клубный сэндвич, чай · в пути',
-      itemsDescEn: 'Club sandwich, tea · in transit',
-      acceptedTime: '12:26',
-      noteRu: 'Гость просил постучать, не звонить в дверь. Ребёнок спит.',
-      dishes: [
-        { nameRu: 'Клубный сэндвич · 1', noteRu: 'без острого соуса', priceRu: 'по пакету', isFree: true },
-        { nameRu: 'Чай чёрный · 2', noteRu: '', priceRu: 'по пакету', isFree: true },
-        { nameRu: 'Виски импортный · 1', noteRu: 'вне пакета AI', priceRu: '4 500 ₸', isFree: false }
-      ],
-      totalDishesRu: '4 500 ₸',
-      serviceFeeRu: '900 ₸',
-      totalPayableRu: '5 400 ₸',
-      timeline: [
-        { titleRu: 'Забран с кухни', time: '12:52', subRu: 'Айгерим Досова', dot: 'bg-[#E4762B]' },
-        { titleRu: 'Передан на кухню', time: '12:28', subRu: '', dot: 'bg-[#E5E2DD]' },
-        { titleRu: 'Заказ принят', time: '12:26', subRu: 'По телефону · Ресепшн', dot: 'bg-[#E5E2DD]' }
-      ]
-    },
-    {
-      id: 'del-208',
-      roomNumber: '№ 208',
-      guestName: 'Серикбаева Б.',
-      guestInitials: 'БС',
-      suiteType: 'Standard Twin',
-      package: 'BB',
-      tag: '',
-      tagColor: '',
-      dueTime: 'до 13:10',
-      timer: '14:20',
-      statusRu: 'на кухне',
-      statusEn: 'in kitchen',
-      dotColor: 'bg-[#E4762B]',
-      itemsDescRu: 'Паста, минеральная вода · на кухне',
-      itemsDescEn: 'Pasta, mineral water · in kitchen',
-      acceptedTime: '12:45',
-      noteRu: 'Доставить горячим, приборы на 1 персону.',
-      dishes: [
-        { nameRu: 'Паста карбонара · 1', noteRu: 'сыр пармезан', priceRu: '2 400 ₸', isFree: false },
-        { nameRu: 'Вода минеральная 0.5 · 1', noteRu: 'без газа', priceRu: '1 200 ₸', isFree: false }
-      ],
-      totalDishesRu: '3 600 ₸',
-      serviceFeeRu: '700 ₸',
-      totalPayableRu: '4 300 ₸',
-      timeline: [
-        { titleRu: 'Передан на кухню', time: '12:48', subRu: 'В работе поваров', dot: 'bg-[#E4762B]' },
-        { titleRu: 'Заказ принят', time: '12:45', subRu: 'Из приложения гостя', dot: 'bg-[#E5E2DD]' }
-      ]
-    }
-  ]);
-
-  // ----------------------------------------------------
-  // 08. ЧАТЫ, УВЕДОМЛЕНИЯ, КОНТАКТЫ
+  // 09. ЧАТЫ DATA & STATE
   // ----------------------------------------------------
   const [chatSearchQuery, setChatSearchQuery] = useState<string>('');
   const [activeChatContactId, setActiveChatContactId] = useState<string | null>(null);
   const [typedMessage, setTypedMessage] = useState<string>('');
-  
+
   const [waiterChatContacts, setWaiterChatContacts] = useState([
-    {
-      id: 'chat-kitchen',
-      nameRu: 'Кухня · раздача',
-      nameEn: 'Kitchen · Pickup',
-      initials: 'КХ',
-      tagRu: 'раздача',
-      tagEn: 'kitchen',
-      isPinned: true,
-      unreadCount: 2,
-      time: '09:12',
-      lastMsgRu: 'Шеф: стол 3 и 12 горячее готово...',
-      lastMsgEn: 'Chef: table 3 and 12 mains ready...'
-    },
-    {
-      id: 'chat-manager',
-      nameRu: 'Жанна Абаева',
-      nameEn: 'Zhanna Abaeva',
-      initials: 'ЖА',
-      tagRu: 'менеджер',
-      tagEn: 'manager',
-      isPinned: true,
-      unreadCount: 0,
-      time: '08:45',
-      lastMsgRu: 'Банкет на 19:00, сервируем в 17:30.',
-      lastMsgEn: 'Banquet at 19:00, setup at 17:30.'
-    },
     {
       id: 'chat-reception',
       nameRu: 'Ресепшн',
@@ -373,67 +104,189 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
       initials: 'РС',
       tagRu: 'диспетчер',
       tagEn: 'front desk',
+      isPinned: true,
+      unreadCount: 2,
+      time: '12:26',
+      lastMsgRu: 'В 412 гость просил постучать, не звонить в дверь',
+      lastMsgEn: 'Guest in 412 asked to knock, do not ring bell'
+    },
+    {
+      id: 'chat-manager',
+      nameRu: 'Жанна Абаева',
+      nameEn: 'Zhanna Abaeva',
+      initials: 'ЖА',
+      tagRu: 'менеджер зала',
+      tagEn: 'floor manager',
+      isPinned: true,
+      unreadCount: 1,
+      time: '11:05',
+      lastMsgRu: 'Банкет в 19:00, выходим на час раньше',
+      lastMsgEn: 'Banquet at 19:00, starting an hour early'
+    },
+    {
+      id: 'chat-shift-a',
+      nameRu: 'Смена зала А',
+      nameEn: 'Hall A Shift',
+      initials: 'СМ',
+      tagRu: 'группа',
+      tagEn: 'group',
       isPinned: false,
       unreadCount: 0,
-      time: '08:20',
-      lastMsgRu: '№ 412 заказал рум-сервис, передали вам.',
-      lastMsgEn: 'Room 412 ordered room service.'
+      time: '10:42',
+      lastMsgRu: 'Марат: подмени на завтраках, я на перерыве',
+      lastMsgEn: 'Marat: cover for me at breakfast, I am on break'
+    },
+    {
+      id: 'chat-housekeeping',
+      nameRu: 'Хаускипинг',
+      nameEn: 'Housekeeping',
+      initials: 'ХК',
+      tagRu: 'группа',
+      tagEn: 'group',
+      isPinned: false,
+      unreadCount: 0,
+      time: 'вчера',
+      lastMsgRu: 'Подносы с 3 этажа забрали, спасибо',
+      lastMsgEn: 'Trays picked up from floor 3, thanks'
+    },
+    {
+      id: 'chat-supervisor',
+      nameRu: 'Светлана Ким',
+      nameEn: 'Svetlana Kim',
+      initials: 'СК',
+      tagRu: 'супервайзер',
+      tagEn: 'supervisor',
+      isPinned: false,
+      unreadCount: 0,
+      time: 'вчера',
+      lastMsgRu: 'В 105 ранний заезд, завтрак к 07:00',
+      lastMsgEn: 'Early check-in in 105, breakfast at 07:00'
     }
   ]);
 
   const [waiterChatMessages, setWaiterChatMessages] = useState<Record<string, Array<{ sender: 'SENDER' | 'RECEIVER'; text: string; time: string }>>>({
-    'chat-kitchen': [
-      { sender: 'RECEIVER', text: 'Доброе утро! Стейки рибай на остатке 6 порций.', time: '08:15' },
-      { sender: 'RECEIVER', text: 'Шеф: стол 3 и 12 горячее готово к подаче.', time: '09:12' },
-      { sender: 'SENDER', text: 'Приняла, забираю стол 3!', time: '09:13' }
+    'chat-reception': [
+      { sender: 'RECEIVER', text: 'Доброе утро! В 412 гость просил постучать, не звонить в дверь.', time: '12:25' },
+      { sender: 'SENDER', text: 'Принято, передам официантам.', time: '12:26' }
     ],
     'chat-manager': [
-      { sender: 'RECEIVER', text: 'Айгерим, сегодня банкет на 30 человек в малом зале в 19:00.', time: '08:45' },
-      { sender: 'SENDER', text: 'Поняла, сервировку начнем в 17:30.', time: '08:47' }
+      { sender: 'RECEIVER', text: 'Банкет в 19:00, выходим на час раньше для сервировки.', time: '11:05' },
+      { sender: 'SENDER', text: 'Поняла, к 17:30 зал будет готов.', time: '11:07' }
     ],
-    'chat-reception': [
-      { sender: 'RECEIVER', text: 'В 412 номер передан заказ на доставку завтрака.', time: '08:20' }
+    'chat-shift-a': [
+      { sender: 'RECEIVER', text: 'Марат: подмени на завтраках, я на перерыве 15 минут.', time: '10:42' },
+      { sender: 'SENDER', text: 'Хорошо, встаю на шведский стол.', time: '10:43' }
+    ],
+    'chat-housekeeping': [
+      { sender: 'RECEIVER', text: 'Подносы с 3 этажа забрали, спасибо.', time: 'вчера' }
+    ],
+    'chat-supervisor': [
+      { sender: 'RECEIVER', text: 'В 105 ранний заезд, завтрак к 07:00.', time: 'вчера' }
     ]
   });
 
+  // ----------------------------------------------------
+  // 10. УВЕДОМЛЕНИЯ DATA & STATE
+  // ----------------------------------------------------
+  const [notifFilter, setNotifFilter] = useState<'ALL' | 'ROOM' | 'BREAKFAST' | 'SHIFT'>('ALL');
   const [waiterNotifications, setWaiterNotifications] = useState([
     {
       id: 'wn-1',
-      titleRu: 'Готово на раздаче · Стол 3',
-      subRu: 'Основное блюдо · заберите в течение 3 мин',
-      time: '09:12',
+      category: 'ROOM',
+      period: 'TODAY',
+      titleRu: 'Доставка в № 412 просрочена',
+      titleEn: 'Delivery to № 412 overdue',
+      subRu: '+6 мин к сроку · 12:56',
+      subEn: '+6 min overdue · 12:56',
       isUnread: true,
-      icon: 'CHEF'
+      isAlert: true,
+      icon: 'TIMER'
     },
     {
       id: 'wn-2',
-      titleRu: 'Просрочка доставки · № 412',
-      subRu: 'Room service превысил норматив на +6 мин',
-      time: '08:56',
+      category: 'ROOM',
+      period: 'TODAY',
+      titleRu: 'Новая доставка в № 208',
+      titleEn: 'New room delivery № 208',
+      subRu: 'Срок до 13:10 · 12:58',
+      subEn: 'Due 13:10 · 12:58',
       isUnread: true,
-      icon: 'ALERT'
+      isAlert: false,
+      icon: 'ROOM'
     },
     {
       id: 'wn-3',
-      titleRu: 'Стоп-лист обновлен',
-      subRu: 'Утиная ножка конфи снята с меню шефом',
-      time: '08:20',
+      category: 'BREAKFAST',
+      period: 'TODAY',
+      titleRu: 'Аллергия у гостя № 304',
+      titleEn: 'Guest allergy № 304',
+      subRu: 'Орехи · стол 12',
+      subEn: 'Nuts · table 12',
       isUnread: true,
-      icon: 'STOP'
+      isAlert: false,
+      icon: 'WARNING'
     },
     {
       id: 'wn-4',
-      titleRu: 'Новый заказ в номер · № 208',
-      subRu: 'Паста карбонара, минеральная вода',
-      time: '08:05',
+      category: 'BREAKFAST',
+      period: 'TODAY',
+      titleRu: '6 завтраков в номер на завтра',
+      titleEn: '6 room breakfasts for tomorrow',
+      subRu: 'Приём заявок закрыт в 23:00',
+      subEn: 'Orders closed at 23:00',
       isUnread: false,
-      icon: 'ROOM'
+      isAlert: false,
+      icon: 'COFFEE'
+    },
+    {
+      id: 'wn-5',
+      category: 'SHIFT',
+      period: 'TODAY',
+      titleRu: 'Банкет в 19:00 · 30 человек',
+      titleEn: 'Banquet at 19:00 · 30 guests',
+      subRu: 'Малый зал · столы 15–18',
+      subEn: 'Small hall · tables 15–18',
+      isUnread: false,
+      isAlert: false,
+      icon: 'USERS'
+    },
+    {
+      id: 'wn-6',
+      category: 'ROOM',
+      period: 'YESTERDAY',
+      titleRu: 'Подносы с 3 этажа собраны',
+      titleEn: 'Trays collected from 3rd floor',
+      subRu: 'Передано хаускипингу · 12:40',
+      subEn: 'Transferred to housekeeping · 12:40',
+      isUnread: false,
+      isAlert: false,
+      icon: 'CHECK'
+    },
+    {
+      id: 'wn-7',
+      category: 'SHIFT',
+      period: 'YESTERDAY',
+      titleRu: 'Смена завершена',
+      titleEn: 'Shift completed',
+      subRu: '6 столов, 4 доставки · 17:05',
+      subEn: '6 tables, 4 deliveries · 17:05',
+      isUnread: false,
+      isAlert: false,
+      icon: 'CLOCK'
     }
   ]);
+
+  const unreadNotifsCount = waiterNotifications.filter(n => n.isUnread).length;
+
+  const markAllNotifsRead = () => {
+    setWaiterNotifications(prev => prev.map(n => ({ ...n, isUnread: false })));
+  };
 
   // Clean active overlays when navigation tab changes
   useEffect(() => {
     setShowChats(false);
+    setShowNotifications(false);
+    setShowSettings(false);
     setActiveChatContactId(null);
   }, [activeTab]);
 
@@ -736,7 +589,7 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* -------------------- TAB 5: ПРОФИЛЬ (WAITER_PROFILE) -------------------- */}
+      {/* -------------------- TAB 3: ПРОФИЛЬ (WAITER_PROFILE) -------------------- */}
       {/* ========================================================================= */}
       {activeTab === 'WAITER_PROFILE' && (
         <div className="flex-1 flex flex-col min-h-0 bg-[#FAF7F3]">
@@ -768,9 +621,11 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
                   className="h-10 w-10 bg-white rounded-2xl border border-[#E5E2DD] flex items-center justify-center text-[#241E1A] hover:bg-slate-50 transition-colors shadow-2xs relative cursor-pointer"
                 >
                   <Bell className="h-4.5 w-4.5 text-[#241E1A]" />
-                  <span className="absolute -top-1 -right-1 bg-[#C2410C] text-white text-[9px] font-sans font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-xs">
-                    4
-                  </span>
+                  {unreadNotifsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#C2410C] text-white text-[9px] font-sans font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-xs">
+                      {unreadNotifsCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* Settings button */}
@@ -889,8 +744,8 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
               </div>
             </div>
 
-            {/* Section 2: РАБОТА */}
-            <div className="space-y-2 pt-1">
+            {/* Section 2: РАБОТА (Cleaned: No Contacts, No Orders button, No Logout) */}
+            <div className="space-y-2 pt-1 pb-6">
               <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
                 {lang === 'RU' ? 'РАБОТА' : 'WORK'}
               </span>
@@ -904,19 +759,6 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
                     <Coffee className="h-4 w-4 text-[#8A8177]" />
                     <span className="text-xs font-sans font-normal text-[#241E1A]">
                       {lang === 'RU' ? 'Отчёт по смене' : 'Shift Report'}
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-[#8A8177]" />
-                </div>
-
-                <div
-                  onClick={() => setShowOrdersHistoryModal(true)}
-                  className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Receipt className="h-4 w-4 text-[#8A8177]" />
-                    <span className="text-xs font-sans font-normal text-[#241E1A]">
-                      {lang === 'RU' ? 'Мои заказы за смену' : 'My Shift Orders'}
                     </span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-[#8A8177]" />
@@ -950,102 +792,529 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
               </div>
             </div>
 
-            {/* Section 3: КОНТАКТЫ */}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* -------------------- 09 · ЧАТЫ (FULL SCREEN / MODAL) ------------------- */}
+      {/* ========================================================================= */}
+      {showChats && (
+        <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col min-h-0 font-sans animate-in slide-in-from-right duration-200">
+          {!activeChatContactId ? (
+            <div className="flex-1 flex flex-col min-h-0 p-4.5 space-y-3.5 overflow-y-auto no-scrollbar">
+              {/* Head with Back button */}
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowChats(false)}
+                  className="h-9 w-9 -ml-2 rounded-full flex items-center justify-center text-[#241E1A] hover:bg-slate-200/60 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="h-6 w-6 text-[#241E1A]" />
+                </button>
+                <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
+                  {lang === 'RU' ? 'Чаты' : 'Chats'}
+                </h1>
+              </div>
+
+              {/* Search */}
+              <div className="bg-white rounded-2xl border border-[#E5E2DD] px-3.5 py-2.5 flex items-center gap-2.5 shadow-2xs">
+                <Search className="h-4 w-4 text-[#8A8177] shrink-0" />
+                <input
+                  type="text"
+                  placeholder={lang === 'RU' ? 'Поиск по имени' : 'Search by name'}
+                  value={chatSearchQuery}
+                  onChange={(e) => setChatSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-xs text-[#241E1A] placeholder-[#8A8177] focus:outline-none font-sans font-normal"
+                />
+              </div>
+
+              {/* Dialogs Card */}
+              <div className="bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
+                {waiterChatContacts
+                  .filter(c => c.nameRu.toLowerCase().includes(chatSearchQuery.toLowerCase()))
+                  .map((contact) => (
+                    <div
+                      key={contact.id}
+                      onClick={() => setActiveChatContactId(contact.id)}
+                      className="p-3.5 flex items-start gap-3 hover:bg-slate-50/70 transition-colors cursor-pointer"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-[#E5E0D8] text-[#8A8177] text-xs font-sans font-medium flex items-center justify-center shrink-0 mt-0.5">
+                        {contact.initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-sans font-medium text-[#241E1A] truncate">
+                            {lang === 'RU' ? contact.nameRu : contact.nameEn}
+                          </span>
+                          {contact.isPinned && (
+                            <Pin className="h-3 w-3 text-[#8A8177] rotate-45 shrink-0" />
+                          )}
+                          <span className="text-[10px] font-sans text-[#8A8177] truncate">
+                            {lang === 'RU' ? contact.tagRu : contact.tagEn}
+                          </span>
+                          <span className="text-[10px] font-sans text-[#8A8177] ml-auto shrink-0">
+                            {contact.time}
+                          </span>
+                        </div>
+                        <p className="text-xs font-sans font-normal text-[#8A8177] mt-0.5 truncate">
+                          {lang === 'RU' ? contact.lastMsgRu : contact.lastMsgEn}
+                        </p>
+                      </div>
+                      {contact.unreadCount > 0 && (
+                        <span className="bg-[#C2410C] text-white text-[10px] font-bold rounded-full h-4 min-w-4 px-1 flex items-center justify-center shrink-0 mt-0.5">
+                          {contact.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ) : (
+            /* Active Conversation Screen */
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="p-4 bg-white border-b border-[#E5E2DD] flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveChatContactId(null)}
+                  className="h-8 w-8 -ml-1 rounded-full flex items-center justify-center text-[#241E1A] hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="h-5 w-5 text-[#241E1A]" />
+                </button>
+                <div>
+                  <h3 className="text-sm font-sans font-medium text-[#241E1A]">
+                    {waiterChatContacts.find(c => c.id === activeChatContactId)?.nameRu}
+                  </h3>
+                  <p className="text-[10px] font-sans text-[#8A8177]">
+                    {waiterChatContacts.find(c => c.id === activeChatContactId)?.tagRu} · онлайн
+                  </p>
+                </div>
+              </div>
+
+              {/* Chat messages */}
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
+                {(waiterChatMessages[activeChatContactId] || []).map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex flex-col ${msg.sender === 'SENDER' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs font-sans ${
+                        msg.sender === 'SENDER'
+                          ? 'bg-[#C2410C] text-white rounded-br-xs'
+                          : 'bg-white border border-[#E5E2DD] text-[#241E1A] rounded-bl-xs shadow-2xs'
+                      }`}
+                    >
+                      <p className="leading-relaxed">{msg.text}</p>
+                    </div>
+                    <span className="text-[9px] text-[#8A8177] mt-1 px-1">{msg.time}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Typing box */}
+              <div className="p-3 bg-white border-t border-[#E5E2DD] flex items-center gap-2 shrink-0">
+                <input
+                  type="text"
+                  placeholder="Написать сообщение..."
+                  value={typedMessage}
+                  onChange={(e) => setTypedMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && typedMessage.trim()) {
+                      setWaiterChatMessages(prev => ({
+                        ...prev,
+                        [activeChatContactId]: [
+                          ...(prev[activeChatContactId] || []),
+                          { sender: 'SENDER', text: typedMessage.trim(), time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }
+                        ]
+                      }));
+                      setTypedMessage('');
+                    }
+                  }}
+                  className="flex-1 bg-[#FAF7F3] border border-[#E5E2DD] rounded-full px-4 py-2 text-xs text-[#241E1A] placeholder-[#8A8177] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!typedMessage.trim()) return;
+                    setWaiterChatMessages(prev => ({
+                      ...prev,
+                      [activeChatContactId]: [
+                        ...(prev[activeChatContactId] || []),
+                        { sender: 'SENDER', text: typedMessage.trim(), time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }
+                      ]
+                    }));
+                    setTypedMessage('');
+                  }}
+                  className="h-9 w-9 rounded-full bg-[#C2410C] text-white flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ----------------- 10 · УВЕДОМЛЕНИЯ (FULL SCREEN / MODAL) ---------------- */}
+      {/* ========================================================================= */}
+      {showNotifications && (
+        <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col min-h-0 font-sans animate-in slide-in-from-right duration-200">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4.5 space-y-4">
+            {/* Head with Back button */}
+            <div className="pt-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNotifications(false)}
+                  className="h-9 w-9 -ml-2 rounded-full flex items-center justify-center text-[#241E1A] hover:bg-slate-200/60 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="h-6 w-6 text-[#241E1A]" />
+                </button>
+                <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
+                  {lang === 'RU' ? 'Уведомления' : 'Notifications'}
+                </h1>
+              </div>
+              <div className="text-xs font-sans text-[#8A8177] pt-1 pl-7 flex items-center gap-1.5">
+                <span><b>{unreadNotifsCount}</b> новых</span>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={markAllNotifsRead}
+                  className="text-[#C2410C] hover:underline font-medium cursor-pointer"
+                >
+                  {lang === 'RU' ? 'отметить все прочитанными' : 'mark all as read'}
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Chips */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setNotifFilter('ALL')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
+                  notifFilter === 'ALL'
+                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
+                }`}
+              >
+                {lang === 'RU' ? 'Все' : 'All'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNotifFilter('ROOM')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
+                  notifFilter === 'ROOM'
+                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
+                }`}
+              >
+                {lang === 'RU' ? 'В номер' : 'Room Service'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNotifFilter('BREAKFAST')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
+                  notifFilter === 'BREAKFAST'
+                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
+                }`}
+              >
+                {lang === 'RU' ? 'Завтраки' : 'Breakfasts'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNotifFilter('SHIFT')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
+                  notifFilter === 'SHIFT'
+                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
+                }`}
+              >
+                {lang === 'RU' ? 'Смена' : 'Shift'}
+              </button>
+            </div>
+
+            {/* Section 1: СЕГОДНЯ */}
             <div className="space-y-2 pt-1">
               <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
-                {lang === 'RU' ? 'КОНТАКТЫ' : 'CONTACTS'}
+                {lang === 'RU' ? 'СЕГОДНЯ' : 'TODAY'}
               </span>
 
-              <div className="bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
-                {/* Kitchen */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-[#E5E0D8] text-[#8A8177] text-xs font-sans font-medium flex items-center justify-center shrink-0">
-                      КХ
+              <div className="space-y-2">
+                {waiterNotifications
+                  .filter(n => n.period === 'TODAY' && (notifFilter === 'ALL' || n.category === notifFilter))
+                  .map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => setWaiterNotifications(prev => prev.map(item => item.id === notif.id ? { ...item, isUnread: false } : item))}
+                      className={`bg-white rounded-[14px] border border-[#E5E2DD] p-3.5 flex items-start gap-3 shadow-2xs cursor-pointer hover:bg-slate-50/70 transition-colors ${
+                        notif.isAlert ? 'border-l-2 border-l-[#B3261E]' : ''
+                      }`}
+                    >
+                      {notif.icon === 'TIMER' && <Clock className="h-4.5 w-4.5 text-[#B3261E] shrink-0 mt-0.5" />}
+                      {notif.icon === 'ROOM' && <ConciergeBell className="h-4.5 w-4.5 text-[#8A8177] shrink-0 mt-0.5" />}
+                      {notif.icon === 'WARNING' && <AlertTriangle className="h-4.5 w-4.5 text-[#8A8177] shrink-0 mt-0.5" />}
+                      {notif.icon === 'COFFEE' && <Coffee className="h-4.5 w-4.5 text-[#8A8177] shrink-0 mt-0.5" />}
+                      {notif.icon === 'USERS' && <Users className="h-4.5 w-4.5 text-[#8A8177] shrink-0 mt-0.5" />}
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`text-xs font-sans font-medium ${notif.isUnread ? 'text-[#241E1A]' : 'text-[#8A8177]'}`}>{lang === 'RU' ? notif.titleRu : notif.titleEn}</h4>
+                        <p className="text-[10px] font-sans text-[#8A8177] mt-0.5">{lang === 'RU' ? notif.subRu : notif.subEn}</p>
+                      </div>
+
+                      {notif.isUnread && (
+                        <span className="h-2 w-2 rounded-full bg-[#C2410C] shrink-0 mt-1" />
+                      )}
                     </div>
-                    <div>
-                      <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                        {lang === 'RU' ? 'Кухня · раздача' : 'Kitchen · Pass'}
-                      </h4>
-                      <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                        доб. 210
-                      </p>
+                  ))}
+              </div>
+            </div>
+
+            {/* Section 2: ВЧЕРА */}
+            <div className="space-y-2 pt-2 pb-6">
+              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
+                {lang === 'RU' ? 'ВЧЕРА' : 'YESTERDAY'}
+              </span>
+
+              <div className="space-y-2">
+                {waiterNotifications
+                  .filter(n => n.period === 'YESTERDAY' && (notifFilter === 'ALL' || n.category === notifFilter))
+                  .map((notif) => (
+                    <div
+                      key={notif.id}
+                      className="bg-white rounded-[14px] border border-[#E5E2DD] p-3.5 flex items-start gap-3 shadow-2xs"
+                    >
+                      {notif.icon === 'CHECK' && <CheckCircle2 className="h-4.5 w-4.5 text-[#8A8177] shrink-0 mt-0.5" />}
+                      {notif.icon === 'CLOCK' && <Clock className="h-4.5 w-4.5 text-[#8A8177] shrink-0 mt-0.5" />}
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-sans font-medium text-[#8A8177]">{lang === 'RU' ? notif.titleRu : notif.titleEn}</h4>
+                        <p className="text-[10px] font-sans text-[#8A8177] mt-0.5">{lang === 'RU' ? notif.subRu : notif.subEn}</p>
+                      </div>
                     </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* -------------------- 11 · НАСТРОЙКИ (FULL SCREEN / MODAL) ---------------- */}
+      {/* ========================================================================= */}
+      {showSettings && (
+        <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col min-h-0 font-sans animate-in slide-in-from-right duration-200">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4.5 space-y-4">
+            {/* Head with Back button */}
+            <div className="pt-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(false)}
+                  className="h-9 w-9 -ml-2 rounded-full flex items-center justify-center text-[#241E1A] hover:bg-slate-200/60 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="h-6 w-6 text-[#241E1A]" />
+                </button>
+                <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
+                  {lang === 'RU' ? 'Настройки' : 'Settings'}
+                </h1>
+              </div>
+              <p className="text-xs font-sans text-[#8A8177] pt-1 pl-7">
+                {lang === 'RU' ? 'Приложение и учётная запись' : 'App & Account settings'}
+              </p>
+            </div>
+
+            {/* Section 1: ПРИЛОЖЕНИЕ */}
+            <div className="space-y-2 pt-1">
+              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
+                {lang === 'RU' ? 'ПРИЛОЖЕНИЕ' : 'APPLICATION'}
+              </span>
+
+              <div className="bg-white rounded-[14px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden text-xs">
+                {/* Language switch */}
+                <div className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <div className="font-sans text-xs font-medium text-[#241E1A]">{lang === 'RU' ? 'Язык интерфейса' : 'Interface Language'}</div>
+                    <div className="text-[10px] text-[#8A8177] mt-0.5">{lang === 'RU' ? 'Русский' : 'English'}</div>
                   </div>
-                  <a
-                    href="tel:210"
-                    className="h-8 w-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-[#8A8177] hover:text-[#241E1A] transition-colors cursor-pointer"
-                  >
-                    <Phone className="h-4 w-4 text-[#8A8177]" />
-                  </a>
+                  <div className="flex bg-[#EFECE6] p-0.5 rounded-full border border-[#E5E2DD] text-xs">
+                    <button
+                      type="button"
+                      onClick={() => onLanguageChange('RU')}
+                      className={`px-3 py-1 rounded-full transition-all cursor-pointer font-medium ${
+                        lang === 'RU' ? 'bg-[#241E1A] text-white shadow-xs' : 'text-[#8A8177]' 
+                      }`}
+                    >
+                      RU
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onLanguageChange('EN')}
+                      className={`px-3 py-1 rounded-full transition-all cursor-pointer font-medium ${
+                        lang === 'EN' ? 'bg-[#241E1A] text-white shadow-xs' : 'text-[#8A8177]' 
+                      }`}
+                    >
+                      EN
+                    </button>
+                  </div>
                 </div>
 
-                {/* Zhanna Abaeva */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-[#E5E0D8] text-[#8A8177] text-xs font-sans font-medium flex items-center justify-center shrink-0">
-                      ЖА
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                        {lang === 'RU' ? 'Жанна Абаева' : 'Zhanna Abaeva'}
-                      </h4>
-                      <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                        {lang === 'RU' ? 'Менеджер ресторана' : 'Restaurant Manager'}
-                      </p>
-                    </div>
+                {/* Offline Mode */}
+                <div className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <div className="font-sans text-xs font-medium text-[#241E1A]">{lang === 'RU' ? 'Офлайн-режим' : 'Offline Mode'}</div>
+                    <div className="text-[10px] text-[#8A8177] mt-0.5">{lang === 'RU' ? 'данные синхронизируются при сети' : 'data synced when online'}</div>
                   </div>
-                  <a
-                    href="tel:+79997001122"
-                    className="h-8 w-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-[#8A8177] hover:text-[#241E1A] transition-colors cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={onToggleOffline}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                      offlineMode ? 'bg-[#5B8C6E]' : 'bg-[#E5E2DD]'
+                    }`}
                   >
-                    <Phone className="h-4 w-4 text-[#8A8177]" />
-                  </a>
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                        offlineMode ? 'left-5.5' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
                 </div>
 
-                {/* Reception */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-[#E5E0D8] text-[#8A8177] text-xs font-sans font-medium flex items-center justify-center shrink-0">
-                      РС
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                        {lang === 'RU' ? 'Ресепшн' : 'Reception'}
-                      </h4>
-                      <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                        {lang === 'RU' ? 'Диспетчер · доб. 100' : 'Front desk · Ext. 100'}
-                      </p>
-                    </div>
+                {/* Push notifications */}
+                <div className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <div className="font-sans text-xs font-medium text-[#241E1A]">{lang === 'RU' ? 'Push-уведомления' : 'Push Notifications'}</div>
+                    <div className="text-[10px] text-[#8A8177] mt-0.5">{lang === 'RU' ? 'новые задачи и сообщения' : 'new tasks & messages'}</div>
                   </div>
-                  <a
-                    href="tel:100"
-                    className="h-8 w-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-[#8A8177] hover:text-[#241E1A] transition-colors cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => setPushNotifications(!pushNotifications)}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                      pushNotifications ? 'bg-[#5B8C6E]' : 'bg-[#E5E2DD]'
+                    }`}
                   >
-                    <Phone className="h-4 w-4 text-[#8A8177]" />
-                  </a>
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                        pushNotifications ? 'left-5.5' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Sound on new task */}
+                <div className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <div className="font-sans text-xs font-medium text-[#241E1A]">{lang === 'RU' ? 'Звук при новой задаче' : 'Sound on New Task'}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSoundOnNewTask(!soundOnNewTask)}
+                    className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                      soundOnNewTask ? 'bg-[#5B8C6E]' : 'bg-[#E5E2DD]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                        soundOnNewTask ? 'left-5.5' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Logout button */}
-            <div className="pt-1 pb-6">
+            {/* Section 2: СИНХРОНИЗАЦИЯ */}
+            <div className="space-y-2 pt-1">
+              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
+                {lang === 'RU' ? 'СИНХРОНИЗАЦИЯ' : 'SYNC'}
+              </span>
+
+              <div className="bg-white rounded-[14px] border border-[#E5E2DD] shadow-2xs overflow-hidden text-xs">
+                <div
+                  onClick={() => {
+                    setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }));
+                    alert(lang === 'RU' ? 'Данные успешно синхронизированы!' : 'Data synced!');
+                  }}
+                  className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="h-4 w-4 text-[#8A8177]" />
+                    <div>
+                      <div className="font-sans text-xs font-medium text-[#241E1A]">{lang === 'RU' ? 'Обновить данные' : 'Refresh Data'}</div>
+                      <div className="text-[10px] text-[#8A8177] mt-0.5">{lang === 'RU' ? `последняя синхронизация ${lastSyncTime}` : `last sync ${lastSyncTime}`}</div>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-[#8A8177]" />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: УЧЁТНАЯ ЗАПИСЬ */}
+            <div className="space-y-2 pt-1">
+              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
+                {lang === 'RU' ? 'УЧЁТНАЯ ЗАПИСЬ' : 'ACCOUNT'}
+              </span>
+
+              <div className="bg-white rounded-[14px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden text-xs">
+                <div
+                  onClick={() => setShowPersonalDataModal(true)}
+                  className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <User className="h-4 w-4 text-[#8A8177]" />
+                    <span className="font-medium text-[#241E1A]">{lang === 'RU' ? 'Личные данные' : 'Personal Data'}</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-[#8A8177]" />
+                </div>
+
+                <div
+                  onClick={() => setShowChangePasswordModal(true)}
+                  className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Lock className="h-4 w-4 text-[#8A8177]" />
+                    <span className="font-medium text-[#241E1A]">{lang === 'RU' ? 'Сменить пароль' : 'Change Password'}</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-[#8A8177]" />
+                </div>
+
+                <div
+                  onClick={() => setShowSupportModal(true)}
+                  className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Headphones className="h-4 w-4 text-[#8A8177]" />
+                    <span className="font-medium text-[#241E1A]">{lang === 'RU' ? 'Служба поддержки' : 'Support Desk'}</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-[#8A8177]" />
+                </div>
+              </div>
+            </div>
+
+            {/* Logout button (Moved into Settings card) */}
+            <div className="pt-1">
               <div
                 onClick={onLogout}
-                className="bg-white rounded-[20px] border border-[#E5E2DD] p-4 shadow-2xs cursor-pointer hover:bg-slate-50/70 transition-colors flex items-center gap-3"
+                className="bg-white rounded-[14px] border border-[#E5E2DD] p-3.5 shadow-2xs cursor-pointer hover:bg-slate-50/70 transition-colors flex items-center gap-3 text-xs"
               >
                 <LogOut className="h-4 w-4 text-[#8A8177] shrink-0" />
-                <span className="text-xs font-sans font-medium text-[#8A8177] hover:text-[#241E1A]">
+                <span className="font-medium text-[#8A8177] hover:text-[#241E1A]">
                   {lang === 'RU' ? 'Выйти из аккаунта' : 'Log out'}
                 </span>
               </div>
             </div>
 
+            <div className="py-2 text-center text-[11px] font-sans text-[#8A8177]">
+              Sollviera PMS v2.4 · Rixos Borovoe
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modals for Shift Report, Orders History, Schedule, Banquets, Personal Data, Password, Support, Seat Guests */}
+      {/* Modals for Shift Report, Schedule, Banquets, Personal Data, Password, Support */}
       {showShiftReportModal && (
         <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-sm p-4.5 space-y-4 border border-[#E5E2DD] shadow-2xl">
@@ -1055,36 +1324,9 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
             </div>
             <div className="bg-white rounded-[20px] border border-[#E5E2DD] p-4 space-y-2 text-xs">
               <div className="flex justify-between"><span className="text-[#8A8177]">Смена</span><span className="font-medium">SH-4092 (Зал А)</span></div>
-              <div className="flex justify-between"><span className="text-[#8A8177]">Обслужено столов</span><span className="font-medium">6 столов (12 заказов)</span></div>
+              <div className="flex justify-between"><span className="text-[#8A8177]">Обслужено гостей</span><span className="font-medium">96 гостей (12 заказов)</span></div>
               <div className="flex justify-between"><span className="text-[#8A8177]">Среднее время подачи</span><span className="font-medium">14 мин</span></div>
               <div className="flex justify-between"><span className="text-[#8A8177]">Сумма чеков за смену</span><span className="font-medium text-[#5B8C6E]">128 400 ₸</span></div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showOrdersHistoryModal && (
-        <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-sm p-4.5 space-y-4 border border-[#E5E2DD] shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between pb-1">
-              <h3 className="font-serif font-medium text-lg text-[#241E1A]">Мои заказы за смену</h3>
-              <button type="button" onClick={() => setShowOrdersHistoryModal(false)} className="h-7 w-7 rounded-full bg-white border border-[#E5E2DD] text-xs cursor-pointer">✕</button>
-            </div>
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-2">
-              <div className="bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
-                <div className="p-3.5 space-y-1">
-                  <div className="flex justify-between text-xs font-medium"><span>Стол 12 (№ 304)</span><span>8 400 ₸</span></div>
-                  <p className="text-[10px] text-[#8A8177]">Стейк рибай, паста карбонара, вино · 18:44</p>
-                </div>
-                <div className="p-3.5 space-y-1">
-                  <div className="flex justify-between text-xs font-medium"><span>Стол 7 (№ 208)</span><span>14 200 ₸</span></div>
-                  <p className="text-[10px] text-[#8A8177]">Лосось гриль, салат, напитки · 17:30</p>
-                </div>
-                <div className="p-3.5 space-y-1">
-                  <div className="flex justify-between text-xs font-medium"><span>Доставка № 412</span><span>5 400 ₸</span></div>
-                  <p className="text-[10px] text-[#8A8177]">Клубный сэндвич, чай, виски · 12:56</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -1120,68 +1362,6 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
               <div className="p-3.5 flex justify-between"><span className="font-medium text-[#241E1A]">27 авг (Сегодня)</span><span className="text-[#5B8C6E]">08:00 – 20:00 (Зал А)</span></div>
               <div className="p-3.5 flex justify-between"><span className="font-medium text-[#241E1A]">28 авг (Завтра)</span><span>08:00 – 20:00 (Зал B)</span></div>
               <div className="p-3.5 flex justify-between"><span className="font-medium text-[#241E1A]">29 авг</span><span className="text-[#8A8177]">Выходной</span></div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showSeatGuestsModal && (
-        <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-sm p-4.5 space-y-4 border border-[#E5E2DD] shadow-2xl">
-            <div className="flex items-center justify-between pb-1">
-              <h3 className="font-serif font-medium text-lg text-[#241E1A]">Посадить гостей</h3>
-              <button type="button" onClick={() => setShowSeatGuestsModal(false)} className="h-7 w-7 rounded-full bg-white border border-[#E5E2DD] text-xs cursor-pointer">✕</button>
-            </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[#8A8177] mb-1">Номер стола</label>
-                <input type="text" defaultValue="Стол 2 (4 места)" className="w-full bg-white border border-[#E5E2DD] rounded-xl p-3 text-[#241E1A]" />
-              </div>
-              <div>
-                <label className="block text-[#8A8177] mb-1">Номер комнаты или Фамилия гостя</label>
-                <input type="text" placeholder="№ 304 или Ким" className="w-full bg-white border border-[#E5E2DD] rounded-xl p-3 text-[#241E1A]" />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  alert(lang === 'RU' ? 'Гости успешно посажены за Стол 2!' : 'Guests seated at Table 2!');
-                  setShowSeatGuestsModal(false);
-                }}
-                className="w-full bg-[#C2410C] text-white font-medium py-3.5 rounded-xl shadow-xs cursor-pointer text-center mt-2"
-              >
-                Подтвердить посадку
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showNewDeliveryModal && (
-        <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-sm p-4.5 space-y-4 border border-[#E5E2DD] shadow-2xl">
-            <div className="flex items-center justify-between pb-1">
-              <h3 className="font-serif font-medium text-lg text-[#241E1A]">Принять заказ в номер</h3>
-              <button type="button" onClick={() => setShowNewDeliveryModal(false)} className="h-7 w-7 rounded-full bg-white border border-[#E5E2DD] text-xs cursor-pointer">✕</button>
-            </div>
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[#8A8177] mb-1">Номер комнаты</label>
-                <input type="text" placeholder="№ 205" className="w-full bg-white border border-[#E5E2DD] rounded-xl p-3 text-[#241E1A]" />
-              </div>
-              <div>
-                <label className="block text-[#8A8177] mb-1">Состав заказа</label>
-                <input type="text" placeholder="Сэндвич, кофе, десерт" className="w-full bg-white border border-[#E5E2DD] rounded-xl p-3 text-[#241E1A]" />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  alert(lang === 'RU' ? 'Заказ в номер принят и отправлен на кухню!' : 'Room service order accepted!');
-                  setShowNewDeliveryModal(false);
-                }}
-                className="w-full bg-[#C2410C] text-white font-medium py-3.5 rounded-xl shadow-xs cursor-pointer text-center mt-2"
-              >
-                Принять заказ
-              </button>
             </div>
           </div>
         </div>
