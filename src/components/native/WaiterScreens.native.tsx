@@ -4,13 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   Alert
 } from 'react-native';
 import {
   Coffee, UtensilsCrossed, Clock, Check, ChevronRight, ChevronLeft,
-  Search, Plus, Minus, MessageSquare, Bell, Settings, BookOpen, User, LogOut, Sparkles, CheckCircle2
+  Search, Plus, Minus, MessageSquare, Bell, Settings, User, LogOut, CheckCircle2
 } from 'lucide-react-native';
 import { Language } from '../../types';
 import { COLORS, FONTS } from '../../theme/tokens';
@@ -18,7 +17,7 @@ import { COLORS, FONTS } from '../../theme/tokens';
 interface WaiterScreensNativeProps {
   lang: Language;
   onLogout: () => void;
-  activeTab: 'WAITER_TODAY' | 'WAITER_HALL' | 'WAITER_ROOM' | 'WAITER_MENU' | 'WAITER_PROFILE';
+  activeTab: 'WAITER_TODAY' | 'WAITER_HALL' | 'WAITER_PROFILE';
   onOpenChat?: () => void;
   onOpenNotifications?: () => void;
   onOpenSettings?: () => void;
@@ -32,26 +31,10 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
   onOpenNotifications,
   onOpenSettings
 }) => {
-  const [menuSearchQuery, setMenuSearchQuery] = useState('');
-  const [menuFilter, setMenuFilter] = useState('ALL');
-  const [menuItems, setMenuItems] = useState([
-    { id: '1', category: 'BREAKFAST', name: 'Овсяная каша с лесными ягодами', price: '2 800 ₸', inStock: true },
-    { id: '2', category: 'BREAKFAST', name: 'Яйца Бенедикт с лососем и голландским соусом', price: '4 500 ₸', inStock: true },
-    { id: '3', category: 'BREAKFAST', name: 'Круассан классический с маслом', price: '1 600 ₸', inStock: false },
-    { id: '4', category: 'DRINKS', name: 'Американо / Капучино на выбор', price: '1 800 ₸', inStock: true },
-    { id: '5', category: 'MAIN', name: 'Стейк Рибай с перечным соусом', price: '14 500 ₸', inStock: true },
-    { id: '6', category: 'MAIN', name: 'Суп Том Ям с креветками', price: '5 200 ₸', inStock: true }
-  ]);
-
   const [hallTables, setHallTables] = useState([
     { id: 'tbl-1', number: 'Стол 4', guests: 2, status: 'ORDERED', time: '12 мин', total: '18 200 ₸', dishes: ['2x Стейк Рибай', '2x Капучино'] },
     { id: 'tbl-2', number: 'Стол 7', guests: 4, status: 'BILL', time: '45 мин', total: '34 500 ₸', dishes: ['4x Бенедикт', '4x Апельсиновый фреш'] },
     { id: 'tbl-3', number: 'Стол 12', guests: 1, status: 'FREE', time: '-', total: '0 ₸', dishes: [] }
-  ]);
-
-  const [roomDeliveries, setRoomDeliveries] = useState([
-    { id: 'rd-1', room: '304', guest: 'Азамат Сергазин', time: '09:15', items: 'Завтрак Deluxe + Кофе', status: 'COOKING' },
-    { id: 'rd-2', room: '410', guest: 'Екатерина Романова', time: '09:30', items: 'Фруктовая тарелка + Вода', status: 'READY_TO_DELIVER' }
   ]);
 
   return (
@@ -62,8 +45,6 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
             <Text style={styles.screenTitle}>
               {activeTab === 'WAITER_TODAY' ? (lang === 'RU' ? 'Питание гостей' : 'Daily Meal Plan')
                 : activeTab === 'WAITER_HALL' ? (lang === 'RU' ? 'Зал ресторана' : 'Dining Hall')
-                : activeTab === 'WAITER_ROOM' ? (lang === 'RU' ? 'В номер' : 'Room Service')
-                : activeTab === 'WAITER_MENU' ? (lang === 'RU' ? 'Меню и стоп-лист' : 'Menu & Stop-List')
                 : (lang === 'RU' ? 'Профиль официанта' : 'Waiter Profile')}
             </Text>
             <Text style={styles.screenSubtitle}>Алихан Рахметов · Смена SH-4092</Text>
@@ -107,19 +88,23 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
             </View>
 
             <View style={styles.sectionBlock}>
-              <Text style={styles.sectionHeader}>БЛИЖАЙШИЕ ДОСТАВКИ В НОМЕР</Text>
+              <Text style={styles.sectionHeader}>РАСПИСАНИЕ РАЦИОНОВ</Text>
               <View style={[styles.card, { padding: 0 }]}>
-                {roomDeliveries.map((rd, idx) => (
-                  <View key={rd.id} style={[styles.listItem, idx > 0 && styles.itemBorderTop]}>
+                {[
+                  { time: '07:00 – 10:30', title: 'Завтрак (Шведский стол)', count: '96 из 142 пришли' },
+                  { time: '12:30 – 15:00', title: 'Обед (A la carte & сет)', count: '54 ожидается' },
+                  { time: '18:30 – 22:00', title: 'Ужин (Основной зал)', count: '88 ожидается' }
+                ].map((meal, idx) => (
+                  <View key={idx} style={[styles.listItem, idx > 0 && styles.itemBorderTop]}>
                     <View style={styles.roomBubble}>
-                      <Text style={styles.roomBubbleText}>№ {rd.room}</Text>
+                      <Clock size={16} color={COLORS.dark} />
                     </View>
                     <View style={styles.flexOne}>
                       <View style={styles.rowBetween}>
-                        <Text style={styles.itemTitle}>{rd.guest}</Text>
-                        <Text style={styles.itemSubText}>{rd.time}</Text>
+                        <Text style={styles.itemTitle}>{meal.title}</Text>
+                        <Text style={styles.itemSubText}>{meal.time}</Text>
                       </View>
-                      <Text style={styles.itemSubtitle}>{rd.items}</Text>
+                      <Text style={styles.itemSubtitle}>{meal.count}</Text>
                     </View>
                   </View>
                 ))}
@@ -155,72 +140,7 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
           </View>
         )}
 
-        {/* 3. ROOM SERVICE */}
-        {activeTab === 'WAITER_ROOM' && (
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionHeader}>ЗАКАЗЫ В НОМЕР</Text>
-            <View style={[styles.card, { padding: 0 }]}>
-              {roomDeliveries.map((rd, idx) => (
-                <View key={rd.id} style={[styles.listItem, idx > 0 && styles.itemBorderTop]}>
-                  <View style={styles.roomBubble}>
-                    <Text style={styles.roomBubbleText}>№ {rd.room}</Text>
-                  </View>
-                  <View style={styles.flexOne}>
-                    <View style={styles.rowBetween}>
-                      <Text style={styles.itemTitle}>Номер {rd.room} · {rd.guest}</Text>
-                      <Text style={styles.itemSubText}>{rd.time}</Text>
-                    </View>
-                    <Text style={styles.itemSubtitle}>{rd.items}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => Alert.alert('Доставка', 'Заказ отмечен как доставленный')}
-                    style={styles.actionBtnIcon}
-                  >
-                    <CheckCircle2 size={20} color={COLORS.success} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* 4. MENU & STOP LIST */}
-        {activeTab === 'WAITER_MENU' && (
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionHeader}>МЕНЮ РЕСТОРАНА И СТОП-ЛИСТ</Text>
-            <View style={styles.searchBox}>
-              <Search size={16} color={COLORS.textSecondary} />
-              <TextInput
-                placeholder="Поиск блюда по меню..."
-                placeholderTextColor={COLORS.textSecondary}
-                value={menuSearchQuery}
-                onChangeText={setMenuSearchQuery}
-                style={styles.searchInput}
-              />
-            </View>
-
-            <View style={[styles.card, { padding: 0, marginTop: 10 }]}>
-              {menuItems.map((item, idx) => (
-                <View key={item.id} style={[styles.listItem, idx > 0 && styles.itemBorderTop]}>
-                  <View style={styles.flexOne}>
-                    <Text style={styles.itemTitle}>{item.name}</Text>
-                    <Text style={styles.itemSubtitle}>{item.price}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setMenuItems(p => p.map(x => x.id === item.id ? { ...x, inStock: !x.inStock } : x))}
-                    style={[styles.badgePill, item.inStock ? styles.badgeGreen : styles.badgeRed]}
-                  >
-                    <Text style={[styles.badgePillText, item.inStock ? styles.badgeGreenText : styles.badgeRedText]}>
-                      {item.inStock ? 'В наличии' : 'Стоп-лист'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* 5. PROFILE */}
+        {/* 3. PROFILE */}
         {activeTab === 'WAITER_PROFILE' && (
           <View style={styles.sectionBlock}>
             <View style={styles.card}>
@@ -288,8 +208,5 @@ const styles = StyleSheet.create({
   badgeRedText: { color: COLORS.errorText },
   badgeGray: { backgroundColor: '#F1ECE5' },
   badgeGrayText: { color: COLORS.textSecondary },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.backgroundCard, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
-  searchInput: { flex: 1, fontFamily: FONTS.jost400, fontSize: 12, color: COLORS.dark, padding: 0 },
-  actionBtnIcon: { padding: 4 },
   divider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: 12 }
 });

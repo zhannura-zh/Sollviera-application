@@ -194,14 +194,12 @@ export default function App() {
         </View>
       )}
 
-      {/* Waiter Bottom Tab Bar (5 Tabs) */}
+      {/* Waiter Bottom Tab Bar (3 Tabs) */}
       {currentRole === 'WAITER' && (
         <View style={styles.bottomTabBar}>
           {[
             { key: 'WAITER_TODAY', label: 'Сегодня', icon: Coffee },
             { key: 'WAITER_HALL', label: 'Зал', icon: UtensilsCrossed },
-            { key: 'WAITER_ROOM', label: 'В номер', icon: Sparkles },
-            { key: 'WAITER_MENU', label: 'Меню', icon: BookOpen },
             { key: 'WAITER_PROFILE', label: 'Профиль', icon: User }
           ].map(tab => {
             const Icon = tab.icon;

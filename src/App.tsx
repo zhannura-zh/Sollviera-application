@@ -47,8 +47,6 @@ export default function App() {
     | 'TECH_PROFILE'
     | 'WAITER_TODAY'
     | 'WAITER_HALL'
-    | 'WAITER_ROOM_SERVICE'
-    | 'WAITER_MENU'
     | 'WAITER_PROFILE'
   >('DASHBOARD');
 
@@ -440,8 +438,6 @@ export default function App() {
         );
       case 'WAITER_TODAY':
       case 'WAITER_HALL':
-      case 'WAITER_ROOM_SERVICE':
-      case 'WAITER_MENU':
       case 'WAITER_PROFILE':
         return (
           <WaiterScreens
@@ -610,70 +606,44 @@ export default function App() {
 
     if (cleanerProfile.role === 'WAITER') {
       return (
-        <div className="grid grid-cols-5 gap-0.5 text-center">
+        <div className="grid grid-cols-3 gap-1 text-center">
           {/* Tab 1: Сегодня (WAITER_TODAY) */}
           <button
             onClick={() => handleTabChange('WAITER_TODAY')}
-            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+            className={`py-2 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'WAITER_TODAY'
                 ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
                 : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
             }`}
           >
             <Calendar className="h-4 w-4 shrink-0" />
-            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Сегодня' : 'Today'}</span>
+            <span className="text-[9px] font-bold truncate block w-full">{lang === 'RU' ? 'Сегодня' : 'Today'}</span>
           </button>
 
           {/* Tab 2: Зал (WAITER_HALL) */}
           <button
             onClick={() => handleTabChange('WAITER_HALL')}
-            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+            className={`py-2 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'WAITER_HALL'
                 ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
                 : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
             }`}
           >
             <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Зал' : 'Hall'}</span>
+            <span className="text-[9px] font-bold truncate block w-full">{lang === 'RU' ? 'Зал' : 'Hall'}</span>
           </button>
 
-          {/* Tab 3: В номер (WAITER_ROOM_SERVICE) */}
-          <button
-            onClick={() => handleTabChange('WAITER_ROOM_SERVICE')}
-            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'WAITER_ROOM_SERVICE'
-                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
-                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
-            }`}
-          >
-            <ConciergeBell className="h-4 w-4 shrink-0" />
-            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'В номер' : 'Room Service'}</span>
-          </button>
-
-          {/* Tab 4: Меню (WAITER_MENU) */}
-          <button
-            onClick={() => handleTabChange('WAITER_MENU')}
-            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-              activeTab === 'WAITER_MENU'
-                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
-                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
-            }`}
-          >
-            <BookOpen className="h-4 w-4 shrink-0" />
-            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Меню' : 'Menu'}</span>
-          </button>
-
-          {/* Tab 5: Профиль (WAITER_PROFILE) */}
+          {/* Tab 3: Профиль (WAITER_PROFILE) */}
           <button
             onClick={() => handleTabChange('WAITER_PROFILE')}
-            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+            className={`py-2 px-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'WAITER_PROFILE'
                 ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
                 : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
             }`}
           >
             <User className="h-4 w-4 shrink-0" />
-            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Профиль' : 'Profile'}</span>
+            <span className="text-[9px] font-bold truncate block w-full">{lang === 'RU' ? 'Профиль' : 'Profile'}</span>
           </button>
         </div>
       );
