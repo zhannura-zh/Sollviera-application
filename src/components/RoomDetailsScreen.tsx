@@ -801,7 +801,7 @@ export const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({
                     <label className="flex items-center justify-between cursor-pointer select-none">
                       <span className="text-[10px] font-sans font-medium text-[#241E1A] flex items-center gap-1.5">
                         <AlertTriangle className={`h-3.5 w-3.5 ${isGuestDamage ? 'text-[#B3261E]' : 'text-[#8A8177]'}`} />
-                        {lang === 'RU' ? 'Поломка по вине гостя (ущерб)' : 'Guest-caused damage'}
+                        {lang === 'RU' ? 'Ущерб' : 'Damage'}
                       </span>
                       <input
                         type="checkbox"

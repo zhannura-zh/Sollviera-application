@@ -140,60 +140,37 @@ export const TechnicianScreensNative: React.FC<TechnicianScreensNativeProps> = (
             {filtered.map((t, idx) => {
               const isDone = t.status === 'COMPLETED';
               return (
-                <View
+                <TouchableOpacity
                   key={t.id}
-                  style={[styles.listItemWrapper, idx > 0 && styles.itemBorderTop]}
+                  onPress={() => setSelectedTicket(t)}
+                  style={[styles.listItem, idx > 0 && styles.itemBorderTop]}
                 >
-                  <TouchableOpacity
-                    onPress={() => setSelectedTicket(t)}
-                    style={styles.listItem}
-                  >
-                    <View style={[styles.roomBubble, isDone && { backgroundColor: COLORS.successLight }]}>
-                      <Text style={[styles.roomBubbleText, isDone && { color: COLORS.successText }]}>№ {t.roomNumber}</Text>
-                    </View>
-                    <View style={styles.flexOne}>
-                      <View style={styles.rowBetween}>
-                        <Text style={styles.itemTitle}>{t.title}</Text>
+                  <View style={[styles.roomBubble, isDone && { backgroundColor: COLORS.successLight }]}>
+                    <Text style={[styles.roomBubbleText, isDone && { color: COLORS.successText }]}>№ {t.roomNumber}</Text>
+                  </View>
+                  <View style={styles.flexOne}>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.itemTitle}>{t.title}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {t.isGuestDamage && (
+                          <View style={styles.guestDamageBadge}>
+                            <Text style={styles.guestDamageBadgeText}>
+                              {lang === 'RU' ? 'Поломка гостем' : 'Guest damage'}
+                            </Text>
+                          </View>
+                        )}
                         <View style={[styles.badgePill, t.priority === 'URGENT' ? styles.badgeRed : styles.badgeAmber]}>
                           <Text style={[styles.badgePillText, t.priority === 'URGENT' ? styles.badgeRedText : styles.badgeAmberText]}>
                             {t.priority === 'URGENT' ? 'Срочно' : 'Обычный'}
                           </Text>
                         </View>
                       </View>
-                      
-                      <Text style={styles.itemSubtitle}>{t.category} · {t.reportedTime || '08:50'}</Text>
-                      
-                      {t.isGuestDamage && (
-                        <View style={styles.damageBadgeRow}>
-                          <View style={styles.guestDamageBadge}>
-                            <AlertTriangle size={11} color="#C2410C" />
-                            <Text style={styles.guestDamageBadgeText}>
-                              {lang === 'RU' ? `Поломка гостем${t.guestDamageType ? ` · ${t.guestDamageType}` : ''}` : `Guest damage${t.guestDamageType ? ` · ${t.guestDamageType}` : ''}`}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
                     </View>
-                    <ChevronRight size={16} color={COLORS.textSecondary} />
-                  </TouchableOpacity>
-
-                  {/* Guest Damage Action Button */}
-                  {t.isGuestDamage && (
-                    <View style={styles.damageActionContainer}>
-                      <TouchableOpacity
-                        onPress={() => handleOpenDamageModal(t)}
-                        style={styles.calcCostButton}
-                      >
-                        <Receipt size={14} color="#C2410C" />
-                        <Text style={styles.calcCostButtonText}>
-                          {t.costCalculated && t.repairCost !== undefined
-                            ? (lang === 'RU' ? `Сумма ремонта: ${t.repairCost.toLocaleString('ru-RU')} ₸ (изменить)` : `Cost: ${t.repairCost.toLocaleString('en-US')} ₸ (edit)`)
-                            : (lang === 'RU' ? 'Рассчитать сумму ремонта' : 'Calculate repair cost')}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
+                    
+                    <Text style={styles.itemSubtitle}>{t.category} · {t.reportedTime || '08:50'}</Text>
+                  </View>
+                  <ChevronRight size={16} color={COLORS.textSecondary} />
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -233,17 +210,20 @@ export const TechnicianScreensNative: React.FC<TechnicianScreensNativeProps> = (
               {selectedTicket.isGuestDamage && (
                 <View style={styles.damageSectionBox}>
                   <View style={styles.rowBetween}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <AlertTriangle size={14} color="#C2410C" />
-                      <Text style={styles.damageSectionTitle}>
-                        {lang === 'RU' ? 'Ущерб по вине гостя' : 'Guest Damage'}
-                      </Text>
-                    </View>
+                    <Text style={styles.damageSectionTitle}>
+                      {lang === 'RU' ? 'УЩЕРБ' : 'DAMAGE'}
+                    </Text>
                     {selectedTicket.costCalculated && selectedTicket.repairCost !== undefined && (
                       <Text style={styles.damageCostPill}>
                         {selectedTicket.repairCost.toLocaleString('ru-RU')} ₸
                       </Text>
                     )}
+                  </View>
+
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={{ fontFamily: FONTS.jost500, fontSize: 13, color: '#C2410C' }}>
+                      {selectedTicket.guestDamageType || (lang === 'RU' ? 'Поломка по вине гостя' : 'Guest damage')}
+                    </Text>
                   </View>
 
                   {selectedTicket.repairComment ? (
@@ -467,7 +447,7 @@ const styles = StyleSheet.create({
   calcCostButtonWide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FAF0EB', borderColor: '#F3CDB8', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginTop: 8 },
   calcCostButtonText: { fontFamily: FONTS.jost500, fontSize: 11, color: '#C2410C' },
   damageSectionBox: { marginTop: 12, backgroundColor: '#FFF8F5', borderColor: '#FED7AA', borderWidth: 1, borderRadius: 14, padding: 12 },
-  damageSectionTitle: { fontFamily: FONTS.jost500, fontSize: 12, color: '#C2410C' },
+  damageSectionTitle: { fontFamily: FONTS.jost500, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', color: '#241E1A' },
   damageCostPill: { fontFamily: FONTS.jost600, fontSize: 12, color: '#C2410C', backgroundColor: '#FAF0EB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#F3CDB8' },
   damageCommentText: { fontFamily: FONTS.jost400, fontSize: 12, color: COLORS.dark, marginTop: 6, lineHeight: 16 },
   flexOne: { flex: 1 },

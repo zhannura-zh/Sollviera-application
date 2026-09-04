@@ -1066,7 +1066,7 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                             )}
                             {room.isGuestDamage && (
                               <span className="bg-[#FFF4ED] text-[#C2410C] border border-[#FED7AA] px-2 py-0.5 rounded text-[9px] font-sans font-medium tracking-wide uppercase leading-none">
-                                {lang === 'RU' ? `ПОЛОМКА ГОСТЕМ${room.guestDamageType ? ` · ${room.guestDamageType}` : ''}` : `GUEST DAMAGE${room.guestDamageType ? ` · ${room.guestDamageType}` : ''}`}
+                                {lang === 'RU' ? 'ПОЛОМКА ГОСТЕМ' : 'GUEST DAMAGE'}
                               </span>
                             )}
                           </div>
@@ -1075,27 +1075,6 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                               ? `${room.typeRu} · ${room.floorRu} · ${room.categoryRu}`
                               : `${room.typeEn} · ${room.floorEn} · ${room.categoryEn}`}
                           </p>
-
-                          {/* Guest damage action button */}
-                          {room.isGuestDamage && (
-                            <div className="mt-2 flex items-center gap-2 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenDamageCostModal(room);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAF0EB] hover:bg-[#F5E2D6] text-[#C2410C] border border-[#F3CDB8] text-xs font-sans font-medium transition-colors cursor-pointer shadow-2xs"
-                              >
-                                <Receipt className="h-3.5 w-3.5 text-[#C2410C]" />
-                                <span>
-                                  {room.costCalculated && room.repairCost !== undefined
-                                    ? (lang === 'RU' ? `Сумма: ${room.repairCost.toLocaleString('ru-RU')} ₸ (изменить)` : `Cost: ${room.repairCost.toLocaleString('en-US')} ₸ (edit)`)
-                                    : (lang === 'RU' ? 'Рассчитать сумму ремонта' : 'Calculate repair cost')}
-                                </span>
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -3122,11 +3101,11 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
               </div>
             </div>
 
-            {/* Section: ПОЛОМКА ПО ВИНЕ ГОСТЯ / РАСЧЁТ СУММЫ */}
+            {/* Section: УЩЕРБ / РАСЧЁТ СУММЫ */}
             {selectedTechRoom.isGuestDamage && (
               <div className="space-y-2">
-                <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#C2410C] uppercase block">
-                  {lang === 'RU' ? 'УЩЕРБ / ПОЛОМКА ПО ВИНЕ ГОСТЯ' : 'GUEST DAMAGE / REPAIR COST'}
+                <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#241E1A] uppercase block">
+                  {lang === 'RU' ? 'УЩЕРБ' : 'DAMAGE'}
                 </span>
 
                 <div className="bg-[#FFF8F5] rounded-[20px] border border-[#FED7AA] p-4 shadow-2xs space-y-3">
@@ -3711,8 +3690,8 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
       )}
       {/* -------------------- MODAL: GUEST DAMAGE REPAIR COST -------------------- */}
       {showDamageCostModal && damageModalTarget && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-md p-5 space-y-4 border border-[#E5E2DD] shadow-2xl max-h-[90vh] flex flex-col font-sans">
+        <div className="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-sm p-4.5 space-y-4 border border-[#E5E2DD] shadow-2xl max-h-[85vh] flex flex-col font-sans">
             <div className="flex items-center justify-between pb-2 border-b border-[#E5E2DD]/60 shrink-0">
               <div>
                 <h3 className="font-serif font-medium text-lg text-[#241E1A]">
@@ -3736,7 +3715,7 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
               </button>
             </div>
 
-            <div className="space-y-3.5 flex-1 overflow-y-auto no-scrollbar">
+            <div className="space-y-3 flex-1 overflow-y-auto no-scrollbar">
               <div className="bg-[#FFF8F5] border border-[#FED7AA] rounded-xl p-3 text-xs text-[#C2410C] flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#C2410C]" />
                 <span className="leading-relaxed">
