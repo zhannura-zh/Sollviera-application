@@ -4,7 +4,7 @@ import {
   Bell, MessageSquare, PlusCircle, ArrowLeft, Camera, Check, CheckCircle2, 
   History, User, HelpCircle, Activity, FileText, ChevronRight, ChevronLeft, ChevronDown, Search, 
   Building, Clock, AlertTriangle, Hammer, ShieldCheck, LogOut, Plus, Minus, Info, Share2, RotateCcw,
-  Phone, Calendar, BarChart2, Lock, Headphones, Pin, AlertCircle, Package, Send
+  Phone, Calendar, BarChart2, Lock, Headphones, Pin, AlertCircle, Package, Send, Receipt
 } from 'lucide-react';
 import { Language, CleanerProfile, HotelRoom, MaintenanceRequest, MaintenanceCategory, MaintenancePriority, MaintenanceStatus } from '../types';
 import { SollvieraLogo } from './SollvieraLogo';
@@ -240,8 +240,93 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
   const [techSearchQuery, setTechSearchQuery] = useState<string>('');
   const [selectedTechRoom, setSelectedTechRoom] = useState<any | null>(null);
 
+  // Guest damage cost calculation modal states
+  const [showDamageCostModal, setShowDamageCostModal] = useState<boolean>(false);
+  const [damageModalTarget, setDamageModalTarget] = useState<any | null>(null);
+  const [damageRepairComment, setDamageRepairComment] = useState<string>('');
+  const [damageRepairCost, setDamageRepairCost] = useState<string>('');
+
+  const handleOpenDamageCostModal = (target: any) => {
+    setDamageModalTarget(target);
+    setDamageRepairComment(target.repairComment || '');
+    setDamageRepairCost(target.repairCost ? String(target.repairCost) : '');
+    setShowDamageCostModal(true);
+  };
+
+  const handleSaveDamageCost = () => {
+    if (!damageModalTarget) return;
+    const costNum = parseInt(damageRepairCost, 10) || 0;
+    const commentText = damageRepairComment.trim();
+
+    // 1. Update issueRoomsList
+    setIssueRoomsList(prev => prev.map(item => {
+      if (item.id === damageModalTarget.id || item.roomNumber === damageModalTarget.roomNumber) {
+        return {
+          ...item,
+          repairCost: costNum,
+          repairComment: commentText,
+          costCalculated: true
+        };
+      }
+      return item;
+    }));
+
+    // 2. Update selectedTechRoom if open
+    if (selectedTechRoom && (selectedTechRoom.id === damageModalTarget.id || selectedTechRoom.roomNumber === damageModalTarget.roomNumber)) {
+      setSelectedTechRoom((prev: any) => ({
+        ...prev,
+        repairCost: costNum,
+        repairComment: commentText,
+        costCalculated: true
+      }));
+    }
+
+    // 3. Update maintenanceRequests in parent
+    if (onUpdateMaintenanceRequests) {
+      onUpdateMaintenanceRequests(
+        maintenanceRequests.map(req => {
+          if (req.id === damageModalTarget.id || req.roomNumber === damageModalTarget.roomNumber) {
+            return {
+              ...req,
+              repairCost: costNum,
+              repairComment: commentText,
+              costCalculated: true
+            };
+          }
+          return req;
+        })
+      );
+    }
+
+    setShowDamageCostModal(false);
+    setDamageModalTarget(null);
+  };
+
   // Issues rooms list matching reference & sync with rooms state
   const [issueRoomsList, setIssueRoomsList] = useState([
+    {
+      id: 'room-304',
+      roomNumber: '304',
+      titleRu: '№ 304',
+      titleEn: '№ 304',
+      typeRu: 'Deluxe Suite',
+      typeEn: 'Deluxe Suite',
+      floorRu: '3 этаж',
+      floorEn: 'Floor 3',
+      categoryRu: 'приборы',
+      categoryEn: 'appliances',
+      isBlocked: false,
+      requestsCount: 1,
+      dotColor: 'bg-[#C2410C]',
+      priority: 'HIGH',
+      description: 'Сломан фен в ванной: оплавлен корпус, оторван шнур гостем.',
+      descriptionEn: 'Hair dryer broken: melted casing, cord torn by guest.',
+      isGuestDamage: true,
+      guestDamageType: 'Сломан фен',
+      repairCost: undefined,
+      repairComment: undefined,
+      costCalculated: false
+    },
     {
       id: 'room-315',
       roomNumber: '315',
@@ -258,7 +343,8 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
       dotColor: 'bg-[#B3261E]',
       priority: 'HIGH',
       description: 'Протечка смесителя в ванной комнате, перекрыт стояк подачи воды.',
-      descriptionEn: 'Bathroom mixer faucet leakage, water supply valve closed.'
+      descriptionEn: 'Bathroom mixer faucet leakage, water supply valve closed.',
+      isGuestDamage: false
     },
     {
       id: 'room-208',
@@ -269,14 +355,19 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
       typeEn: 'Standard Twin',
       floorRu: '2 этаж',
       floorEn: 'Floor 2',
-      categoryRu: 'электрика',
-      categoryEn: 'electrical',
+      categoryRu: 'мебель',
+      categoryEn: 'furniture',
       isBlocked: false,
       requestsCount: 1,
       dotColor: 'bg-[#D97706]',
       priority: 'MEDIUM',
-      description: 'Не работает настенный бра и розетка у прикроватной тумбы.',
-      descriptionEn: 'Wall sconce light and bedside power outlet not working.'
+      description: 'Сломана спинка стула и повреждена тумба гостем.',
+      descriptionEn: 'Chair backrest broken and bedside nightstand damaged by guest.',
+      isGuestDamage: true,
+      guestDamageType: 'Сломана мебель',
+      repairCost: undefined,
+      repairComment: undefined,
+      costCalculated: false
     },
     {
       id: 'zone-lobby',
@@ -294,7 +385,8 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
       dotColor: 'bg-[#D97706]',
       priority: 'MEDIUM',
       description: 'Мерцает потолочный светильник над зоной ресепшн.',
-      descriptionEn: 'Flickering ceiling light above reception counter.'
+      descriptionEn: 'Flickering ceiling light above reception counter.',
+      isGuestDamage: false
     }
   ]);
 
@@ -528,6 +620,43 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
     setShowChats(false);
     setActiveChatContactId(null);
   }, [activeTab]);
+
+  // Sync maintenanceRequests from cleaner / supervisor into issueRoomsList
+  useEffect(() => {
+    if (maintenanceRequests && maintenanceRequests.length > 0) {
+      setIssueRoomsList(prev => {
+        const existingRoomNumbers = new Set(prev.map(r => r.roomNumber));
+        const newFromRequests = maintenanceRequests
+          .filter(req => req.status !== 'RESOLVED' && !existingRoomNumbers.has(req.roomNumber))
+          .map(req => ({
+            id: req.id,
+            roomNumber: req.roomNumber,
+            titleRu: `№ ${req.roomNumber}`,
+            titleEn: `№ ${req.roomNumber}`,
+            typeRu: 'Номер отеля',
+            typeEn: 'Hotel Room',
+            floorRu: `${req.roomNumber[0] || '1'} этаж`,
+            floorEn: `Floor ${req.roomNumber[0] || '1'}`,
+            categoryRu: req.category === 'APPLIANCES' ? 'приборы' : req.category === 'FURNITURE' ? 'мебель' : req.category === 'PLUMBING' ? 'сантехника' : 'дефект',
+            categoryEn: req.category.toLowerCase(),
+            isBlocked: req.blocksCleaning,
+            requestsCount: 1,
+            dotColor: req.priority === 'CRITICAL' || req.priority === 'HIGH' ? 'bg-[#B3261E]' : 'bg-[#D97706]',
+            priority: req.priority,
+            description: req.descriptionRu || req.description,
+            descriptionEn: req.descriptionEn || req.description,
+            isGuestDamage: req.isGuestDamage,
+            guestDamageType: req.guestDamageType || (req.isGuestDamage ? 'Поломка гостем' : undefined),
+            repairCost: req.repairCost,
+            repairComment: req.repairComment,
+            costCalculated: req.costCalculated
+          }));
+        
+        if (newFromRequests.length === 0) return prev;
+        return [...newFromRequests, ...prev];
+      });
+    }
+  }, [maintenanceRequests]);
 
   // Timer simulation
   useEffect(() => {
@@ -926,7 +1055,7 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`h-2 w-2 rounded-full ${room.dotColor} shrink-0`} />
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="text-sm font-sans font-medium text-[#241E1A]">
                               {lang === 'RU' ? room.titleRu : room.titleEn}
                             </h4>
@@ -935,12 +1064,38 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                                 {lang === 'RU' ? 'ЗАБЛОКИРОВАН' : 'BLOCKED'}
                               </span>
                             )}
+                            {room.isGuestDamage && (
+                              <span className="bg-[#FFF4ED] text-[#C2410C] border border-[#FED7AA] px-2 py-0.5 rounded text-[9px] font-sans font-medium tracking-wide uppercase leading-none">
+                                {lang === 'RU' ? `ПОЛОМКА ГОСТЕМ${room.guestDamageType ? ` · ${room.guestDamageType}` : ''}` : `GUEST DAMAGE${room.guestDamageType ? ` · ${room.guestDamageType}` : ''}`}
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs font-sans font-normal text-[#8A8177] pt-0.5 truncate">
                             {lang === 'RU' 
                               ? `${room.typeRu} · ${room.floorRu} · ${room.categoryRu}`
                               : `${room.typeEn} · ${room.floorEn} · ${room.categoryEn}`}
                           </p>
+
+                          {/* Guest damage action button */}
+                          {room.isGuestDamage && (
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDamageCostModal(room);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FAF0EB] hover:bg-[#F5E2D6] text-[#C2410C] border border-[#F3CDB8] text-xs font-sans font-medium transition-colors cursor-pointer shadow-2xs"
+                              >
+                                <Receipt className="h-3.5 w-3.5 text-[#C2410C]" />
+                                <span>
+                                  {room.costCalculated && room.repairCost !== undefined
+                                    ? (lang === 'RU' ? `Сумма: ${room.repairCost.toLocaleString('ru-RU')} ₸ (изменить)` : `Cost: ${room.repairCost.toLocaleString('en-US')} ₸ (edit)`)
+                                    : (lang === 'RU' ? 'Рассчитать сумму ремонта' : 'Calculate repair cost')}
+                                </span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -2967,6 +3122,51 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
               </div>
             </div>
 
+            {/* Section: ПОЛОМКА ПО ВИНЕ ГОСТЯ / РАСЧЁТ СУММЫ */}
+            {selectedTechRoom.isGuestDamage && (
+              <div className="space-y-2">
+                <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#C2410C] uppercase block">
+                  {lang === 'RU' ? 'УЩЕРБ / ПОЛОМКА ПО ВИНЕ ГОСТЯ' : 'GUEST DAMAGE / REPAIR COST'}
+                </span>
+
+                <div className="bg-[#FFF8F5] rounded-[20px] border border-[#FED7AA] p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-sans font-medium text-[#C2410C] flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-[#C2410C] shrink-0" />
+                      <span>{selectedTechRoom.guestDamageType || (lang === 'RU' ? 'Поломка гостем' : 'Guest damage')}</span>
+                    </span>
+                    {selectedTechRoom.costCalculated && selectedTechRoom.repairCost !== undefined && (
+                      <span className="text-xs font-sans font-bold text-[#C2410C] bg-[#FAF0EB] px-2.5 py-1 rounded-lg border border-[#F3CDB8]">
+                        {selectedTechRoom.repairCost.toLocaleString('ru-RU')} ₸
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedTechRoom.costCalculated && selectedTechRoom.repairComment ? (
+                    <div className="bg-white/80 rounded-xl p-3 border border-[#F3CDB8]/60 text-xs font-sans text-[#241E1A] space-y-1">
+                      <span className="text-[10px] font-medium text-[#8A8177] uppercase block">
+                        {lang === 'RU' ? 'Что и как отремонтировано:' : 'Repair details:'}
+                      </span>
+                      <p className="leading-relaxed">{selectedTechRoom.repairComment}</p>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDamageCostModal(selectedTechRoom)}
+                    className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white font-sans font-medium text-xs py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer text-center flex items-center justify-center gap-2"
+                  >
+                    <Receipt className="h-4 w-4 text-white" />
+                    <span>
+                      {selectedTechRoom.costCalculated
+                        ? (lang === 'RU' ? 'Изменить расчёт суммы ремонта' : 'Edit repair cost calculation')
+                        : (lang === 'RU' ? 'Рассчитать сумму ремонта' : 'Calculate repair cost')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Section: ОПИСАНИЕ */}
             <div className="space-y-2">
               <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block">
@@ -3505,6 +3705,100 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                   <span className="font-medium text-[#241E1A]">Sollviera PMS v2.4</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* -------------------- MODAL: GUEST DAMAGE REPAIR COST -------------------- */}
+      {showDamageCostModal && damageModalTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-[#FAF7F3] rounded-t-[24px] sm:rounded-[24px] w-full max-w-md p-5 space-y-4 border border-[#E5E2DD] shadow-2xl max-h-[90vh] flex flex-col font-sans">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E5E2DD]/60 shrink-0">
+              <div>
+                <h3 className="font-serif font-medium text-lg text-[#241E1A]">
+                  {lang === 'RU' ? 'Расчёт суммы ремонта' : 'Repair Cost Calculation'}
+                </h3>
+                <p className="text-xs font-sans text-[#8A8177] mt-0.5">
+                  {lang === 'RU' 
+                    ? `№ ${damageModalTarget.roomNumber || ''} · ${damageModalTarget.guestDamageType || 'Поломка по вине гостя'}`
+                    : `№ ${damageModalTarget.roomNumber || ''} · ${damageModalTarget.guestDamageType || 'Guest damage'}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDamageCostModal(false);
+                  setDamageModalTarget(null);
+                }}
+                className="h-8 w-8 rounded-full bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] flex items-center justify-center cursor-pointer text-xs transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 flex-1 overflow-y-auto no-scrollbar">
+              <div className="bg-[#FFF8F5] border border-[#FED7AA] rounded-xl p-3 text-xs text-[#C2410C] flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#C2410C]" />
+                <span className="leading-relaxed">
+                  {lang === 'RU'
+                    ? 'Укажите комментарий о проделанном ремонте и итоговую сумму ущерба для списания или включения в счёт гостя.'
+                    : 'Provide repair details and total damage cost to charge guest folio or record.'}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[#241E1A] mb-1.5">
+                  {lang === 'RU' ? 'Что и как было отремонтировано:' : 'What was repaired & how:'}
+                </label>
+                <textarea
+                  value={damageRepairComment}
+                  onChange={(e) => setDamageRepairComment(e.target.value)}
+                  rows={3}
+                  placeholder={lang === 'RU' ? 'Например: заменён нагревательный элемент фена, протестирован...' : 'e.g. replaced heating element, tested...'}
+                  className="w-full bg-white border border-[#E5E2DD] rounded-xl p-3 text-xs font-sans text-[#241E1A] placeholder-[#8A8177] focus:outline-none focus:border-[#C2410C] transition-colors resize-none shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[#241E1A] mb-1.5">
+                  {lang === 'RU' ? 'Сумма ремонта (₸):' : 'Repair Cost (₸):'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={damageRepairCost}
+                    onChange={(e) => setDamageRepairCost(e.target.value)}
+                    placeholder="0"
+                    className="w-full bg-white border border-[#E5E2DD] rounded-xl p-3 pr-10 text-xs font-sans text-[#241E1A] font-medium placeholder-[#8A8177] focus:outline-none focus:border-[#C2410C] transition-colors shadow-2xs"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-[#8A8177]">
+                    ₸
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2 border-t border-[#E5E2DD]/60 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDamageCostModal(false);
+                  setDamageModalTarget(null);
+                }}
+                className="flex-1 bg-white hover:bg-slate-50 border border-[#E5E2DD] text-[#241E1A] font-medium text-xs py-3 rounded-xl transition-colors cursor-pointer text-center shadow-2xs"
+              >
+                {lang === 'RU' ? 'Отмена' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDamageCost}
+                className="flex-1 bg-[#C2410C] hover:bg-[#A93A0C] text-white font-medium text-xs py-3 rounded-xl shadow-xs transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
+              >
+                <Check className="h-4 w-4" />
+                <span>{lang === 'RU' ? 'Сохранить расчёт' : 'Save Calculation'}</span>
+              </button>
             </div>
           </div>
         </div>

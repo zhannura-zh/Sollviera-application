@@ -421,7 +421,36 @@ export const mockMaintenanceRequests: MaintenanceRequest[] = [
     descriptionRu: 'Засор в душевой кабине. Вода протекает на плитку в ванной.',
     blocksCleaning: true,
     status: 'IN_PROGRESS',
-    timestamp: '14.08.2026, 17:40'
+    timestamp: '14.08.2026, 17:40',
+    isGuestDamage: false
+  },
+  {
+    id: 'm3',
+    roomNumber: '304',
+    category: 'APPLIANCES',
+    priority: 'HIGH',
+    description: 'Сломан фен в ванной комнате: оплавлен корпус, оторван шнур гостем.',
+    descriptionEn: 'Hair dryer broken in bathroom: melted casing, cord torn by guest.',
+    descriptionRu: 'Сломан фен в ванной комнате: оплавлен корпус, оторван шнур гостем.',
+    blocksCleaning: false,
+    status: 'CREATED',
+    timestamp: '27.08.2026, 10:15',
+    isGuestDamage: true,
+    guestDamageType: 'Сломан фен'
+  },
+  {
+    id: 'm4',
+    roomNumber: '208',
+    category: 'FURNITURE',
+    priority: 'MEDIUM',
+    description: 'Сломана спинка стула и повреждена тумба гостем.',
+    descriptionEn: 'Chair backrest broken and bedside nightstand damaged by guest.',
+    descriptionRu: 'Сломана спинка стула и повреждена тумба гостем.',
+    blocksCleaning: false,
+    status: 'CREATED',
+    timestamp: '27.08.2026, 09:40',
+    isGuestDamage: true,
+    guestDamageType: 'Сломана мебель'
   },
   {
     id: 'm2',
@@ -433,6 +462,7 @@ export const mockMaintenanceRequests: MaintenanceRequest[] = [
     descriptionRu: 'Мерцает лампочка в настольной лампе. Требуется замена.',
     blocksCleaning: false,
     status: 'RESOLVED',
-    timestamp: '12.08.2026, 11:20'
+    timestamp: '12.08.2026, 11:20',
+    isGuestDamage: false
   }
 ];

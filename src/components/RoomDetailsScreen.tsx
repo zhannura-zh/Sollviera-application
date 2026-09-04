@@ -44,6 +44,8 @@ export const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({
   const [maintenanceDesc, setMaintenanceDesc] = useState<string>('');
   const [maintenancePhoto, setMaintenancePhoto] = useState<string>('');
   const [maintenanceSuccess, setMaintenanceSuccess] = useState<boolean>(false);
+  const [isGuestDamage, setIsGuestDamage] = useState<boolean>(false);
+  const [guestDamageType, setGuestDamageType] = useState<string>('Сломан фен');
 
   // Expand / collapse states
   const [isSuppliesExpanded, setIsSuppliesExpanded] = useState<boolean>(false);
@@ -71,15 +73,18 @@ export const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({
     if (onSubmitMaintenance) {
       onSubmitMaintenance({
         roomNumber: room.roomNumber,
-        category: 'OTHER',
-        priority: 'MEDIUM',
-        description: maintenanceDesc.trim(),
+        category: isGuestDamage ? 'APPLIANCES' : 'OTHER',
+        priority: isGuestDamage ? 'HIGH' : 'MEDIUM',
+        description: isGuestDamage ? `[Поломка гостем: ${guestDamageType}] ${maintenanceDesc.trim()}` : maintenanceDesc.trim(),
         blocksCleaning: false,
-        photoUrl: maintenancePhoto || undefined
+        photoUrl: maintenancePhoto || undefined,
+        isGuestDamage: isGuestDamage,
+        guestDamageType: isGuestDamage ? guestDamageType : undefined
       });
     }
     setMaintenanceDesc('');
     setMaintenancePhoto('');
+    setIsGuestDamage(false);
     setMaintenanceSuccess(true);
     setTimeout(() => setMaintenanceSuccess(false), 3000);
   };
@@ -790,6 +795,46 @@ export const RoomDetailsScreen: React.FC<RoomDetailsScreenProps> = ({
                     onChange={(e) => setMaintenanceDesc(e.target.value)}
                     className="w-full bg-[#FAF7F3] border border-[#E5E2DD] rounded-xl p-2 text-xs text-[#241E1A] focus:outline-none focus:ring-1 focus:ring-[#C2410C] placeholder-[#8A8177] resize-none font-sans font-normal"
                   />
+
+                  {/* Guest Damage Selection */}
+                  <div className="bg-[#FAF7F3] rounded-xl p-2.5 border border-[#E5E2DD] space-y-2">
+                    <label className="flex items-center justify-between cursor-pointer select-none">
+                      <span className="text-[10px] font-sans font-medium text-[#241E1A] flex items-center gap-1.5">
+                        <AlertTriangle className={`h-3.5 w-3.5 ${isGuestDamage ? 'text-[#B3261E]' : 'text-[#8A8177]'}`} />
+                        {lang === 'RU' ? 'Поломка по вине гостя (ущерб)' : 'Guest-caused damage'}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={isGuestDamage}
+                        onChange={(e) => setIsGuestDamage(e.target.checked)}
+                        className="accent-[#C2410C] h-4 w-4 rounded cursor-pointer"
+                      />
+                    </label>
+
+                    {isGuestDamage && (
+                      <div className="space-y-1.5 pt-1 border-t border-[#E5E2DD]/60">
+                        <span className="text-[9px] font-sans text-[#8A8177] uppercase block">
+                          {lang === 'RU' ? 'Тип поломки:' : 'Breakage type:'}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['Сломан фен', 'Сломана мебель', 'Разбито стекло', 'Повреждён ТВ', 'Другое'].map(type => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setGuestDamageType(type)}
+                              className={`px-2 py-1 rounded-md text-[10px] font-sans transition-all cursor-pointer ${
+                                guestDamageType === type
+                                  ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                                  : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A]'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Photo fixation */}
                   <div className="flex items-center justify-between gap-3">

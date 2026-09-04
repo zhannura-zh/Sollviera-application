@@ -105,6 +105,11 @@ export interface MaintenanceRequest {
   blocksCleaning: boolean;
   status: MaintenanceStatus;
   timestamp: string;
+  isGuestDamage?: boolean;
+  guestDamageType?: string;
+  repairCost?: number;
+  repairComment?: string;
+  costCalculated?: boolean;
 }
 
 export interface SupplyItem {
