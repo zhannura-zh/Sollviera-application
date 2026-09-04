@@ -557,8 +557,104 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
               </div>
             </div>
 
+            {/* Important Today Section */}
+            <div className="space-y-2 pt-1 pb-6">
+              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
+                {lang === 'RU' ? 'ВАЖНОЕ СЕГОДНЯ' : 'IMPORTANT TODAY'}
+              </span>
+
+              <div className="space-y-2.5">
+                {/* Allergy warning card */}
+                <div className="bg-white rounded-[20px] border border-[#E5E2DD] border-l-4 border-l-[#B3261E] p-4 flex items-start gap-3 shadow-2xs">
+                  <AlertTriangle className="h-4 w-4 text-[#B3261E] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-sans font-medium text-[#241E1A]">
+                      {lang === 'RU' ? 'Аллергия · орехи' : 'Allergy · nuts'}
+                    </h4>
+                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
+                      {lang === 'RU' ? 'Ким А., № 304 · предупредить кухню' : 'Kim A., № 304 · notify kitchen'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Birthday card */}
+                <div className="bg-white rounded-[20px] border border-[#E5E2DD] p-4 flex items-start gap-3 shadow-2xs">
+                  <span className="text-sm shrink-0">🎉</span>
+                  <div>
+                    <h4 className="text-xs font-sans font-medium text-[#241E1A]">
+                      {lang === 'RU' ? 'День рождения гостя' : 'Guest Birthday'}
+                    </h4>
+                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
+                      {lang === 'RU' ? 'Абдиров К., № 412 · комплимент от отеля' : 'Abdirov K., № 412 · hotel compliment'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Banquet card */}
+                <div className="bg-white rounded-[20px] border border-[#E5E2DD] p-4 flex items-start gap-3 shadow-2xs">
+                  <Users className="h-4 w-4 text-[#8A8177] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-sans font-medium text-[#241E1A]">
+                      {lang === 'RU' ? 'Банкет в 19:00 · 30 человек' : 'Banquet at 19:00 · 30 guests'}
+                    </h4>
+                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
+                      {lang === 'RU' ? 'Малый зал · отдельное меню' : 'Small hall · separate menu'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* -------------------- TAB 2: ЗАЛ (WAITER_HALL) -------------------- */}
+      {/* ========================================================================= */}
+      {activeTab === 'WAITER_HALL' && (
+        <div className="flex-1 flex flex-col min-h-0 bg-[#FAF7F3]">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4.5 space-y-4">
+            
+            {/* Header */}
+            <div className="pt-2 pb-1">
+              <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
+                {lang === 'RU' ? 'Зал' : 'Dining Hall'}
+              </h1>
+              <p className="text-xs font-sans font-normal text-[#8A8177] pt-1">
+                <strong className="text-[#241E1A] font-medium">
+                  {mealAttendanceList.filter(g => g.checkedIn).length}
+                </strong> {lang === 'RU' ? `из ${mealAttendanceList.length} гостей пришли · ` : `of ${mealAttendanceList.length} guests checked in · `}
+                <span className="text-[#5B8C6E] font-medium">
+                  {lang === 'RU' ? 'завтрак' : 'breakfast'}
+                </span>
+              </p>
+            </div>
+
+            {/* Meal selector / filter chips */}
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                className="px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer bg-[#241E1A] text-white font-medium shadow-xs"
+              >
+                {lang === 'RU' ? 'Завтрак' : 'Breakfast'} <span className="opacity-70 ml-1">07:00–10:30</span>
+              </button>
+              <button
+                type="button"
+                className="px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal"
+              >
+                {lang === 'RU' ? 'Обед' : 'Lunch'} <span className="opacity-70 ml-1">12:30–15:00</span>
+              </button>
+              <button
+                type="button"
+                className="px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal"
+              >
+                {lang === 'RU' ? 'Ужин' : 'Dinner'} <span className="opacity-70 ml-1">18:30–22:00</span>
+              </button>
+            </div>
+
             {/* Attendance Check-in Section */}
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-1 pb-6">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
                   {lang === 'RU' ? 'ОТМЕТКА ПРИХОДА' : 'ATTENDANCE CHECK-IN'}
@@ -635,284 +731,6 @@ export const WaiterScreens: React.FC<WaiterScreensProps> = ({
               </div>
             </div>
 
-            {/* Important Today Section */}
-            <div className="space-y-2 pt-1 pb-6">
-              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
-                {lang === 'RU' ? 'ВАЖНОЕ СЕГОДНЯ' : 'IMPORTANT TODAY'}
-              </span>
-
-              <div className="space-y-2.5">
-                {/* Allergy warning card */}
-                <div className="bg-white rounded-[20px] border border-[#E5E2DD] border-l-4 border-l-[#B3261E] p-4 flex items-start gap-3 shadow-2xs">
-                  <AlertTriangle className="h-4 w-4 text-[#B3261E] shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                      {lang === 'RU' ? 'Аллергия · орехи' : 'Allergy · nuts'}
-                    </h4>
-                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                      {lang === 'RU' ? 'Ким А., № 304 · предупредить кухню' : 'Kim A., № 304 · notify kitchen'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Birthday card */}
-                <div className="bg-white rounded-[20px] border border-[#E5E2DD] p-4 flex items-start gap-3 shadow-2xs">
-                  <span className="text-sm shrink-0">🎉</span>
-                  <div>
-                    <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                      {lang === 'RU' ? 'День рождения гостя' : 'Guest Birthday'}
-                    </h4>
-                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                      {lang === 'RU' ? 'Абдиров К., № 412 · комплимент от отеля' : 'Abdirov K., № 412 · hotel compliment'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Banquet card */}
-                <div className="bg-white rounded-[20px] border border-[#E5E2DD] p-4 flex items-start gap-3 shadow-2xs">
-                  <Users className="h-4 w-4 text-[#8A8177] shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                      {lang === 'RU' ? 'Банкет в 19:00 · 30 человек' : 'Banquet at 19:00 · 30 guests'}
-                    </h4>
-                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                      {lang === 'RU' ? 'Малый зал · отдельное меню' : 'Small hall · separate menu'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* -------------------- TAB 2: ЗАЛ (WAITER_HALL) -------------------- */}
-      {/* ========================================================================= */}
-      {activeTab === 'WAITER_HALL' && (
-        <div className="flex-1 flex flex-col min-h-0 bg-[#FAF7F3]">
-          <div className="flex-1 overflow-y-auto no-scrollbar p-4.5 space-y-4">
-            
-            {/* Header */}
-            <div className="pt-2 pb-1">
-              <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
-                {lang === 'RU' ? 'Зал' : 'Dining Hall'}
-              </h1>
-              <p className="text-xs font-sans font-normal text-[#8A8177] pt-1">
-                <strong className="text-[#241E1A] font-medium">6</strong> {lang === 'RU' ? 'из 14 столов заняты · ' : 'of 14 tables occupied · '}
-                <span className="text-[#B3261E] font-medium">
-                  {lang === 'RU' ? '1 ждёт счёт 12 мин' : '1 awaiting bill 12 min'}
-                </span>
-              </p>
-            </div>
-
-            {/* Segment switch: My tables vs All */}
-            <div className="flex bg-[#EFECE6] p-0.5 rounded-full border border-[#E5E2DD] text-xs font-sans">
-              <button
-                type="button"
-                onClick={() => setHallFilterScope('MY')}
-                className={`flex-1 py-1.5 rounded-full transition-all cursor-pointer font-medium ${
-                  hallFilterScope === 'MY'
-                    ? 'bg-[#241E1A] text-white shadow-xs'
-                    : 'text-[#8A8177] hover:text-[#241E1A]'
-                }`}
-              >
-                {lang === 'RU' ? 'Мои столы' : 'My Tables'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setHallFilterScope('ALL')}
-                className={`flex-1 py-1.5 rounded-full transition-all cursor-pointer font-medium ${
-                  hallFilterScope === 'ALL'
-                    ? 'bg-[#241E1A] text-white shadow-xs'
-                    : 'text-[#8A8177] hover:text-[#241E1A]'
-                }`}
-              >
-                {lang === 'RU' ? 'Все' : 'All'}
-              </button>
-            </div>
-
-            {/* Filter Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-0.5">
-              <button
-                type="button"
-                onClick={() => setHallStatusFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
-                  hallStatusFilter === 'ALL'
-                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                }`}
-              >
-                {lang === 'RU' ? 'Все' : 'All'} <span className="opacity-60 ml-1">14</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setHallStatusFilter('BUSY')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
-                  hallStatusFilter === 'BUSY'
-                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                }`}
-              >
-                {lang === 'RU' ? 'Заняты' : 'Occupied'} <span className="opacity-60 ml-1">6</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setHallStatusFilter('BILL')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
-                  hallStatusFilter === 'BILL'
-                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                }`}
-              >
-                {lang === 'RU' ? 'Ждут счёт' : 'Waiting bill'} <span className="opacity-60 ml-1">1</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setHallStatusFilter('CLEAN')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-sans transition-all cursor-pointer ${
-                  hallStatusFilter === 'CLEAN'
-                    ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                    : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                }`}
-              >
-                {lang === 'RU' ? 'Убрать' : 'Clean'} <span className="opacity-60 ml-1">2</span>
-              </button>
-            </div>
-
-            {/* Section 1: ТРЕБУЮТ ВНИМАНИЯ */}
-            <div className="space-y-2 pt-1">
-              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
-                {lang === 'RU' ? 'ТРЕБУЮТ ВНИМАНИЯ' : 'NEEDS ATTENTION'}
-              </span>
-
-              <div className="bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
-                {tablesList
-                  .filter(t => t.category === 'ATTENTION')
-                  .map((table) => (
-                    <div
-                      key={table.id}
-                      onClick={() => setSelectedTable(table)}
-                      className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`h-2 w-2 rounded-full shrink-0 ${table.dotColor}`} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-sans font-medium text-[#241E1A]">
-                              {table.number}
-                            </span>
-                            <span className={`text-[10px] font-sans ${table.number.includes('7') ? 'text-[#B3261E] font-medium' : 'text-[#8A8177]'}`}>
-                              {lang === 'RU' ? table.statusRu : table.statusEn}
-                            </span>
-                          </div>
-                          <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5 truncate">
-                            {lang === 'RU' ? table.descRu : table.descEn}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-[#8A8177] shrink-0" />
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Section 2: ЗАНЯТЫ */}
-            <div className="space-y-2 pt-1">
-              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
-                {lang === 'RU' ? 'ЗАНЯТЫ' : 'OCCUPIED'}
-              </span>
-
-              <div className="bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
-                {tablesList
-                  .filter(t => t.category === 'BUSY')
-                  .map((table) => (
-                    <div
-                      key={table.id}
-                      onClick={() => setSelectedTable(table)}
-                      className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`h-2 w-2 rounded-full shrink-0 ${table.dotColor}`} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-sans font-medium text-[#241E1A]">
-                              {table.number}
-                            </span>
-                            {table.tag && (
-                              <span className="bg-[#FAF0EB] text-[#C2410C] text-[9px] font-sans font-medium px-1.5 py-0.5 rounded leading-none">
-                                {table.tag}
-                              </span>
-                            )}
-                            <span className="text-[10px] font-sans text-[#8A8177]">
-                              {lang === 'RU' ? table.statusRu : table.statusEn}
-                            </span>
-                          </div>
-                          <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5 truncate">
-                            {lang === 'RU' ? table.descRu : table.descEn}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-[#8A8177] shrink-0" />
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Section 3: СВОБОДНЫ И УБРАТЬ */}
-            <div className="space-y-2 pt-1 pb-4">
-              <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
-                {lang === 'RU' ? 'СВОБОДНЫ И УБРАТЬ' : 'FREE & TO CLEAN'}
-              </span>
-
-              <div className="bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
-                {tablesList
-                  .filter(t => t.category === 'CLEAN' || t.category === 'FREE')
-                  .map((table) => (
-                    <div
-                      key={table.id}
-                      onClick={() => setSelectedTable(table)}
-                      className="p-3.5 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`h-2 w-2 rounded-full shrink-0 ${table.dotColor}`} />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-sans font-medium text-[#241E1A]">
-                              {table.number}
-                            </span>
-                            <span className="text-[10px] font-sans text-[#8A8177]">
-                              {lang === 'RU' ? table.statusRu : table.statusEn}
-                            </span>
-                          </div>
-                          {table.descRu && (
-                            <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5 truncate">
-                              {lang === 'RU' ? table.descRu : table.descEn}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-[#8A8177] shrink-0" />
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Bottom CTA Button: Посадить гостей */}
-          <div className="p-4 bg-[#FAF7F3] border-t border-[#E5E2DD] shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowSeatGuestsModal(true)}
-              className="w-full bg-[#C2410C] hover:bg-[#A93A0C] active:scale-[0.99] text-white font-sans font-medium text-sm py-3.5 rounded-xl shadow-xs transition-all cursor-pointer text-center"
-            >
-              {lang === 'RU' ? 'Посадить гостей' : 'Seat Guests'}
-            </button>
           </div>
         </div>
       )}

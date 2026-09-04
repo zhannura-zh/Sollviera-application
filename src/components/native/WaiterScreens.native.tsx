@@ -31,10 +31,44 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
   onOpenNotifications,
   onOpenSettings
 }) => {
-  const [hallTables, setHallTables] = useState([
-    { id: 'tbl-1', number: 'Стол 4', guests: 2, status: 'ORDERED', time: '12 мин', total: '18 200 ₸', dishes: ['2x Стейк Рибай', '2x Капучино'] },
-    { id: 'tbl-2', number: 'Стол 7', guests: 4, status: 'BILL', time: '45 мин', total: '34 500 ₸', dishes: ['4x Бенедикт', '4x Апельсиновый фреш'] },
-    { id: 'tbl-3', number: 'Стол 12', guests: 1, status: 'FREE', time: '-', total: '0 ₸', dishes: [] }
+  const [guestSearchQuery, setGuestSearchQuery] = useState('');
+  const [mealAttendanceList, setMealAttendanceList] = useState([
+    {
+      id: 'att-1',
+      roomNumber: '№ 304',
+      guestName: 'Ким А. · Deluxe Suite',
+      packageType: 'HB',
+      guestsInfo: '2 взр · 1 реб',
+      checkedIn: false,
+      checkInTime: ''
+    },
+    {
+      id: 'att-2',
+      roomNumber: '№ 208',
+      guestName: 'Серикбаева Б. · Standard Twin',
+      packageType: 'BB',
+      guestsInfo: 'отмечены 08:12',
+      checkedIn: true,
+      checkInTime: '08:12'
+    },
+    {
+      id: 'att-3',
+      roomNumber: '№ 412',
+      guestName: 'Абдиров К. · Presidential Suite',
+      packageType: 'AI',
+      guestsInfo: '2 взр',
+      checkedIn: false,
+      checkInTime: ''
+    },
+    {
+      id: 'att-4',
+      roomNumber: '№ 105',
+      guestName: 'Дмитриев С. · Standard King',
+      packageType: 'FB',
+      guestsInfo: '3 взр',
+      checkedIn: false,
+      checkInTime: ''
+    }
   ]);
 
   return (
@@ -43,9 +77,9 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
         <View style={styles.topBar}>
           <View>
             <Text style={styles.screenTitle}>
-              {activeTab === 'WAITER_TODAY' ? (lang === 'RU' ? 'Питание гостей' : 'Daily Meal Plan')
-                : activeTab === 'WAITER_HALL' ? (lang === 'RU' ? 'Зал ресторана' : 'Dining Hall')
-                : (lang === 'RU' ? 'Профиль официанта' : 'Waiter Profile')}
+              {activeTab === 'WAITER_TODAY' ? (lang === 'RU' ? 'Сегодня' : 'Today')
+                : activeTab === 'WAITER_HALL' ? (lang === 'RU' ? 'Зал' : 'Dining Hall')
+                : (lang === 'RU' ? 'Профиль' : 'Profile')}
             </Text>
             <Text style={styles.screenSubtitle}>Алихан Рахметов · Смена SH-4092</Text>
           </View>
@@ -113,29 +147,73 @@ export const WaiterScreensNative: React.FC<WaiterScreensNativeProps> = ({
           </View>
         )}
 
-        {/* 2. HALL ORDERS */}
+        {/* 2. HALL ATTENDANCE CHECK-IN WITH SEARCH */}
         {activeTab === 'WAITER_HALL' && (
           <View style={styles.sectionBlock}>
-            <Text style={styles.sectionHeader}>АКТИВНЫЕ СТОЛЫ</Text>
-            <View style={[styles.card, { padding: 0 }]}>
-              {hallTables.map((tbl, idx) => (
-                <View key={tbl.id} style={[styles.listItem, idx > 0 && styles.itemBorderTop]}>
-                  <View style={[styles.roomBubble, tbl.status === 'FREE' && { backgroundColor: '#F1ECE5' }]}>
-                    <Text style={styles.roomBubbleText}>{tbl.number}</Text>
-                  </View>
-                  <View style={styles.flexOne}>
-                    <View style={styles.rowBetween}>
-                      <Text style={styles.itemTitle}>{tbl.number} · {tbl.guests} гостей</Text>
-                      <View style={[styles.badgePill, tbl.status === 'ORDERED' ? styles.badgeAmber : tbl.status === 'BILL' ? styles.badgeGreen : styles.badgeGray]}>
-                        <Text style={[styles.badgePillText, tbl.status === 'ORDERED' ? styles.badgeAmberText : tbl.status === 'BILL' ? styles.badgeGreenText : styles.badgeGrayText]}>
-                          {tbl.status === 'ORDERED' ? 'Заказ на кухне' : tbl.status === 'BILL' ? 'Счёт' : 'Свободен'}
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionHeader}>ОТМЕТКА ПРИХОДА</Text>
+              <Text style={[styles.itemSubText, { color: COLORS.textSecondary }]}>завтрак</Text>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Search size={16} color={COLORS.textSecondary} />
+              <TextInput
+                placeholder="Номер комнаты или фамилия"
+                placeholderTextColor={COLORS.textSecondary}
+                value={guestSearchQuery}
+                onChangeText={setGuestSearchQuery}
+                style={styles.searchInput}
+              />
+            </View>
+
+            <View style={[styles.card, { padding: 0, marginTop: 10 }]}>
+              {mealAttendanceList
+                .filter(g => {
+                  const q = guestSearchQuery.toLowerCase();
+                  return g.roomNumber.toLowerCase().includes(q) || g.guestName.toLowerCase().includes(q);
+                })
+                .map((guest, idx) => (
+                  <TouchableOpacity
+                    key={guest.id}
+                    onPress={() => {
+                      setMealAttendanceList(prev => prev.map(item => {
+                        if (item.id === guest.id) {
+                          const newChecked = !item.checkedIn;
+                          return {
+                            ...item,
+                            checkedIn: newChecked,
+                            checkInTime: newChecked ? '08:12' : ''
+                          };
+                        }
+                        return item;
+                      }));
+                    }}
+                    style={[styles.listItem, idx > 0 && styles.itemBorderTop]}
+                  >
+                    <View style={[styles.dotIndicator, guest.checkedIn ? { backgroundColor: COLORS.success } : { backgroundColor: COLORS.border }]} />
+                    <View style={styles.flexOne}>
+                      <View style={styles.rowBetween}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.itemTitle}>{guest.roomNumber}</Text>
+                          <View style={styles.packageBadge}>
+                            <Text style={styles.packageBadgeText}>{guest.packageType}</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.itemSubText, guest.checkedIn && { color: COLORS.successText, fontFamily: FONTS.jost500 }]}>
+                          {guest.checkedIn ? ('отмечены ' + (guest.checkInTime || '08:12')) : guest.guestsInfo}
                         </Text>
                       </View>
+                      <Text style={styles.itemSubtitle}>{guest.guestName}</Text>
                     </View>
-                    <Text style={styles.itemSubtitle}>{tbl.dishes.length > 0 ? tbl.dishes.join(', ') : 'Готов к посадке'}</Text>
-                  </View>
-                </View>
-              ))}
+                    <View style={{ marginLeft: 10 }}>
+                      {guest.checkedIn ? (
+                        <CheckCircle2 size={22} color={COLORS.success} />
+                      ) : (
+                        <View style={styles.circleUnchecked} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
             </View>
           </View>
         )}
@@ -208,5 +286,11 @@ const styles = StyleSheet.create({
   badgeRedText: { color: COLORS.errorText },
   badgeGray: { backgroundColor: '#F1ECE5' },
   badgeGrayText: { color: COLORS.textSecondary },
+  dotIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
+  packageBadge: { backgroundColor: '#FAF0EB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  packageBadgeText: { fontFamily: FONTS.jost500, fontSize: 9, color: COLORS.primary },
+  circleUnchecked: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: COLORS.border },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.backgroundCard, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, gap: 10 },
+  searchInput: { flex: 1, fontFamily: FONTS.jost400, fontSize: 12, color: COLORS.dark, padding: 0 },
   divider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: 12 }
 });
