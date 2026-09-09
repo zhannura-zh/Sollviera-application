@@ -1,6 +1,0 @@
-{
-  "name": "Sollviera Cleaner",
-  "description": "Sollviera Hotel PMS Mobile Cleaner App with Authentication, Profile, Shift Management, and Language Switching.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

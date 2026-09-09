@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="e25a5a94-4aa6-4ad7-963f-ce42d31055a8" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/index.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/metadata.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/App.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/App.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/AuthAndProfileScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/CleaningDashboardScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/MaintenanceScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/NotificationsScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/ReportsScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/RoomChecklistModal.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/RoomDetailsScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/SollvieraLogo.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/SupervisorScreens.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/SuppliesScreen.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/TechnicianScreens.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/WaiterScreens.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/native/DirectorScreens.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/native/HousekeepingScreens.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/native/SollvieraLogo.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/native/SupervisorScreens.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/native/TechnicianScreens.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/components/native/WaiterScreens.native.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/data/mockData.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/locales.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.tsx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/theme/tokens.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/types.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vite.config.ts" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "shiyanoff"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/zhannura-zh/Sollviera-application.git",
+    "accountId": "5d86e9b0-fbc2-4918-855c-17a325a734d2"
+  }
+}]]></component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.6663052975786221" />
+      <entry key="MS500" value="3.6635506858339464" />
+      <entry key="S2" value="7.863976764696959" />
+      <entry key="S5" value="13.707458452870531" />
+      <entry key="S10" value="20.06023714937661" />
+      <entry key="S30" value="31.539416500726368" />
+      <entry key="S60" value="37.71218456504254" />
+      <entry key="M2" value="43.927456364083945" />
+      <entry key="M5" value="52.777127747789834" />
+      <entry key="M10" value="63.208299014901364" />
+      <entry key="M15" value="72.37828706531123" />
+      <entry key="M30" value="92.25266421589305" />
+      <entry key="H1" value="111.59308431429318" />
+      <entry key="H2" value="125.64530272451654" />
+      <entry key="H4" value="134.20081076205915" />
+      <entry key="D1" value="142.2721598137815" />
+      <entry key="W1" value="143.75073129547448" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="1.6144786859885352" />
+      <entry key="MS500" value="3.5877152690373424" />
+      <entry key="S2" value="7.750176617913399" />
+      <entry key="S5" value="13.635930397812762" />
+      <entry key="S10" value="20.016280939993816" />
+      <entry key="S30" value="31.521014193992773" />
+      <entry key="S60" value="37.70214373366328" />
+      <entry key="M2" value="43.922114166201595" />
+      <entry key="M5" value="52.774851597303545" />
+      <entry key="M10" value="63.20709436558187" />
+      <entry key="M15" value="72.37744770843688" />
+      <entry key="M30" value="92.25220645304168" />
+      <entry key="H1" value="111.592837152233" />
+      <entry key="H2" value="125.64517252867263" />
+      <entry key="H4" value="134.2007436530656" />
+      <entry key="D1" value="142.27214831291954" />
+      <entry key="W1" value="143.75072964422583" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 1,
+  "fromUser": false
+}]]></component>
+  <component name="ProjectId" id="3J0uJT0NEjKB4VzI0TjnbE1HA7D" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "shiyanoff",
+    "javascript.preferred.runtime.type.id": "node",
+    "last_opened_file_path": "/Users/timshiyanov/Desktop/sollviera",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "advanced.settings",
+    "ts.external.directory.path": "/Applications/WebStorm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-WS-261.25134.101" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e25a5a94-4aa6-4ad7-963f-ce42d31055a8" name="Changes" comment="" />
+      <created>1788810234546</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1788810234546</updated>
+      <workItem from="1788810235587" duration="3746000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
