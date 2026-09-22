@@ -1,24 +1,33 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, Pressable, TextInput, ScrollView, Alert } from 'react-native';
 import { X, Plus, Minus } from 'lucide-react-native';
-import { Language, HotelRoom } from '@/types';
+import { Language, HotelRoom, SupplyItem } from '@/types';
 
 interface CheckoutReportModalProps {
   room: HotelRoom | null;
   isOpen: boolean;
   onClose: () => void;
   lang: Language;
-  onSubmit: (roomId: string) => void;
+  supplies: SupplyItem[];
+  onSubmit: (
+    roomId: string,
+    items: { id: string; nameEn: string; nameRu: string; qty: number }[],
+    hasDamage: boolean,
+    damageDescription: string
+  ) => void;
 }
 
 function Counter({ label, qty, onChange }: { label: string; qty: number; onChange: (diff: number) => void }) {
   return (
     <View className="flex-row justify-between items-center bg-background p-2.5 rounded-xl border border-border-light">
-      <Text className="text-text-primary font-jost-semibold text-sm">{label}</Text>
+      <Text className="text-text-primary font-jost-semibold text-sm flex-1 pr-2" numberOfLines={1}>
+        {label}
+      </Text>
       <View className="flex-row items-center gap-2.5">
         <Pressable
+          disabled={qty <= 0}
           onPress={() => onChange(-1)}
-          className="h-6 w-6 rounded-lg bg-white border border-border items-center justify-center active:bg-background"
+          className="h-6 w-6 rounded-lg bg-white border border-border items-center justify-center active:bg-background disabled:opacity-40"
         >
           <Minus size={12} color="#475569" />
         </Pressable>
@@ -34,33 +43,34 @@ function Counter({ label, qty, onChange }: { label: string; qty: number; onChang
   );
 }
 
-export function CheckoutReportModal({ room, isOpen, onClose, lang, onSubmit }: CheckoutReportModalProps) {
-  const [colaQty, setColaQty] = useState(0);
-  const [chipsQty, setChipsQty] = useState(0);
-  const [waterQty, setWaterQty] = useState(0);
-  const [chocolateQty, setChocolateQty] = useState(0);
+export function CheckoutReportModal({ room, isOpen, onClose, lang, supplies, onSubmit }: CheckoutReportModalProps) {
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [hasDamage, setHasDamage] = useState(false);
   const [damageDescription, setDamageDescription] = useState('');
 
+  const minibarItems = supplies.filter((s) => s.category === 'MINIBAR');
+
   if (!isOpen || !room) return null;
 
+  const handleChange = (id: string, diff: number) => {
+    setQuantities((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) + diff) }));
+  };
+
   const handleSubmit = () => {
-    const message =
-      lang === 'RU'
-        ? `Данные отправлены на ресепшн для комнаты №${room.roomNumber}:\n` +
-          `• Газированные напитки: ${colaQty} шт.\n` +
-          `• Снеки/чипсы: ${chipsQty} шт.\n` +
-          `• Вода: ${waterQty} шт.\n` +
-          `• Шоколад: ${chocolateQty} шт.\n` +
-          (hasDamage ? `• Ущерб имущества: ${damageDescription}` : '• Ущерб имущества отсутствует')
-        : `Report sent to front desk for No. ${room.roomNumber}:\n` +
-          `• Soda: ${colaQty} pcs\n` +
-          `• Chips: ${chipsQty} pcs\n` +
-          `• Water: ${waterQty} pcs\n` +
-          `• Chocolate: ${chocolateQty} pcs\n` +
-          (hasDamage ? `• Interior damage: ${damageDescription}` : '• No interior damage reported');
-    Alert.alert(lang === 'RU' ? 'Отправлено' : 'Sent', message);
-    onSubmit(room.id);
+    const items = minibarItems.map((item) => ({
+      id: item.id,
+      nameEn: item.nameEn,
+      nameRu: item.nameRu,
+      qty: quantities[item.id] || 0,
+    }));
+    onSubmit(room.id, items, hasDamage, damageDescription);
+    setQuantities({});
+    setHasDamage(false);
+    setDamageDescription('');
+    Alert.alert(
+      lang === 'RU' ? 'Отправлено' : 'Sent',
+      lang === 'RU' ? `Отчёт по номеру №${room.roomNumber} отправлен на ресепшн.` : `Report for No. ${room.roomNumber} sent to the front desk.`
+    );
     onClose();
   };
 
@@ -92,12 +102,22 @@ export function CheckoutReportModal({ room, isOpen, onClose, lang, onSubmit }: C
               <Text className="text-[11px] text-text-secondary uppercase font-jost tracking-wider">
                 {lang === 'RU' ? 'Платный мини-бар / Расходники' : 'Consumables / Minibar'}
               </Text>
-              <View className="gap-2">
-                <Counter label={lang === 'RU' ? 'Газировка / Пепси' : 'Soda / Soda drinks'} qty={colaQty} onChange={(d) => setColaQty((q) => Math.max(0, q + d))} />
-                <Counter label={lang === 'RU' ? 'Чипсы / Снеки' : 'Chips / Snacks'} qty={chipsQty} onChange={(d) => setChipsQty((q) => Math.max(0, q + d))} />
-                <Counter label={lang === 'RU' ? 'Минеральная вода' : 'Mineral water'} qty={waterQty} onChange={(d) => setWaterQty((q) => Math.max(0, q + d))} />
-                <Counter label={lang === 'RU' ? 'Шоколад' : 'Chocolate'} qty={chocolateQty} onChange={(d) => setChocolateQty((q) => Math.max(0, q + d))} />
-              </View>
+              {minibarItems.length === 0 ? (
+                <Text className="text-[12px] text-text-secondary font-jost">
+                  {lang === 'RU' ? 'Каталог мини-бара пуст' : 'Minibar catalog is empty'}
+                </Text>
+              ) : (
+                <View className="gap-2">
+                  {minibarItems.map((item) => (
+                    <Counter
+                      key={item.id}
+                      label={lang === 'RU' ? item.nameRu : item.nameEn}
+                      qty={quantities[item.id] || 0}
+                      onChange={(diff) => handleChange(item.id, diff)}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Damage */}

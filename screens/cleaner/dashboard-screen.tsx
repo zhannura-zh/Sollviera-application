@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, CheckSquare, DollarSign } from 'lucide-react-native';
@@ -13,14 +13,36 @@ interface DashboardScreenProps {
   onOpenRoom: (roomId: string) => void;
 }
 
+// room.startTime is stored as an "HH:MM" clock reading with no date, so this assumes the
+// shift started today (see updateRoomStatus in app-store.tsx).
+function elapsedMinutesSince(startTime?: string): number | null {
+  const match = startTime ? /^(\d{1,2}):(\d{2})/.exec(startTime) : null;
+  if (!match) return null;
+  const start = new Date();
+  start.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  let diffMinutes = Math.floor((Date.now() - start.getTime()) / 60000);
+  if (diffMinutes < 0) diffMinutes += 24 * 60; // crossed midnight
+  return Math.max(0, diffMinutes);
+}
+
 export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
-  const { lang, cleanerProfile, rooms, updateRoomStatus, updateRoomChecklist } = useApp();
+  const { lang, cleanerProfile, rooms, updateRoomStatus, updateRoomChecklist, supplies, submitMinibarCheckout } = useApp();
   const t = getTranslation(lang);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | 'ALL'>('ALL');
   const [selectedFloor, setSelectedFloor] = useState<number | 'ALL'>('ALL');
   const [selectedCleaningType, setSelectedCleaningType] = useState<CleaningType | 'ALL'>('ALL');
+
+  // getRightStatusText computes elapsed time from Date.now() at render time, but nothing
+  // else re-renders this screen every minute — without this it only updates when the list
+  // happens to re-render for some other reason, so "N min" visibly goes stale on screen.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (!rooms.some((r) => r.status === 'IN_PROGRESS')) return;
+    const interval = setInterval(() => forceTick((n) => n + 1), 15000);
+    return () => clearInterval(interval);
+  }, [rooms]);
 
   const [activeModalRoomId, setActiveModalRoomId] = useState<string | null>(null);
   const activeModalRoom = rooms.find((r) => r.id === activeModalRoomId) || null;
@@ -64,11 +86,14 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
   };
 
   const getRightStatusText = (room: HotelRoom) => {
-    if (room.isOverdue) {
-      if (room.roomNumber === '312') return lang === 'RU' ? '13:00 · +24 мин' : '13:00 · +24 min';
-      return `${room.deadline} · LATE`;
+    if (room.isOverdue) return `${room.deadline} · LATE`;
+    if (room.status === 'IN_PROGRESS') {
+      const minutes = elapsedMinutesSince(room.startTime);
+      const suffix = minutes !== null ? ` · ${minutes} ${lang === 'RU' ? 'мин' : 'min'}` : '';
+      return `${lang === 'RU' ? 'в работе' : 'in progress'}${suffix}`;
     }
-    if (room.status === 'IN_PROGRESS') return lang === 'RU' ? 'в работе · 12 мин' : 'in progress · 12 min';
+    // Back to PENDING but already has a startTime = paused mid-cleaning, not untouched.
+    if (room.status === 'PENDING' && room.startTime) return lang === 'RU' ? 'на паузе' : 'paused';
     return '';
   };
 
@@ -79,7 +104,14 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
         '',
         lang === 'RU'
           ? `Сначала приостановите (нажмите паузу) активную уборку в номере #${activeRoomInProgress.roomNumber}.`
-          : `Please pause the active cleaning in room #${activeRoomInProgress.roomNumber} first.`
+          : `Please pause the active cleaning in room #${activeRoomInProgress.roomNumber} first.`,
+        [
+          { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
+          {
+            text: lang === 'RU' ? `Открыть №${activeRoomInProgress.roomNumber}` : `Open No. ${activeRoomInProgress.roomNumber}`,
+            onPress: () => onOpenRoom(activeRoomInProgress.id),
+          },
+        ]
       );
       return;
     }
@@ -104,9 +136,13 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
     }
   };
 
-  const primaryActionLabel = (status: RoomStatus) => {
-    switch (status) {
-      case 'PENDING': return lang === 'RU' ? 'Начать уборку' : 'Start cleaning';
+  // A room back at PENDING with a startTime already set was paused mid-cleaning, not
+  // untouched — its action button should offer to resume, not "start" it from scratch.
+  const isPaused = (room: HotelRoom) => room.status === 'PENDING' && !!room.startTime;
+
+  const primaryActionLabel = (room: HotelRoom) => {
+    switch (room.status) {
+      case 'PENDING': return isPaused(room) ? (lang === 'RU' ? 'Продолжить' : 'Continue') : (lang === 'RU' ? 'Начать уборку' : 'Start cleaning');
       case 'IN_PROGRESS': return lang === 'RU' ? 'Продолжить' : 'Continue';
       case 'READY': return lang === 'RU' ? 'Готово' : 'Ready';
       case 'VERIFIED': return lang === 'RU' ? 'Проверено' : 'Verified';
@@ -114,9 +150,9 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
     }
   };
 
-  const primaryActionStyle = (status: RoomStatus) => {
-    switch (status) {
-      case 'PENDING': return 'bg-primary';
+  const primaryActionStyle = (room: HotelRoom) => {
+    switch (room.status) {
+      case 'PENDING': return isPaused(room) ? 'bg-white border border-border' : 'bg-primary';
       case 'IN_PROGRESS': return 'bg-white border border-border';
       case 'READY': return 'bg-success-light border border-success/40';
       case 'VERIFIED': return 'bg-indigo-50 border border-indigo-200';
@@ -124,9 +160,9 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
     }
   };
 
-  const primaryActionTextStyle = (status: RoomStatus) => {
-    switch (status) {
-      case 'PENDING': return 'text-white';
+  const primaryActionTextStyle = (room: HotelRoom) => {
+    switch (room.status) {
+      case 'PENDING': return isPaused(room) ? 'text-text-primary' : 'text-white';
       case 'IN_PROGRESS': return 'text-text-primary';
       case 'READY': return 'text-success-text';
       case 'VERIFIED': return 'text-indigo-700';
@@ -179,10 +215,10 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
         <View className="flex-row items-center gap-2 pt-1">
           <Pressable
             onPress={() => handleRoomAction(room)}
-            className={`flex-1 py-3 rounded-xl items-center justify-center active:opacity-90 ${primaryActionStyle(room.status)}`}
+            className={`flex-1 py-3 rounded-xl items-center justify-center active:opacity-90 ${primaryActionStyle(room)}`}
           >
-            <Text className={`text-sm font-jost-semibold ${primaryActionTextStyle(room.status)}`}>
-              {primaryActionLabel(room.status)}
+            <Text className={`text-sm font-jost-semibold ${primaryActionTextStyle(room)}`}>
+              {primaryActionLabel(room)}
             </Text>
           </Pressable>
 
@@ -333,7 +369,9 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
         isOpen={activeCheckoutRoom !== null}
         onClose={() => setActiveCheckoutRoomId(null)}
         lang={lang}
-        onSubmit={(roomId) => {
+        supplies={supplies}
+        onSubmit={(roomId, items, hasDamage, damageDescription) => {
+          submitMinibarCheckout(roomId, items, hasDamage, damageDescription);
           if (!submittedCheckoutRoomIds.includes(roomId)) {
             setSubmittedCheckoutRoomIds((prev) => [...prev, roomId]);
           }

@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Play, Pause, AlertTriangle, ShieldCheck, ClipboardList, Camera,
   ChevronDown, ChevronRight, HelpCircle, ArrowLeft, Send, Check, Package,
 } from 'lucide-react-native';
-import { HotelRoom, RoomStatus, RoomCheckitem, ChecklistZone } from '@/types';
+import { HotelRoom, RoomCheckitem, ChecklistZone } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
 
-const MOCK_PHOTOS = [
-  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=150&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=150&auto=format&fit=crop&q=80',
-];
-const MOCK_PHOTO_BEFORE = 'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=300&auto=format&fit=crop&q=80';
-const MOCK_PHOTO_AFTER = 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=300&auto=format&fit=crop&q=80';
-const MOCK_DEFECT_PHOTO = 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=300&auto=format&fit=crop&q=80';
 const DAMAGE_TYPES = ['Сломан фен', 'Сломана мебель', 'Разбито стекло', 'Повреждён ТВ', 'Другое'];
+
+// room.startTime is stored as an "HH:MM" clock reading (see updateRoomStatus /
+// mapHousekeepingTask) with no date, so this assumes the shift started today.
+function elapsedSecondsSince(startTime?: string): number {
+  const match = startTime ? /^(\d{1,2}):(\d{2})/.exec(startTime) : null;
+  if (!match) return 0;
+  const start = new Date();
+  start.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  let diffSeconds = Math.floor((Date.now() - start.getTime()) / 1000);
+  if (diffSeconds < 0) diffSeconds += 24 * 60 * 60; // crossed midnight
+  return Math.max(0, diffSeconds);
+}
 
 interface RoomDetailsScreenProps {
   room: HotelRoom | null;
@@ -26,7 +31,7 @@ interface RoomDetailsScreenProps {
 }
 
 export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetailsScreenProps) {
-  const { lang, updateRoomStatus, updateRoomChecklist, addSystemNotification, addMaintenanceRequest, supplies, deductSupplies } = useApp();
+  const { lang, updateRoomStatus, updateRoomChecklist, uploadRoomPhoto, addSystemNotification, addMaintenanceRequest, supplies, deductSupplies, confirmMinibarRefill } = useApp();
   const t = getTranslation(lang);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -60,27 +65,34 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   const [photoBeforeUrl, setPhotoBeforeUrl] = useState('');
   const [photoAfterUrl, setPhotoAfterUrl] = useState('');
   const [zonePhotos, setZonePhotos] = useState<Record<string, string>>({});
+  const roomStatus = room?.status;
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-    if (room && room.status === 'IN_PROGRESS' && isTimerRunning) {
+    if (roomStatus === 'IN_PROGRESS' && isTimerRunning) {
       interval = setInterval(() => setTimerSeconds((prev) => prev + 1), 1000);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [room?.status, isTimerRunning]);
+  }, [roomStatus, isTimerRunning]);
 
+  // Resets per-room UI (only when actually switching to a different room).
   useEffect(() => {
-    if (room) {
-      if (room.status === 'IN_PROGRESS') {
-        setIsTimerRunning(true);
-        if (timerSeconds === 0) setTimerSeconds(8 * 60 + 12);
-      } else {
-        setIsTimerRunning(false);
-      }
-      setConfirmStandard(false);
+    if (room) setConfirmStandard(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room?.id]);
+
+  // Keeps the timer in sync with status (e.g. after navigating back in), seeded from the
+  // real elapsed time since room.startTime rather than a fixed placeholder.
+  useEffect(() => {
+    if (!room) return;
+    const active = room.status === 'IN_PROGRESS';
+    const pausedWithProgress = room.status === 'PENDING' && !!room.startTime;
+    if (active || pausedWithProgress) {
+      if (timerSeconds === 0) setTimerSeconds(elapsedSecondsSince(room.startTime));
     }
+    setIsTimerRunning(active);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id, room?.status]);
 
@@ -105,13 +117,99 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   };
 
   const handleStartCleaning = () => {
-    updateRoomStatus(room.id, 'IN_PROGRESS');
+    const started = updateRoomStatus(room.id, 'IN_PROGRESS');
+    if (!started) {
+      Alert.alert(
+        '',
+        lang === 'RU'
+          ? 'Сначала завершите или поставьте на паузу другой активный номер.'
+          : 'Finish or pause the other active room first.'
+      );
+      return;
+    }
     setIsTimerRunning(true);
     addSystemNotification(
       `Cleaning started for Room ${room.roomNumber}`,
       `Начата уборка номера ${room.roomNumber}`,
       'SYSTEM'
     );
+  };
+
+  // `tag` labels the photo on the server (e.g. 'before'/'after', or a checklist zone name
+  // like 'BEDROOM'); `onPicked` stores the local uri for immediate preview.
+  const handlePickPhoto = async (tag: string, source: 'camera' | 'library', onPicked: (uri: string) => void) => {
+    const permission = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        lang === 'RU' ? 'Нет доступа' : 'Permission required',
+        lang === 'RU' ? 'Разрешите доступ к камере или фото в настройках устройства.' : 'Allow access to the camera or photo library in device settings.'
+      );
+      return;
+    }
+
+    const pickerOptions = {
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    };
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync(pickerOptions)
+      : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    const uri = result.assets[0].uri;
+    onPicked(uri);
+
+    try {
+      await uploadRoomPhoto(room.physicalRoomId || room.id, uri, tag);
+    } catch (error) {
+      // Known: this account's role is currently not permitted to call
+      // POST /rooms/{id}/photos on the backend (server returns 403 "Forbidden resource"
+      // for every room, while other housekeeper-scoped calls succeed) — a server-side
+      // permission grant is needed, nothing the cleaner can fix. Don't block the flow
+      // with a modal every time; the photo still shows locally, log it quietly instead.
+      addSystemNotification(
+        `Photo upload failed for Room ${room.roomNumber}: ${error instanceof Error ? error.message : 'unknown error'}`,
+        `Не удалось загрузить фото для номера ${room.roomNumber} (сохранено только локально)`,
+        'SYSTEM'
+      );
+    }
+  };
+
+  const choosePhotoSource = (tag: string, onPicked: (uri: string) => void) => {
+    Alert.alert(
+      lang === 'RU' ? 'Добавить фото' : 'Add photo',
+      lang === 'RU' ? 'Выберите источник' : 'Choose a source',
+      [
+        { text: lang === 'RU' ? 'Снять фото' : 'Take photo', onPress: () => void handlePickPhoto(tag, 'camera', onPicked) },
+        { text: lang === 'RU' ? 'Выбрать из галереи' : 'Choose from gallery', onPress: () => void handlePickPhoto(tag, 'library', onPicked) },
+        { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleToggleCleaning = () => {
+    if (isTimerRunning) {
+      // Business rule: only one room may be IN_PROGRESS at a time, so pausing releases
+      // this one back to PENDING (freeing the slot for another room). room.startTime is
+      // preserved, so the UI still shows this as "paused" rather than "never started".
+      updateRoomStatus(room.id, 'PENDING');
+      setIsTimerRunning(false);
+      return;
+    }
+
+    const resumed = updateRoomStatus(room.id, 'IN_PROGRESS');
+    if (!resumed) {
+      Alert.alert(
+        '',
+        lang === 'RU'
+          ? 'Сначала завершите или поставьте на паузу другой активный номер.'
+          : 'Finish or pause the other active room first.'
+      );
+      return;
+    }
+    setIsTimerRunning(true);
   };
 
   const toggleZone = (zone: string) => setExpandedZones((prev) => ({ ...prev, [zone]: !prev[zone] }));
@@ -137,7 +235,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   };
 
   const handleConfirmMinibarDeduction = () => {
-    deductSupplies(minibarRefilled);
+    confirmMinibarRefill(room.id, minibarRefilled);
     setMinibarRefilled({});
     setMinibarDeductedSuccess(true);
     setTimeout(() => setMinibarDeductedSuccess(false), 2500);
@@ -174,8 +272,6 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
     onBack();
   };
 
-  const randomMockPhoto = () => MOCK_PHOTOS[Math.floor(Math.random() * MOCK_PHOTOS.length)];
-
   const itemsByZone: Record<ChecklistZone, RoomCheckitem[]> = {
     BEDROOM: [], BATHROOM: [], MINIBAR: [], BALCONY: [], OTHER: [],
   };
@@ -192,6 +288,10 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   };
 
   const allTasksDone = room.checklist.every((item) => item.done);
+  // A room that's back to PENDING but already has a startTime was paused mid-cleaning
+  // (see updateRoomStatus), not truly untouched — keep showing its progress.
+  const hasStarted = !!room.startTime;
+  const isPaused = room.status === 'PENDING' && hasStarted;
   const statusLabel =
     room.status === 'READY' ? (lang === 'RU' ? 'готово' : 'ready') :
     room.status === 'PROBLEM' ? (lang === 'RU' ? 'поломка' : 'defect') :
@@ -243,13 +343,13 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           </View>
 
           <View className="items-end shrink-0">
-            {room.status === 'IN_PROGRESS' ? (
+            {room.status === 'IN_PROGRESS' || isPaused ? (
               <>
                 <Text className="text-2xl font-jost-semibold text-warning tracking-tight">
                   {formatTime(timerSeconds)}
                 </Text>
                 <Text className="text-[12px] text-text-secondary font-jost mt-1">
-                  {lang === 'RU' ? 'в работе' : 'in progress'}
+                  {isTimerRunning ? (lang === 'RU' ? 'в работе' : 'in progress') : (lang === 'RU' ? 'на паузе' : 'paused')}
                 </Text>
               </>
             ) : (
@@ -273,7 +373,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
         )}
 
         <View className="flex-row items-center gap-3">
-          {room.status === 'PENDING' && (
+          {room.status === 'PENDING' && !hasStarted && (
             <Pressable
               onPress={handleStartCleaning}
               className="flex-1 bg-primary py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 active:bg-primary-hover"
@@ -282,10 +382,10 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
               <Text className="text-white text-sm font-jost-semibold">{t.btnStartCleaning}</Text>
             </Pressable>
           )}
-          {(room.status === 'IN_PROGRESS' || room.status === 'PROBLEM') && (
+          {(room.status === 'IN_PROGRESS' || room.status === 'PROBLEM' || isPaused) && (
             <>
               <Pressable
-                onPress={() => setIsTimerRunning(!isTimerRunning)}
+                onPress={handleToggleCleaning}
                 className="flex-1 bg-white border border-warning py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 active:bg-background"
               >
                 {isTimerRunning ? <Pause size={16} color="#E4762B" /> : <Play size={16} color="#E4762B" />}
@@ -302,7 +402,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           )}
         </View>
 
-        {room.status !== 'PENDING' && (
+        {(room.status !== 'PENDING' || hasStarted) && (
           <View className="gap-3.5">
             <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
               {lang === 'RU' ? 'Чек-лист уборки номера' : 'Room Cleaning Checklist'}
@@ -359,8 +459,15 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                           {zone === 'MINIBAR' && room.status === 'IN_PROGRESS' && (
                             <View className="mt-2.5 ml-6 gap-2">
                               <View className="border border-border rounded-xl bg-background-subtle">
+                                {supplies.filter((s) => s.category === 'MINIBAR').length === 0 && (
+                                  <View className="p-3">
+                                    <Text className="text-[12px] text-text-secondary font-jost text-center">
+                                      {lang === 'RU' ? 'Каталог мини-бара пуст' : 'Minibar catalog is empty'}
+                                    </Text>
+                                  </View>
+                                )}
                                 {supplies.filter((s) => s.category === 'MINIBAR').map((s, i, arr) => {
-                                  const standardQty = s.id === 's14' || s.id === 's15' ? 1 : 2;
+                                  const standardQty = s.neededQty > 0 ? s.neededQty : 2;
                                   const refilledQty = minibarRefilled[s.id] || 0;
                                   return (
                                     <View
@@ -374,7 +481,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                                           {lang === 'RU' ? s.nameRu : s.nameEn}
                                         </Text>
                                         <Text className="text-[11px] text-text-secondary font-jost">
-                                          {lang === 'RU' ? `Стандарт: ${standardQty} | В наличии: ${s.trolleyQty}` : `Standard: ${standardQty} | Trolley: ${s.trolleyQty}`}
+                                          {lang === 'RU' ? `Стандарт: ${standardQty} шт.` : `Standard: ${standardQty} pcs`}
                                         </Text>
                                       </View>
                                       <View className="flex-row items-center gap-1.5">
@@ -387,7 +494,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                                         </Pressable>
                                         <Text className="w-5 text-center font-jost text-text-primary text-[13px]">{refilledQty}</Text>
                                         <Pressable
-                                          disabled={refilledQty >= standardQty || refilledQty >= s.trolleyQty}
+                                          disabled={refilledQty >= standardQty}
                                           onPress={() => handleUpdateMinibarRefilled(s.id, 1)}
                                           className="h-6 w-6 rounded-md bg-white border border-border items-center justify-center disabled:opacity-40"
                                         >
@@ -436,12 +543,12 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                               <Pressable onPress={() => setZonePhotos((prev) => ({ ...prev, [zone]: '' }))}>
                                 <Image source={{ uri: zonePhotos[zone] }} className="h-10 w-16 rounded-lg border border-border" />
                               </Pressable>
-                              <Text className="text-[11px] font-jost text-success">✓ {lang === 'RU' ? 'Загружено' : 'Uploaded'}</Text>
+                              <Text className="text-[11px] font-jost text-success">✓ {lang === 'RU' ? 'Добавлено' : 'Added'}</Text>
                             </View>
                           </View>
                         ) : (
                           <Pressable
-                            onPress={() => setZonePhotos((prev) => ({ ...prev, [zone]: randomMockPhoto() }))}
+                            onPress={() => choosePhotoSource(zone, (uri) => setZonePhotos((prev) => ({ ...prev, [zone]: uri })))}
                             className="pt-2.5 border-t border-border-light flex-row items-center gap-2"
                           >
                             <Camera size={16} color="#8A8177" />
@@ -554,7 +661,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                   </Pressable>
                 ) : (
                   <Pressable
-                    onPress={() => setPhotoBeforeUrl(MOCK_PHOTO_BEFORE)}
+                    onPress={() => choosePhotoSource('before', setPhotoBeforeUrl)}
                     className="w-full h-20 border-2 border-dashed border-border rounded-lg items-center justify-center gap-1 bg-background"
                   >
                     <Camera size={16} color="#8A8177" />
@@ -570,7 +677,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                   </Pressable>
                 ) : (
                   <Pressable
-                    onPress={() => setPhotoAfterUrl(MOCK_PHOTO_AFTER)}
+                    onPress={() => choosePhotoSource('after', setPhotoAfterUrl)}
                     className="w-full h-20 border-2 border-dashed border-border rounded-lg items-center justify-center gap-1 bg-background"
                   >
                     <Camera size={16} color="#8A8177" />
@@ -673,11 +780,11 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                       <Pressable onPress={() => setMaintenancePhoto('')}>
                         <Image source={{ uri: maintenancePhoto }} className="h-10 w-16 rounded-lg border border-border" />
                       </Pressable>
-                      <Text className="text-[11px] font-jost text-success">✓ {lang === 'RU' ? 'Загружено' : 'Uploaded'}</Text>
+                      <Text className="text-[11px] font-jost text-success">✓ {lang === 'RU' ? 'Добавлено' : 'Added'}</Text>
                     </View>
                   ) : (
                     <Pressable
-                      onPress={() => setMaintenancePhoto(MOCK_DEFECT_PHOTO)}
+                      onPress={() => choosePhotoSource('defect', setMaintenancePhoto)}
                       className="px-2.5 py-1 bg-background rounded-lg border border-border"
                     >
                       <Text className="text-[11px] font-jost text-text-secondary">{t.btnUpload}</Text>

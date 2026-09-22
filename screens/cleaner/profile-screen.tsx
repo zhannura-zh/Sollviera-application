@@ -1,25 +1,75 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MessageSquare, Bell, Settings, BarChart3, Clock, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { mockShiftHistory } from '@/data/mockData';
 import { getTranslation } from '@/lib/locales';
+
+// currentShift.startTime is an "HH:MM" clock reading (real session-start time, see
+// login() in app-store.tsx), no date — assumes it was set today.
+function elapsedSecondsSince(startTime?: string): number {
+  const match = startTime ? /^(\d{1,2}):(\d{2})/.exec(startTime) : null;
+  if (!match) return 0;
+  const start = new Date();
+  start.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  let diffSeconds = Math.floor((Date.now() - start.getTime()) / 1000);
+  if (diffSeconds < 0) diffSeconds += 24 * 60 * 60;
+  return Math.max(0, diffSeconds);
+}
+
+function getInitials(name: string) {
+  return name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase() || '?';
+}
 
 interface ProfileScreenProps {
   onOpenChats: () => void;
   onOpenNotifications: () => void;
   onOpenSettings: () => void;
   onOpenReports: () => void;
+  onLoggedOut: () => void;
 }
 
-export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings, onOpenReports }: ProfileScreenProps) {
-  const { lang, cleanerProfile, notifications, chatContacts } = useApp();
+export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings, onOpenReports, onLoggedOut }: ProfileScreenProps) {
+  const { lang, cleanerProfile, notifications, chatContacts, shiftHistory, updateCleanerProfile, logout } = useApp();
   const t = getTranslation(lang);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [shiftStatus, setShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('ON_SHIFT');
-  const [roomsCleaned] = useState(cleanerProfile.currentShift.roomsCompleted);
-  const [elapsedSeconds] = useState(20669);
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => elapsedSecondsSince(cleanerProfile.currentShift.startTime));
+
+  useEffect(() => {
+    setElapsedSeconds(elapsedSecondsSince(cleanerProfile.currentShift.startTime));
+    const interval = setInterval(() => {
+      setElapsedSeconds(elapsedSecondsSince(cleanerProfile.currentShift.startTime));
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [cleanerProfile.currentShift.startTime]);
+
+  const shiftStatus = cleanerProfile.currentShift.status;
+  const roomsCleaned = cleanerProfile.currentShift.roomsCompleted;
+
+  // "On shift"/"Break" are local-only — the API has no break concept for housekeepers
+  // (only isActive true/false). "Finish" is the one status with a real backend action:
+  // ending your shift here means signing out.
+  const handleSetShiftStatus = (status: 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED') => {
+    if (status === 'SHIFT_ENDED') {
+      Alert.alert(
+        lang === 'RU' ? 'Завершить смену?' : 'Finish shift?',
+        lang === 'RU' ? 'Вы будете выведены из аккаунта.' : 'You will be signed out.',
+        [
+          { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
+          {
+            text: lang === 'RU' ? 'Завершить' : 'Finish',
+            style: 'destructive',
+            onPress: () => {
+              logout();
+              onLoggedOut();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    updateCleanerProfile({ ...cleanerProfile, currentShift: { ...cleanerProfile.currentShift, status } });
+  };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const totalUnreadChats = chatContacts.reduce((acc, c) => acc + c.unreadCount, 0);
@@ -54,7 +104,9 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
       <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 32, gap: 16 }}>
         <View className="flex-row items-center gap-3.5 pt-2">
           <View className="h-14 w-14 rounded-full bg-primary-light items-center justify-center border border-border">
-            <Text className="text-text-primary font-jost text-base">{lang === 'RU' ? 'ЕВ' : 'EB'}</Text>
+            <Text className="text-text-primary font-jost text-base">
+              {getInitials(lang === 'RU' ? cleanerProfile.fullNameRu : cleanerProfile.fullName)}
+            </Text>
           </View>
           <View className="flex-1">
             <Text className="text-xl font-jost text-text-primary leading-tight" numberOfLines={1}>
@@ -79,9 +131,9 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
           </Text>
           <View className="bg-white rounded-[14px] border border-border p-4 gap-4">
             <View className="flex-row items-center justify-between">
-              <Text className="text-base font-jost-semibold text-text-primary">{cleanerProfile.currentShift.shiftNumber}</Text>
+              <Text className="text-base font-jost-semibold text-text-primary">{cleanerProfile.currentShift.date}</Text>
               <Text className="text-sm font-jost text-text-secondary">
-                {cleanerProfile.currentShift.date} · {lang === 'RU' ? 'с 08:00' : 'from 08:00'}
+                {lang === 'RU' ? 'с' : 'from'} {cleanerProfile.currentShift.startTime}
               </Text>
             </View>
 
@@ -89,7 +141,7 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
               {(['ON_SHIFT', 'ON_BREAK', 'SHIFT_ENDED'] as const).map((status) => (
                 <Pressable
                   key={status}
-                  onPress={() => setShiftStatus(status)}
+                  onPress={() => handleSetShiftStatus(status)}
                   className={`flex-1 py-2 rounded-xl border items-center ${
                     shiftStatus === status ? 'bg-dark border-dark' : 'bg-white border-border'
                   }`}
@@ -161,7 +213,7 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
 
             {isHistoryExpanded && (
               <View className="p-3.5 bg-background-subtle border-t border-border-light gap-2">
-                {mockShiftHistory.map((item) => (
+                {shiftHistory.map((item) => (
                   <View key={item.id} className="flex-row items-center justify-between py-1">
                     <View>
                       <Text className="font-jost text-text-primary text-sm">

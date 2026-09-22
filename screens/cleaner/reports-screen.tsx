@@ -1,31 +1,44 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, BarChart3, Clock } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { mockShiftHistory } from '@/data/mockData';
 
-const ROOM_CHART_DATA = [
-  { room: '301', minutes: 14 },
-  { room: '205', minutes: 18 },
-  { room: '306', minutes: 20 },
-  { room: '310', minutes: 31 },
-  { room: '214', minutes: 16 },
-  { room: '402', minutes: 23 },
-];
+// Minutes between two "HH:MM" clock readings (see mapHousekeepingTask in app-store.tsx),
+// assuming both fall on the same day.
+function minutesBetweenClock(start: string, end: string): number {
+  const parse = (v: string) => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(v);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const s = parse(start);
+  const e = parse(end);
+  if (s === null || e === null) return 0;
+  let diff = e - s;
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
 
 export function ReportsScreen() {
-  const { lang, cleanerProfile, rooms } = useApp();
+  const { lang, cleanerProfile, rooms, shiftHistory } = useApp();
   const [expandedShiftId, setExpandedShiftId] = useState<string | null>(null);
 
   const completedRoomsCount = rooms.filter((r) => r.status === 'READY' || r.status === 'VERIFIED').length;
   const avgQuality =
-    mockShiftHistory.length > 0
-      ? Math.round(mockShiftHistory.reduce((acc, cur) => acc + cur.qualityScore, 0) / mockShiftHistory.length)
-      : 96;
+    shiftHistory.length > 0
+      ? Math.round(shiftHistory.reduce((acc, cur) => acc + cur.qualityScore, 0) / shiftHistory.length)
+      : null;
 
-  const totalRoomsCleaned = completedRoomsCount + cleanerProfile.currentShift.roomsCompleted;
+  // Real per-room durations from today's completed rooms, replacing the old fixed mock list.
+  const roomDurations = rooms
+    .filter((r) => (r.status === 'READY' || r.status === 'VERIFIED') && r.startTime && r.endTime)
+    .map((r) => ({ room: r.roomNumber, minutes: minutesBetweenClock(r.startTime as string, r.endTime as string) }));
+  const maxDurationMinutes = Math.max(35, ...roomDurations.map((d) => d.minutes));
+
+  // cleanerProfile.currentShift.roomsCompleted is derived from this same rooms list (see
+  // refreshFromApi in app-store.tsx), so adding it here would double-count.
+  const totalRoomsCleaned = completedRoomsCount;
   const targetRooms = 12;
-  const cleanAvgTime = cleanerProfile.currentShift.avgTimePerRoom.replace(/[^0-9]/g, '') || '22';
+  const cleanAvgTime = cleanerProfile.currentShift.avgTimePerRoom.replace(/[^0-9]/g, '') || '—';
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 20, gap: 20 }}>
@@ -48,7 +61,8 @@ export function ReportsScreen() {
           </View>
           <View className="flex-1 items-center gap-1 border-l border-border-light">
             <Text className="text-sm text-text-secondary">
-              <Text className="text-xl font-jost-semibold text-text-primary">{avgQuality}</Text>%
+              <Text className="text-xl font-jost-semibold text-text-primary">{avgQuality !== null ? avgQuality : '—'}</Text>
+              {avgQuality !== null && '%'}
             </Text>
             <Text className="text-[12px] font-jost text-text-secondary">{lang === 'RU' ? 'без замечаний' : 'no issues'}</Text>
           </View>
@@ -63,26 +77,35 @@ export function ReportsScreen() {
           <Text className="text-[12px] text-text-secondary font-jost">{lang === 'RU' ? 'норма 25 мин' : 'standard 25 min'}</Text>
         </View>
         <View className="bg-white rounded-[14px] border border-border p-5 gap-4">
-          {ROOM_CHART_DATA.map((data, index) => {
-            const norm = 25;
-            const widthPct = Math.min(100, (data.minutes / 35) * 100);
-            return (
-              <View key={index} className="flex-row items-center gap-3.5">
-                <Text className="w-11 text-text-primary font-jost text-sm">
-                  {lang === 'RU' ? `№ ${data.room}` : `#${data.room}`}
-                </Text>
-                <View className="flex-1 h-2 bg-border/40 rounded-full overflow-hidden">
-                  <View
-                    className={`h-full rounded-full ${data.minutes > norm ? 'bg-error' : 'bg-primary'}`}
-                    style={{ width: `${widthPct}%` }}
-                  />
+          {roomDurations.length === 0 ? (
+            <View className="items-center py-4 gap-2">
+              <BarChart3 size={22} color="#8A8177" />
+              <Text className="text-[12px] font-jost text-text-secondary text-center">
+                {lang === 'RU' ? 'Пока нет завершённых номеров с этой сменой' : 'No rooms completed this shift yet'}
+              </Text>
+            </View>
+          ) : (
+            roomDurations.map((data, index) => {
+              const norm = 25;
+              const widthPct = Math.min(100, (data.minutes / maxDurationMinutes) * 100);
+              return (
+                <View key={`${data.room}-${index}`} className="flex-row items-center gap-3.5">
+                  <Text className="w-11 text-text-primary font-jost text-sm">
+                    {lang === 'RU' ? `№ ${data.room}` : `#${data.room}`}
+                  </Text>
+                  <View className="flex-1 h-2 bg-border/40 rounded-full overflow-hidden">
+                    <View
+                      className={`h-full rounded-full ${data.minutes > norm ? 'bg-error' : 'bg-primary'}`}
+                      style={{ width: `${widthPct}%` }}
+                    />
+                  </View>
+                  <Text className="w-12 text-right text-text-primary font-jost text-sm">
+                    {data.minutes} {lang === 'RU' ? 'мин' : 'min'}
+                  </Text>
                 </View>
-                <Text className="w-12 text-right text-text-primary font-jost text-sm">
-                  {data.minutes} {lang === 'RU' ? 'мин' : 'min'}
-                </Text>
-              </View>
-            );
-          })}
+              );
+            })
+          )}
         </View>
       </View>
 
@@ -91,10 +114,18 @@ export function ReportsScreen() {
           {lang === 'RU' ? 'ИСТОРИЯ СМЕН' : 'SHIFT HISTORY'}
         </Text>
         <View className="bg-white rounded-[14px] border border-border overflow-hidden">
-          {mockShiftHistory.map((item, i) => {
+          {shiftHistory.length === 0 && (
+            <View className="items-center py-8 gap-2">
+              <Clock size={22} color="#8A8177" />
+              <Text className="text-sm font-jost text-text-secondary">
+                {lang === 'RU' ? 'История смен пока пуста' : 'No shift history yet'}
+              </Text>
+            </View>
+          )}
+          {shiftHistory.map((item, i) => {
             const isExpanded = expandedShiftId === item.id;
             return (
-              <View key={item.id} className={i < mockShiftHistory.length - 1 ? 'border-b border-border-light' : ''}>
+              <View key={item.id} className={i < shiftHistory.length - 1 ? 'border-b border-border-light' : ''}>
                 <Pressable
                   onPress={() => setExpandedShiftId(isExpanded ? null : item.id)}
                   className="p-4 flex-row items-center justify-between active:bg-background"
@@ -135,7 +166,7 @@ export function ReportsScreen() {
                     {!!item.notes && (
                       <View className="bg-background p-3 rounded-xl border border-border">
                         <Text className="text-[12px] text-text-secondary italic font-jost">
-                          "{lang === 'RU' ? item.notesRu : item.notes}"
+                          {`"${lang === 'RU' ? item.notesRu : item.notes}"`}
                         </Text>
                       </View>
                     )}

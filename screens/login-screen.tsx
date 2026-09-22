@@ -3,7 +3,6 @@ import { View, Text, TextInput, Pressable, ScrollView, Alert } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { mockCleaners } from '@/data/mockData';
 import { SollvieraLogo } from '@/components/sollviera-logo';
 
 interface LoginScreenProps {
@@ -11,44 +10,30 @@ interface LoginScreenProps {
 }
 
 const DEMO_PROFILES = [
-  { id: 'elena', matches: ['elena', '8042'], profileIndex: 0, nameRu: 'Елена Вэнс', nameEn: 'Elena Vance', roleRu: 'Клинер · 3 этаж', roleEn: 'Cleaner · Floor 3', email: 'elena.vance@sollviera-pms.com' },
-  { id: 'svetlana', matches: ['svetlana', '7701'], profileIndex: 2, nameRu: 'Светлана Ким', nameEn: 'Svetlana Kim', roleRu: 'Супервизор', roleEn: 'Supervisor', email: 'svetlana.kim@sollviera-pms.com' },
-  { id: 'oleg', matches: ['oleg', '5501'], profileIndex: 3, nameRu: 'Олег Петров', nameEn: 'Oleg Petrov', roleRu: 'Техник', roleEn: 'Technician', email: 'oleg.petrov@sollviera-pms.com' },
-  { id: 'aigerim', matches: ['aigerim', 'dossova', '4092'], profileIndex: 4, nameRu: 'Айгерим Досова', nameEn: 'Aigerim Dossova', roleRu: 'Официант', roleEn: 'Waiter', email: 'aigerim.dossova@sollviera-pms.com' },
+  { id: 'elena', nameRu: 'Елена Вэнс', nameEn: 'Elena Vance', roleRu: 'Клинер · 3 этаж', roleEn: 'Cleaner · Floor 3', email: 'housekeeper@demo.kz' },
+  { id: 'marcus', nameRu: 'Маркус Броди', nameEn: 'Marcus Brody', roleRu: 'Клинер · 2 этаж', roleEn: 'Cleaner · Floor 2', email: 'marcus.brody@sollviera-pms.com' },
 ];
 
 export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
-  const { lang, login } = useApp();
-  const [emailInput, setEmailInput] = useState('elena.vance@sollviera.com');
-  const [passwordInput, setPasswordInput] = useState('••••••••');
-  const [loginError, setLoginError] = useState(false);
+  const { lang, authenticate } = useApp();
+  const [hotelCodeInput, setHotelCodeInput] = useState('demo');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
-    const cleanEmail = emailInput.trim().toLowerCase();
-    const matched = mockCleaners.find(
-      (c) =>
-        c.email.toLowerCase() === cleanEmail ||
-        cleanEmail.includes(c.badgeId.toLowerCase()) ||
-        cleanEmail.includes(c.fullName.toLowerCase().split(' ')[0])
-    );
-
-    if (matched) {
-      login(matched);
-      setLoginError(false);
+  const handleLogin = async () => {
+    setIsSubmitting(true);
+    setLoginError('');
+    try {
+      await authenticate(emailInput.trim(), passwordInput, hotelCodeInput.trim() || 'demo');
       onLoggedIn();
-      return;
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : lang === 'RU' ? 'Не удалось войти' : 'Unable to sign in');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const demo = DEMO_PROFILES.find((d) => d.matches.some((m) => cleanEmail.includes(m)));
-    if (demo) {
-      login(mockCleaners[demo.profileIndex]);
-      setLoginError(false);
-      onLoggedIn();
-      return;
-    }
-
-    setLoginError(true);
   };
 
   return (
@@ -64,10 +49,25 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
           {loginError && (
             <View className="p-3 rounded-xl bg-rose-50 border border-rose-200">
               <Text className="text-sm text-error font-jost">
-                {lang === 'RU' ? 'Неверные данные. Воспользуйтесь демо-аккаунтами ниже.' : 'Invalid credentials. Please use quick demo accounts below.'}
+                {loginError}
               </Text>
             </View>
           )}
+
+          <View className="gap-1">
+            <Text className="text-[12px] font-jost text-text-secondary">
+              {lang === 'RU' ? 'Код отеля' : 'Hotel code'}
+            </Text>
+            <TextInput
+              value={hotelCodeInput}
+              onChangeText={setHotelCodeInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="demo"
+              placeholderTextColor="#8A8177"
+              className="w-full bg-background/30 border border-border rounded-xl px-3.5 py-3 text-sm text-text-primary"
+            />
+          </View>
 
           <View className="gap-1">
             <Text className="text-[12px] font-jost text-text-secondary">
@@ -103,7 +103,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
           </View>
 
           <Pressable onPress={handleLogin} className="w-full bg-primary py-3 rounded-xl items-center active:bg-primary-hover">
-            <Text className="text-white font-jost-semibold text-sm">{lang === 'RU' ? 'Войти на смену' : 'Login to shift'}</Text>
+            <Text className="text-white font-jost-semibold text-sm">{isSubmitting ? (lang === 'RU' ? 'Авторизация...' : 'Authenticating...') : (lang === 'RU' ? 'Войти на смену' : 'Login to shift')}</Text>
           </Pressable>
 
           <Pressable
@@ -125,7 +125,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
                 key={profile.id}
                 onPress={() => {
                   setEmailInput(profile.email);
-                  setPasswordInput(`${profile.id}${profile.matches[profile.matches.length - 1]}`);
+                  setPasswordInput('');
                 }}
                 className={`p-4 flex-row items-center justify-between active:bg-background ${
                   i < DEMO_PROFILES.length - 1 ? 'border-b border-border-light' : ''

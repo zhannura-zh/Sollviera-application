@@ -16,10 +16,29 @@ interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
-  const { lang, setLang, offlineMode, toggleOffline, cleanerProfile, updateCleanerProfile, logout } = useApp();
+  const {
+    lang, setLang, offlineMode, toggleOffline, cleanerProfile, updateCleanerProfile, logout,
+    refreshData, lastSyncedAt, taskSoundEnabled, toggleTaskSound,
+  } = useApp();
   const [pushNotifications, setPushNotifications] = useState(true);
-  const [taskSound, setTaskSound] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleRefreshData = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await refreshData();
+      Alert.alert('', lang === 'RU' ? 'Данные синхронизированы успешно!' : 'Data synced successfully!');
+    } catch (error) {
+      Alert.alert(
+        lang === 'RU' ? 'Ошибка синхронизации' : 'Sync error',
+        error instanceof Error ? error.message : lang === 'RU' ? 'Не удалось синхронизировать данные' : 'Failed to sync data'
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const [editFullName, setEditFullName] = useState(cleanerProfile.fullName);
   const [editFullNameRu, setEditFullNameRu] = useState(cleanerProfile.fullNameRu);
@@ -89,7 +108,7 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
 
           <View className="p-4 flex-row items-center justify-between">
             <Text className="text-sm font-jost text-text-primary">{lang === 'RU' ? 'Звук при новой задаче' : 'Sound on New Task'}</Text>
-            <Toggle value={taskSound} onToggle={() => setTaskSound((v) => !v)} />
+            <Toggle value={taskSoundEnabled} onToggle={toggleTaskSound} />
           </View>
         </View>
       </View>
@@ -99,15 +118,20 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
           {lang === 'RU' ? 'СИНХРОНИЗАЦИЯ' : 'SYNCHRONIZATION'}
         </Text>
         <Pressable
-          onPress={() => Alert.alert('', lang === 'RU' ? 'Данные синхронизированы успешно!' : 'Data synced successfully!')}
-          className="bg-white rounded-[14px] border border-border p-4 flex-row items-center justify-between active:bg-background"
+          onPress={handleRefreshData}
+          disabled={isSyncing}
+          className={`bg-white rounded-[14px] border border-border p-4 flex-row items-center justify-between active:bg-background ${isSyncing ? 'opacity-60' : ''}`}
         >
           <View className="flex-row items-center gap-3">
             <RefreshCw size={16} color="#8A8177" />
             <View>
-              <Text className="text-sm font-jost text-text-primary">{lang === 'RU' ? 'Обновить данные' : 'Refresh Data'}</Text>
+              <Text className="text-sm font-jost text-text-primary">
+                {isSyncing ? (lang === 'RU' ? 'Синхронизация…' : 'Syncing…') : (lang === 'RU' ? 'Обновить данные' : 'Refresh Data')}
+              </Text>
               <Text className="text-[12px] font-jost text-text-secondary mt-0.5">
-                {lang === 'RU' ? 'последняя синхронизация 09:41' : 'last synced at 09:41'}
+                {lastSyncedAt
+                  ? (lang === 'RU' ? `последняя синхронизация ${lastSyncedAt}` : `last synced at ${lastSyncedAt}`)
+                  : (lang === 'RU' ? 'ещё не синхронизировано' : 'not synced yet')}
               </Text>
             </View>
           </View>

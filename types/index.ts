@@ -69,6 +69,7 @@ export interface RoomCheckitem {
 
 export interface HotelRoom {
   id: string;
+  physicalRoomId?: string;
   roomNumber: string;
   floor: number;
   category: string;
@@ -133,4 +134,3 @@ export interface AppNotification {
   subtitleEn?: string;
   subtitleRu?: string;
 }
-

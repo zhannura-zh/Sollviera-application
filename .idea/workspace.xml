@@ -5,43 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e25a5a94-4aa6-4ad7-963f-ce42d31055a8" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/metadata.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/App.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/AuthAndProfileScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/CleaningDashboardScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/MaintenanceScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/NotificationsScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/ReportsScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/RoomChecklistModal.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/RoomDetailsScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/SollvieraLogo.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/SupervisorScreens.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/SuppliesScreen.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/TechnicianScreens.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/WaiterScreens.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/native/DirectorScreens.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/native/HousekeepingScreens.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/native/SollvieraLogo.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/native/SupervisorScreens.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/native/TechnicianScreens.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/components/native/WaiterScreens.native.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/data/mockData.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/locales.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/theme/tokens.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/types.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vite.config.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.json" beforeDir="false" afterPath="$PROJECT_DIR$/app.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(tabs)/profile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(tabs)/profile.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/index.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/checkout-report-modal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/checkout-report-modal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/context/app-store.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/context/app-store.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/dashboard-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/dashboard-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/maintenance-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/maintenance-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/profile-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/profile-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/reports-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/reports-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/room-details-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/room-details-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/settings-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/settings-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/cleaner/supplies-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/cleaner/supplies-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/screens/login-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/screens/login-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/types/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yarn.lock" beforeDir="false" afterPath="$PROJECT_DIR$/yarn.lock" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,41 +36,41 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "shiyanoff"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;shiyanoff&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/zhannura-zh/Sollviera-application.git",
-    "accountId": "5d86e9b0-fbc2-4918-855c-17a325a734d2"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/zhannura-zh/Sollviera-application.git&quot;,
+    &quot;accountId&quot;: &quot;5d86e9b0-fbc2-4918-855c-17a325a734d2&quot;
   }
-}]]></component>
+}</component>
   <component name="McpProjectServerCommands">
     <commands />
     <urls />
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.6663052975786221" />
-      <entry key="MS500" value="3.6635506858339464" />
-      <entry key="S2" value="7.863976764696959" />
-      <entry key="S5" value="13.707458452870531" />
-      <entry key="S10" value="20.06023714937661" />
-      <entry key="S30" value="31.539416500726368" />
-      <entry key="S60" value="37.71218456504254" />
-      <entry key="M2" value="43.927456364083945" />
-      <entry key="M5" value="52.777127747789834" />
-      <entry key="M10" value="63.208299014901364" />
-      <entry key="M15" value="72.37828706531123" />
-      <entry key="M30" value="92.25266421589305" />
-      <entry key="H1" value="111.59308431429318" />
-      <entry key="H2" value="125.64530272451654" />
-      <entry key="H4" value="134.20081076205915" />
-      <entry key="D1" value="142.2721598137815" />
-      <entry key="W1" value="143.75073129547448" />
+      <entry key="MS100" value="1.5931643587037758" />
+      <entry key="MS500" value="3.3757227848859688" />
+      <entry key="S2" value="7.629132793072269" />
+      <entry key="S5" value="10.699223497614327" />
+      <entry key="S10" value="12.18594637399547" />
+      <entry key="S30" value="13.354394654251356" />
+      <entry key="S60" value="13.671767082291897" />
+      <entry key="M2" value="13.834501690954177" />
+      <entry key="M5" value="13.950464248006536" />
+      <entry key="M10" value="14.514771705996953" />
+      <entry key="M15" value="15.830900969013953" />
+      <entry key="M30" value="21.569788005434646" />
+      <entry key="H1" value="34.0760431694212" />
+      <entry key="H2" value="52.79694755320081" />
+      <entry key="H4" value="73.57724015906807" />
+      <entry key="D1" value="166.2195804067689" />
+      <entry key="W1" value="331.38807353407645" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -100,41 +80,41 @@
       <entry key="S10" value="0.0" />
       <entry key="S30" value="0.0" />
       <entry key="S60" value="0.0" />
-      <entry key="M2" value="0.0" />
-      <entry key="M5" value="0.0" />
-      <entry key="M10" value="0.0" />
-      <entry key="M15" value="0.0" />
-      <entry key="M30" value="0.0" />
-      <entry key="H1" value="0.0" />
-      <entry key="H2" value="0.0" />
-      <entry key="H4" value="0.0" />
-      <entry key="D1" value="0.0" />
-      <entry key="W1" value="0.0" />
+      <entry key="M2" value="3.3059101559564496E-290" />
+      <entry key="M5" value="1.6133047729537183E-116" />
+      <entry key="M10" value="1.2701593494336512E-58" />
+      <entry key="M15" value="2.526807396843802E-39" />
+      <entry key="M30" value="5.026735915923769E-20" />
+      <entry key="H1" value="2.242038339530298E-10" />
+      <entry key="H2" value="1.4973437613087698E-5" />
+      <entry key="H4" value="0.003869552637332601" />
+      <entry key="D1" value="0.3962264467106565" />
+      <entry key="W1" value="0.8761195096042175" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="1.6144786859885352" />
-      <entry key="MS500" value="3.5877152690373424" />
-      <entry key="S2" value="7.750176617913399" />
-      <entry key="S5" value="13.635930397812762" />
-      <entry key="S10" value="20.016280939993816" />
-      <entry key="S30" value="31.521014193992773" />
-      <entry key="S60" value="37.70214373366328" />
-      <entry key="M2" value="43.922114166201595" />
-      <entry key="M5" value="52.774851597303545" />
-      <entry key="M10" value="63.20709436558187" />
-      <entry key="M15" value="72.37744770843688" />
-      <entry key="M30" value="92.25220645304168" />
-      <entry key="H1" value="111.592837152233" />
-      <entry key="H2" value="125.64517252867263" />
-      <entry key="H4" value="134.2007436530656" />
-      <entry key="D1" value="142.27214831291954" />
-      <entry key="W1" value="143.75072964422583" />
+      <entry key="MS100" value="1.5560021921957836" />
+      <entry key="MS500" value="3.3611481864166355" />
+      <entry key="S2" value="7.620230827321884" />
+      <entry key="S5" value="10.694054046983512" />
+      <entry key="S10" value="12.182966453298214" />
+      <entry key="S30" value="13.353297176717879" />
+      <entry key="S60" value="13.671204153349011" />
+      <entry key="M2" value="13.834216585001865" />
+      <entry key="M5" value="13.950343917229818" />
+      <entry key="M10" value="14.514579514939516" />
+      <entry key="M15" value="15.83053163823959" />
+      <entry key="M30" value="21.56915622640317" />
+      <entry key="H1" value="34.07544027040971" />
+      <entry key="H2" value="52.79654202382596" />
+      <entry key="H4" value="73.58085950976744" />
+      <entry key="D1" value="166.61575000507386" />
+      <entry key="W1" value="332.2641823753525" />
     </decayedShown>
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1,
-  "fromUser": false
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1,
+  &quot;fromUser&quot;: false
+}</component>
   <component name="ProjectId" id="3J0uJT0NEjKB4VzI0TjnbE1HA7D" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -157,8 +137,8 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "advanced.settings",
-    "ts.external.directory.path": "/Applications/WebStorm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+    "settings.editor.selected.configurable": "ml.llm.AcpAgentsConfigurable",
+    "ts.external.directory.path": "/Users/timshiyanov/Desktop/sollviera/node_modules/typescript/lib",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -181,7 +161,8 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1788810234546</updated>
-      <workItem from="1788810235587" duration="3746000" />
+      <workItem from="1788810235587" duration="11308000" />
+      <workItem from="1789979096878" duration="15683000" />
     </task>
     <servers />
   </component>

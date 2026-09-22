@@ -59,7 +59,9 @@ export function SuppliesScreen() {
     groupedSupplies[item.category].push(item);
   });
 
-  const lowNormCount = supplies.filter((s) => s.trolleyQty / s.neededQty < 0.7).length;
+  // MINIBAR items come from a separate hotel-wide catalog (not per-cleaner trolley stock),
+  // so trolleyQty there isn't meaningful — exclude them from the low-stock/refill flow.
+  const lowNormCount = supplies.filter((s) => s.category !== 'MINIBAR' && s.trolleyQty / s.neededQty < 0.7).length;
   const totalItemsToRequest = Object.values(requestQuantities).reduce((acc, v) => acc + v, 0);
 
   return (
@@ -122,8 +124,9 @@ export function SuppliesScreen() {
               </Text>
               <View className="bg-white rounded-[14px] border border-border overflow-hidden">
                 {items.map((item, i) => {
+                  const isMinibar = item.category === 'MINIBAR';
                   const stockPercent = Math.min(100, Math.round((item.trolleyQty / item.neededQty) * 100));
-                  const isLow = item.trolleyQty / item.neededQty < 0.7;
+                  const isLow = !isMinibar && item.trolleyQty / item.neededQty < 0.7;
                   const reqQty = requestQuantities[item.id] || 0;
                   return (
                     <View
@@ -134,30 +137,40 @@ export function SuppliesScreen() {
                         <Text className="text-sm font-jost text-text-primary leading-snug" numberOfLines={1}>
                           {lang === 'RU' ? item.nameRu : item.nameEn}
                         </Text>
-                        <View className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <View
-                            className={`h-full rounded-full ${isLow ? 'bg-error' : 'bg-success'}`}
-                            style={{ width: `${stockPercent}%` }}
-                          />
-                        </View>
+                        {!isMinibar && (
+                          <View className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <View
+                              className={`h-full rounded-full ${isLow ? 'bg-error' : 'bg-success'}`}
+                              style={{ width: `${stockPercent}%` }}
+                            />
+                          </View>
+                        )}
                       </View>
 
                       <View className="shrink-0 items-end gap-2">
-                        <Text className="text-sm font-jost leading-none pt-0.5">
-                          <Text className={isLow ? 'text-error font-jost-semibold' : 'text-text-primary'}>{item.trolleyQty}</Text>
-                          <Text className="text-text-secondary"> / {item.neededQty}</Text>
-                        </Text>
+                        {isMinibar ? (
+                          <Text className="text-sm font-jost text-text-secondary">
+                            {lang === 'RU' ? `Стандарт: ${item.neededQty}` : `Standard: ${item.neededQty}`}
+                          </Text>
+                        ) : (
+                          <>
+                            <Text className="text-sm font-jost leading-none pt-0.5">
+                              <Text className={isLow ? 'text-error font-jost-semibold' : 'text-text-primary'}>{item.trolleyQty}</Text>
+                              <Text className="text-text-secondary"> / {item.neededQty}</Text>
+                            </Text>
 
-                        {isLow && (
-                          <View className="flex-row items-center bg-white border border-border rounded-xl px-1 py-0.5 h-7">
-                            <Pressable onPress={() => handleRequestQtyChange(item.id, -1)} className="h-5 w-5 items-center justify-center">
-                              <Text className="text-text-secondary font-jost-semibold">-</Text>
-                            </Pressable>
-                            <Text className="w-6 text-center text-sm font-jost text-text-primary">{reqQty}</Text>
-                            <Pressable onPress={() => handleRequestQtyChange(item.id, 1)} className="h-5 w-5 items-center justify-center">
-                              <Text className="text-text-secondary font-jost-semibold">+</Text>
-                            </Pressable>
-                          </View>
+                            {isLow && (
+                              <View className="flex-row items-center bg-white border border-border rounded-xl px-1 py-0.5 h-7">
+                                <Pressable onPress={() => handleRequestQtyChange(item.id, -1)} className="h-5 w-5 items-center justify-center">
+                                  <Text className="text-text-secondary font-jost-semibold">-</Text>
+                                </Pressable>
+                                <Text className="w-6 text-center text-sm font-jost text-text-primary">{reqQty}</Text>
+                                <Pressable onPress={() => handleRequestQtyChange(item.id, 1)} className="h-5 w-5 items-center justify-center">
+                                  <Text className="text-text-secondary font-jost-semibold">+</Text>
+                                </Pressable>
+                              </View>
+                            )}
+                          </>
                         )}
                       </View>
                     </View>

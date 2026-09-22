@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { Wrench, Camera, CheckCircle, ChevronDown } from 'lucide-react-native';
 import { MaintenanceCategory, MaintenancePriority } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
 import { SelectField } from '@/components/ui/select-field';
 
-const MOCK_DEFECT_PHOTO = 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=300&auto=format&fit=crop&q=80';
 const CATEGORIES: MaintenanceCategory[] = ['PLUMBING', 'ELECTRICAL', 'FURNITURE', 'APPLIANCES', 'CLEANLINESS', 'OTHER'];
 const PRIORITIES: MaintenancePriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
@@ -41,6 +41,36 @@ export function MaintenanceScreen() {
       case 'HIGH': return t.priorityHigh;
       case 'CRITICAL': return t.priorityCritical;
     }
+  };
+
+  const handlePickPhoto = async (source: 'camera' | 'library') => {
+    const permission = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        lang === 'RU' ? 'Нет доступа' : 'Permission required',
+        lang === 'RU' ? 'Разрешите доступ к камере или фото в настройках устройства.' : 'Allow access to the camera or photo library in device settings.'
+      );
+      return;
+    }
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    if (result.canceled || !result.assets[0]?.uri) return;
+    setPhotoUrl(result.assets[0].uri);
+  };
+
+  const choosePhotoSource = () => {
+    Alert.alert(
+      lang === 'RU' ? 'Добавить фото' : 'Add photo',
+      lang === 'RU' ? 'Выберите источник' : 'Choose a source',
+      [
+        { text: lang === 'RU' ? 'Снять фото' : 'Take photo', onPress: () => void handlePickPhoto('camera') },
+        { text: lang === 'RU' ? 'Выбрать из галереи' : 'Choose from gallery', onPress: () => void handlePickPhoto('library') },
+        { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleSubmit = () => {
@@ -154,7 +184,7 @@ export function MaintenanceScreen() {
               </Pressable>
             ) : (
               <Pressable
-                onPress={() => setPhotoUrl(MOCK_DEFECT_PHOTO)}
+                onPress={choosePhotoSource}
                 className="w-full py-2.5 px-3 border border-border rounded-xl flex-row items-center justify-center gap-2 bg-background"
               >
                 <Camera size={16} color="#8A8177" />

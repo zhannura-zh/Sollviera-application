@@ -10,6 +10,7 @@ export default function ProfileTab() {
       onOpenNotifications={() => router.push('/profile/notifications')}
       onOpenSettings={() => router.push('/profile/settings')}
       onOpenReports={() => router.push('/profile/reports')}
+      onLoggedOut={() => router.replace('/login')}
     />
   );
 }

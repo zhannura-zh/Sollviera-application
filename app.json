@@ -42,7 +42,15 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Разрешите Sollviera выбирать фотографии для фотоотчётов по уборке.",
+          "cameraPermission": "Разрешите Sollviera использовать камеру для фотоотчётов по уборке."
+        }
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
