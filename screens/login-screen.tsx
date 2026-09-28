@@ -10,9 +10,14 @@ interface LoginScreenProps {
   onLoggedIn: () => void;
 }
 
+const DEMO_PASSWORD = 'demo1234';
+
 const DEMO_PROFILES = [
-  { id: 'elena', nameRu: 'Елена Вэнс', nameEn: 'Elena Vance', roleRu: 'Клинер · 3 этаж', roleEn: 'Cleaner · Floor 3', email: 'housekeeper@demo.kz' },
-  { id: 'marcus', nameRu: 'Маркус Броди', nameEn: 'Marcus Brody', roleRu: 'Клинер · 2 этаж', roleEn: 'Cleaner · Floor 2', email: 'marcus.brody@sollviera-pms.com' },
+  { id: 'elena', nameRu: 'Елена Вэнс', nameEn: 'Elena Vance', roleRu: 'Клинер', roleEn: 'Cleaner', email: 'housekeeper@demo.kz' },
+  { id: 'oleg', nameRu: 'Олег Петров', nameEn: 'Oleg Petrov', roleRu: 'Техник', roleEn: 'Technician', email: 'technician@demo.kz' },
+  { id: 'anna', nameRu: 'Анна Петерсон', nameEn: 'Anna Peterson', roleRu: 'Супервизор', roleEn: 'Supervisor', email: 'supervisor@demo.kz' },
+  { id: 'aigerim', nameRu: 'Айгерим Досова', nameEn: 'Aigerim Dossova', roleRu: 'Метрдотель', roleEn: 'Метрдотель', email: 'maitre@demo.kz' },
+  { id: 'parking', nameRu: 'Парковка Демо', nameEn: 'Parking Demo', roleRu: 'Сотрудник парковки', roleEn: 'Parking attendant', email: 'parking@demo.kz' },
 ];
 
 export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
@@ -131,7 +136,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
                 key={profile.id}
                 onPress={() => {
                   setEmailInput(profile.email);
-                  setPasswordInput('');
+                  setPasswordInput(DEMO_PASSWORD);
                 }}
                 className={`p-4 flex-row items-center justify-between active:bg-background ${
                   i < DEMO_PROFILES.length - 1 ? 'border-b border-border-light' : ''
@@ -145,7 +150,9 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
                   </View>
                   <View>
                     <Text className="text-sm font-jost-semibold text-text-primary">{lang === 'RU' ? profile.nameRu : profile.nameEn}</Text>
-                    <Text className="text-[12px] text-text-secondary font-jost mt-0.5">{lang === 'RU' ? profile.roleRu : profile.roleEn}</Text>
+                    <Text className="text-[12px] text-text-secondary font-jost mt-0.5">
+                      {lang === 'RU' ? profile.roleRu : profile.roleEn} · {profile.email}
+                    </Text>
                   </View>
                 </View>
                 <ChevronRight size={16} color="#8A8177" />
