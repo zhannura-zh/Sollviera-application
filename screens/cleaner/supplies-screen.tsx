@@ -107,7 +107,7 @@ export function SuppliesScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ gap: 20, paddingBottom: 20 }}>
+      <ScrollView className="flex-1 px-5" contentContainerStyle={{ gap: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         {successMessage !== '' && (
           <View className="bg-[#FFFDF5] rounded-xl border border-warning/40 p-3.5 flex-row items-center gap-2.5">
             <Text className="text-success font-jost-semibold">✓</Text>

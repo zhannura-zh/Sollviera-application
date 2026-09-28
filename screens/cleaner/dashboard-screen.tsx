@@ -323,7 +323,7 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
       </View>
 
       {/* Room list */}
-      <ScrollView className="flex-1 px-3.5" contentContainerStyle={{ paddingVertical: 8, gap: 16 }}>
+      <ScrollView className="flex-1 px-3.5" contentContainerStyle={{ paddingVertical: 8, gap: 16 }} keyboardShouldPersistTaps="handled">
         {filteredRooms.length === 0 ? (
           <View className="p-8 items-center gap-2">
             <CheckSquare size={40} color="#cbd5e1" />

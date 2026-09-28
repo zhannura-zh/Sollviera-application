@@ -139,6 +139,13 @@ export const createHousekeeping = (payload: Json) =>
 export const createRecord = (kind: string, payload: Json) =>
   request<Json>(`/records/${encodeURIComponent(kind)}`, { method: 'POST', data: payload });
 
+// The backend's ChargeDto is untyped in the API spec (no documented fields), so this
+// payload shape is a best-effort guess following the camelCase convention used by the
+// backend's other DTOs (e.g. OpenCashShiftDto). Callers should treat failures as
+// non-fatal until the real shape is confirmed against a live account.
+export const chargeMinibar = (payload: Json) =>
+  request<Json>('/minibar/charges', { method: 'POST', data: payload });
+
 export const updateRecord = (kind: string, id: string, payload: Json) =>
   request<Json>(`/records/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`, {
     method: 'PATCH',

@@ -38,7 +38,7 @@ export function ChatsScreen({ onOpenContact }: ChatsScreenProps) {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         <View className="bg-white rounded-[14px] border border-border overflow-hidden">
           {filtered.map((contact, i) => {
             const initials = getInitials(lang === 'RU' ? contact.nameRu : contact.name);

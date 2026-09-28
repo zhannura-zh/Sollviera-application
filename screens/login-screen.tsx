@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { SollvieraLogo } from '@/components/sollviera-logo';
@@ -38,7 +39,12 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-background">
-    <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', padding: 20, gap: 24 }}>
+    <KeyboardAvoidingView className="flex-1" behavior="padding">
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between', padding: 20, gap: 24 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <View className="gap-5">
         <View className="items-center pt-8 pb-3">
           <SollvieraLogo size={96} />
@@ -153,6 +159,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
         {lang === 'RU' ? 'Sollviera PMS v2.4 • Мобильный клининг' : 'Sollviera PMS v2.4 • Housekeeping Mobile'}
       </Text>
     </ScrollView>
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

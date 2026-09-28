@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { PhoneCall, Send } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 
@@ -24,11 +25,7 @@ export function ChatConversationScreen({ contactId }: ChatConversationScreenProp
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-background"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 44 : 0}
-    >
+    <KeyboardAvoidingView className="flex-1 bg-background" behavior="padding">
       <View className="bg-white border-y border-border/80 px-5 py-3.5 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <View className="h-10 w-10 rounded-full bg-primary-light items-center justify-center border border-border">

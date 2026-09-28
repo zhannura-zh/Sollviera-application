@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
 import { Wrench, Camera, CheckCircle, ChevronDown } from 'lucide-react-native';
 import { MaintenanceCategory, MaintenancePriority } from '@/types';
@@ -99,7 +100,8 @@ export function MaintenanceScreen() {
         </Text>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
+      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
         {showSuccess && (
           <View className="bg-[#FFFDF5] rounded-xl border border-warning/40 p-3.5 flex-row items-center gap-2.5">
             <CheckCircle size={18} color="#5B8C6E" />
@@ -252,6 +254,7 @@ export function MaintenanceScreen() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

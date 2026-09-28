@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as ImagePicker from 'expo-image-picker';
 import {
   Play, Pause, AlertTriangle, ShieldCheck, ClipboardList, Camera,
@@ -362,7 +363,8 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
         </View>
       </SafeAreaView>
 
-      <ScrollView className="flex-1 p-4" contentContainerStyle={{ gap: 16 }}>
+      <KeyboardAvoidingView className="flex-1" behavior="padding">
+      <ScrollView className="flex-1 p-4" contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
         {(room.notesEn || room.notesRu) && (
           <View className="bg-[#FFFDF5] rounded-[14px] border border-warning/40 p-3.5 flex-row gap-2.5">
             <HelpCircle size={16} color="#8A8177" />
@@ -850,6 +852,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

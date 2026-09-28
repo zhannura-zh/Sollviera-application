@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, Pressable, TextInput, ScrollView, Alert } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { X, Plus, Minus } from 'lucide-react-native';
 import { Language, HotelRoom, SupplyItem } from '@/types';
 
@@ -76,9 +77,12 @@ export function CheckoutReportModal({ room, isOpen, onClose, lang, supplies, onS
 
   return (
     <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 items-center justify-center bg-dark/40 p-3.5">
+      <KeyboardAvoidingView
+        className="flex-1 items-center justify-center bg-dark/40 p-3.5"
+        behavior="padding"
+      >
         <View className="bg-white rounded-[20px] border border-border w-full max-w-sm max-h-[90%]">
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
             {/* Header */}
             <View className="flex-row justify-between items-center border-b border-border-light pb-2">
               <View className="flex-1 pr-2">
@@ -167,7 +171,7 @@ export function CheckoutReportModal({ room, isOpen, onClose, lang, supplies, onS
             </View>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronRight, RefreshCw, User, Lock, HelpCircle, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 
@@ -186,7 +187,10 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
       </Pressable>
 
       <Modal visible={isEditingProfile} transparent animationType="fade" onRequestClose={() => setIsEditingProfile(false)}>
-        <View className="flex-1 items-center justify-center bg-dark/60 p-4">
+        <KeyboardAvoidingView
+          className="flex-1 items-center justify-center bg-dark/60 p-4"
+          behavior="padding"
+        >
           <View className="bg-white rounded-[24px] w-full max-w-xs p-5 gap-4 border border-border">
             <View className="flex-row items-center justify-between border-b border-border-light pb-2">
               <Text className="text-base font-jost text-text-primary">{lang === 'RU' ? 'Редактировать' : 'Edit Details'}</Text>
@@ -242,7 +246,7 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );
