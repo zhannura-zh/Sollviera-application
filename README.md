@@ -1,50 +1,68 @@
-# Welcome to your Expo app 👋
+# Sollviera Staff
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Мобильное приложение для персонала отеля Rixos Borovoe — Expo Router + React Native, кросс-платформенно (iOS, Android, web) на одном коде. Единый логин, дальше приложение само ведёт сотрудника в интерфейс его роли.
 
-## Get started
+## Роли
 
-1. Install dependencies
+| Роль | Экраны | Статус API |
+|---|---|---|
+| **Клинер** | Номера, Активное, Техслужба, Склад, Профиль | ✅ на реальном API |
+| **Супервайзер** | Мониторинг номеров, Инспекция, Техслужба, Команда, Профиль | 🟡 частично — приглашение персонала пока без бэкенда |
+| **Техник** | Заявки, В работе, Создать, Склад, Профиль | ✅ на реальном API |
+| **Официант / метрдотель** | Сегодня, Зал, Профиль | ⚪️ демо-данные — ресторанного домена в API ещё нет |
+| **Парковка** | Двор, Заезд, Профиль | ⚪️ демо-данные — паркового домена в API ещё нет |
 
-   ```bash
-   npm install
-   ```
+Подробная построчная сверка (что реально пишет в бэкенд, а что живёт только на экране) — см. `lib/api-client.ts` и комментарии в `context/app-store.tsx`.
 
-2. Start the app
+## Стек
 
-   ```bash
-   npx expo start
-   ```
+- [Expo](https://expo.dev) 54 · [Expo Router](https://docs.expo.dev/router/introduction/) (file-based, `Stack.Protected` для гейта авторизации)
+- React Native 0.81 · React 19 · TypeScript
+- NativeWind (Tailwind для React Native)
+- Axios-клиент к REST API (`lib/api-client.ts`)
+- Сессия — `@react-native-async-storage/async-storage` (переживает перезапуск на всех платформах)
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Быстрый старт
 
 ```bash
-npm run reset-project
+npm install
+
+# при необходимости — свой бэкенд/тенант
+cp .env.example .env   # EXPO_PUBLIC_API_BASE_URL, EXPO_PUBLIC_TENANT_SLUG
+
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Дальше — выбор платформы из вывода Expo CLI, либо напрямую:
 
-## Learn more
+```bash
+npm run ios       # нативная сборка через Xcode (ios/ уже в репозитории)
+npm run android   # нативная сборка через Gradle (android/ уже в репозитории)
+npm run web
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+`ios/` и `android/` закоммичены (без `Pods/`, `build/`, `.gradle/` — см. `.gitignore`), так что `npx expo prebuild` не требуется. Для iOS перед первой сборкой: `cd ios && pod install`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Структура
 
-## Join the community
+```
+app/
+  (auth)/            # логин — доступен, только если НЕ залогинен
+  (app)/              # всё остальное — доступен, только если залогинен
+    (tabs)/            # табы клинера
+    (supervisor)/       # табы супервайзера
+    (tech)/             # табы техника
+    (waiter)/           # табы официанта
+    (parking)/          # табы парковки
+    profile/, room/, ticket/, inspect/, monitor/, staff/, staff-member/  # общие пуш-экраны
+screens/
+  cleaner/ supervisor/ technician/ waiter/ parking/   # экраны по ролям, роуты — только тонкие обёртки
+components/           # общие + табы по ролям (role-tab-bar.tsx — общая база)
+context/app-store.tsx  # весь стейт приложения (сессия, роли, данные)
+lib/api-client.ts      # единственная точка обращения к бэкенду
+types/index.ts
+```
 
-Join our community of developers creating universal apps.
+## Демо-аккаунты
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+На экране логина есть быстрый вход по каждой роли (общий демо-пароль). Приложение само определяет роль по `role`/`roleCode` из ответа `/staff/me` (см. `classifyRole` в `context/app-store.tsx`) и решает, в какую табовую группу отправить.
