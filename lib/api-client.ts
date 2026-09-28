@@ -1,4 +1,5 @@
 import { AxiosError, AxiosRequestConfig, create } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.sollviera.com/api').replace(/\/$/, '');
 const DEFAULT_TENANT_SLUG = process.env.EXPO_PUBLIC_TENANT_SLUG || 'demo';
@@ -28,48 +29,63 @@ const http = create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// In-memory cache so every other call in this file can read the session synchronously
+// (the axios interceptor below, tenantSlug(), etc.). AsyncStorage itself is async and
+// works on both web (IndexedDB-backed) and native (unlike the old plain `localStorage`,
+// which silently doesn't exist in the native runtime — sessions never survived an app
+// restart there). `hydrateSession()` fills this cache once at startup; see its call in
+// app-store.tsx's restore effect, gated behind `authReady`.
 let session: ApiSession | null = null;
+let tenant: string = DEFAULT_TENANT_SLUG;
+let hydrated = false;
 
-function storage() {
-  if (typeof globalThis === 'undefined' || !('localStorage' in globalThis)) return null;
-  return globalThis.localStorage;
+const STORAGE_KEYS = {
+  token: 'sollviera_access_token',
+  user: 'sollviera_user',
+  tenant: 'sollviera_tenant',
+};
+
+export async function hydrateSession(): Promise<ApiSession | null> {
+  if (hydrated) return session;
+  hydrated = true;
+  try {
+    const [[, token], [, userJson], [, storedTenant]] = await AsyncStorage.multiGet([
+      STORAGE_KEYS.token,
+      STORAGE_KEYS.user,
+      STORAGE_KEYS.tenant,
+    ]);
+    if (storedTenant) tenant = storedTenant;
+    if (token && userJson) {
+      session = { accessToken: token, user: JSON.parse(userJson) as ApiUser };
+    }
+  } catch {
+    session = null;
+  }
+  return session;
 }
 
 export function getStoredSession(): ApiSession | null {
-  if (session) return session;
-  const store = storage();
-  if (!store) return null;
-  const token = store.getItem('sollviera_access_token');
-  const userJson = store.getItem('sollviera_user');
-  if (!token || !userJson) return null;
-  try {
-    const user = JSON.parse(userJson) as ApiUser;
-    session = { accessToken: token, user };
-    return session;
-  } catch {
-    clearSession();
-    return null;
-  }
+  return session;
 }
 
 export function clearSession() {
   session = null;
-  const store = storage();
-  store?.removeItem('sollviera_access_token');
-  store?.removeItem('sollviera_user');
-  store?.removeItem('sollviera_tenant');
+  tenant = DEFAULT_TENANT_SLUG;
+  void AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.user, STORAGE_KEYS.tenant]);
 }
 
 function saveSession(value: ApiSession) {
   session = value;
-  const store = storage();
-  store?.setItem('sollviera_access_token', value.accessToken);
-  store?.setItem('sollviera_user', JSON.stringify(value.user));
-  store?.setItem('sollviera_tenant', value.user.tenantSlug || DEFAULT_TENANT_SLUG);
+  tenant = value.user.tenantSlug || DEFAULT_TENANT_SLUG;
+  void AsyncStorage.multiSet([
+    [STORAGE_KEYS.token, value.accessToken],
+    [STORAGE_KEYS.user, JSON.stringify(value.user)],
+    [STORAGE_KEYS.tenant, tenant],
+  ]);
 }
 
 function tenantSlug() {
-  return storage()?.getItem('sollviera_tenant') || getStoredSession()?.user.tenantSlug || DEFAULT_TENANT_SLUG;
+  return tenant;
 }
 
 http.interceptors.request.use((config) => {
@@ -79,18 +95,29 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
+export class ApiRequestError extends Error {
+  // undefined status means the request never got a response at all (offline, timeout,
+  // CORS, server unreachable) — not the same as the server rejecting the token.
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, config: AxiosRequestConfig = {}) {
   try {
     const response = await http.request<T>({ ...config, url: path });
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<Json>;
-    if (axiosError.response?.status === 401) clearSession();
+    const status = axiosError.response?.status;
+    if (status === 401) clearSession();
     const responseMessage = axiosError.response?.data?.message;
     const message = Array.isArray(responseMessage)
       ? responseMessage.join(', ')
       : responseMessage || axiosError.message || 'Network request failed';
-    throw new Error(String(message));
+    throw new ApiRequestError(String(message), status);
   }
 }
 
@@ -110,6 +137,13 @@ export const listRooms = () => request<unknown[]>('/rooms');
 export const getDashboard = () => request<Json>('/dashboard');
 export const listRecord = (kind: string) => request<unknown[]>(`/records/${encodeURIComponent(kind)}`);
 export const listMinibarItems = () => request<unknown[]>('/minibar/items');
+export const listStaff = () => request<unknown[]>('/staff');
+
+export const updateRoomFields = (id: string, payload: Json) =>
+  request<Json>(`/rooms/${encodeURIComponent(id)}`, { method: 'PATCH', data: payload });
+
+export const updateRoomStatusField = (id: string, payload: Json) =>
+  request<Json>(`/rooms/${encodeURIComponent(id)}/status`, { method: 'PATCH', data: payload });
 
 // `stage` tags the photo: 'before'/'after' for the overall room shot, or a checklist zone
 // name (e.g. 'BEDROOM') for a per-zone photo — the API doesn't constrain it to an enum.
