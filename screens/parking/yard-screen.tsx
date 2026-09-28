@@ -13,10 +13,12 @@ export function ParkingYardScreen() {
   const freeCount = parkingSpots.length - parkingSessions.length;
 
   const q = searchQuery.toLowerCase().trim();
-  const visibleSessions = parkingSessions.filter((s) => {
-    if (!q) return true;
-    return s.plate.toLowerCase().includes(q) || s.guestName.toLowerCase().includes(q);
-  });
+  const visibleSessions = parkingSessions
+    .filter((s) => {
+      if (!q) return true;
+      return s.plate.toLowerCase().includes(q) || s.guestName.toLowerCase().includes(q);
+    })
+    .sort((a, b) => b.checkedInAtIso.localeCompare(a.checkedInAtIso));
 
   const handleRefresh = async () => {
     if (isRefreshing) return;

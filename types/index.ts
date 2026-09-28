@@ -117,6 +117,9 @@ export interface ParkingSession {
   guestName: string;
   note?: string;
   checkedInAt: string;
+  // Raw ISO timestamp behind `checkedInAt` (which is already locale-formatted for
+  // display) — kept separately so the yard list can actually sort by time.
+  checkedInAtIso: string;
 }
 
 export interface StaffMember {

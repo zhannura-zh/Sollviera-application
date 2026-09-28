@@ -445,6 +445,7 @@ function mapParkingSession(item: any): ParkingSession {
     guestName: String(item.guestName || ''),
     note: item.notes ? String(item.notes) : undefined,
     checkedInAt: item.parkedAt ? new Date(item.parkedAt).toLocaleString('ru-RU') : timeNow(),
+    checkedInAtIso: item.parkedAt ? String(item.parkedAt) : new Date().toISOString(),
   };
 }
 
@@ -875,7 +876,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const checkInVehicle = useCallback(
     (plate: string, guestName: string, spotId: string, note?: string) => {
       const tempId = `ps-${Date.now()}`;
-      setParkingSessions((prev) => [...prev, { id: tempId, spotId, plate, guestName, note, checkedInAt: timeNow() }]);
+      setParkingSessions((prev) => [...prev, { id: tempId, spotId, plate, guestName, note, checkedInAt: timeNow(), checkedInAtIso: new Date().toISOString() }]);
       addSystemNotification(
         `Vehicle ${plate} checked in`,
         `Заезд на парковку: ${plate}`,
