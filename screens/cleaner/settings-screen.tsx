@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, TextInput, Alert, Switch } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronRight, RefreshCw, User, Lock, HelpCircle, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 
 function Toggle({ value, onToggle }: { value: boolean; onToggle: () => void }) {
   return (
-    <Pressable onPress={onToggle} className={`w-9 h-5 rounded-full justify-center ${value ? 'bg-success' : 'bg-border'}`}>
-      <View className={`h-4 w-4 rounded-full bg-white ${value ? 'ml-4' : 'ml-0.5'}`} />
-    </Pressable>
+    <Switch
+      value={value}
+      onValueChange={onToggle}
+      trackColor={{ false: '#E5DFD3', true: '#5B8C6E' }}
+      thumbColor="#fff"
+    />
   );
 }
 
