@@ -38,6 +38,15 @@ yarn-error.*
 
 app-example
 
-# generated native folders
-/ios
-/android
+# iOS
+ios/Pods/
+ios/build/
+ios/DerivedData/
+**/xcuserdata/
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/.cxx/
+android/local.properties
