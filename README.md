@@ -24,20 +24,20 @@
 ## Быстрый старт
 
 ```bash
-npm install
+yarn install
 
 # при необходимости — свой бэкенд/тенант
 cp .env.example .env   # EXPO_PUBLIC_API_BASE_URL, EXPO_PUBLIC_TENANT_SLUG
 
-npx expo start
+yarn start
 ```
 
 Дальше — выбор платформы из вывода Expo CLI, либо напрямую:
 
 ```bash
-npm run ios       # нативная сборка через Xcode (ios/ уже в репозитории)
-npm run android   # нативная сборка через Gradle (android/ уже в репозитории)
-npm run web
+yarn ios       # нативная сборка через Xcode (ios/ уже в репозитории)
+yarn android   # нативная сборка через Gradle (android/ уже в репозитории)
+yarn web
 ```
 
 `ios/` и `android/` закоммичены (без `Pods/`, `build/`, `.gradle/` — см. `.gitignore`), так что `npx expo prebuild` не требуется. Для iOS перед первой сборкой: `cd ios && pod install`.
