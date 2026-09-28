@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.sollviera",
+      "bundleIdentifier": "kz.hyperdevelopment.sollviera",
       "appleTeamId": "28YC4WB6VR"
     },
     "android": {
