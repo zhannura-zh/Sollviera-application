@@ -87,6 +87,46 @@ export interface HotelRoom {
   checklist: RoomCheckitem[];
   startTime?: string;
   endTime?: string;
+  assignedTo?: string;
+}
+
+// Rejected-inspection log — session-local only (there's no persisted "rejected" state on
+// the backend distinct from a plain PENDING room; see rejectRoomInspection in app-store.tsx).
+export interface RejectedInspection {
+  id: string;
+  roomId: string;
+  roomNumber: string;
+  note: string;
+  timestamp: string;
+  assignedTo?: string;
+}
+
+// The real API has no parking/valet domain at all — spots and sessions are session-local
+// state (see checkInVehicle/checkOutVehicle in app-store.tsx), same "not backed by a real
+// endpoint" pattern as rejectedInspections above.
+export interface ParkingSpot {
+  id: string;
+  code: string;
+  zone: string;
+}
+
+export interface ParkingSession {
+  id: string;
+  spotId: string;
+  plate: string;
+  guestName: string;
+  note?: string;
+  checkedInAt: string;
+}
+
+export interface StaffMember {
+  id: string;
+  fullName: string;
+  department?: string;
+  roleCode?: string;
+  phone?: string;
+  shiftStatus?: string;
+  isActive: boolean;
 }
 
 export type MaintenanceCategory = 'PLUMBING' | 'ELECTRICAL' | 'FURNITURE' | 'APPLIANCES' | 'CLEANLINESS' | 'OTHER';
@@ -111,6 +151,46 @@ export interface MaintenanceRequest {
   repairCost?: number;
   repairComment?: string;
   costCalculated?: boolean;
+  comments?: string[];
+  materials?: { id: string; nameEn: string; nameRu: string; qty: number }[];
+  photosBefore?: string[];
+  photosAfter?: string[];
+  steps?: MaintenanceStep[];
+  floor?: number;
+  roomCategory?: string;
+  startedAt?: string;
+  reportedBy?: string;
+  assignedToName?: string;
+}
+
+export interface MaintenanceStep {
+  id: string;
+  textRu: string;
+  textEn: string;
+  done: boolean;
+}
+
+export type PartCategory = 'PLUMBING' | 'ELECTRICAL' | 'CONSUMABLES';
+
+export interface PartItem {
+  id: string;
+  nameEn: string;
+  nameRu: string;
+  code: string;
+  category: PartCategory;
+  currentStock: number;
+  normStock: number;
+  orderQty: number;
+}
+
+export interface PartOrder {
+  id: string;
+  titleEn: string;
+  titleRu: string;
+  subEn: string;
+  subRu: string;
+  status: string;
+  createdAt: string;
 }
 
 export interface SupplyItem {

@@ -9,7 +9,15 @@ import {
   SupplyItem,
   AppNotification,
   MaintenanceRequest,
+  MaintenanceStatus,
+  MaintenanceStep,
   CleanerProfile,
+  PartItem,
+  PartOrder,
+  StaffMember,
+  RejectedInspection,
+  ParkingSpot,
+  ParkingSession,
 } from '@/types';
 import {
   mockRooms,
@@ -20,6 +28,7 @@ import {
   mockShiftHistory,
 } from '@/data/mockData';
 import {
+  ApiRequestError,
   ApiUser,
   chargeMinibar,
   clearSession,
@@ -27,13 +36,17 @@ import {
   getDashboard,
   getMe,
   getStoredSession,
+  hydrateSession,
   listHousekeeping,
   listMinibarItems,
   listRecord,
   listRooms,
+  listStaff,
   login as apiLogin,
   updateHousekeepingStatus,
   updateRecord,
+  updateRoomFields,
+  updateRoomStatusField,
   uploadRoomPhoto,
 } from '@/lib/api-client';
 
@@ -139,12 +152,41 @@ function timeNow() {
   return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
+export type StaffRole = 'CLEANER' | 'TECHNICIAN' | 'SUPERVISOR' | 'WAITER' | 'PARKING';
+
+// Classifies an API user into one of the roles this app supports, from the free-text
+// role/roleCode the backend returns. Returns null when neither matches, so callers can
+// reject unsupported roles without guessing. Checked via roleCode primarily — the
+// backend's demo supervisor account carries role:"RECEPTION" but roleCode:"supervisor".
+function classifyRole(user: Pick<ApiUser, 'role' | 'roleCode'>): StaffRole | null {
+  const role = `${user.role || ''} ${user.roleCode || ''}`.toLowerCase();
+  if (role.includes('technician')) return 'TECHNICIAN';
+  if (role.includes('supervisor')) return 'SUPERVISOR';
+  if (role.includes('waiter') || role.includes('host') || role.includes('maitre')) return 'WAITER';
+  if (role.includes('parking') || role.includes('valet')) return 'PARKING';
+  if (role.includes('cleaner') || role.includes('housekeeper') || role.includes('housekeeping')) return 'CLEANER';
+  return null;
+}
+
+const INITIAL_PARKING_SPOTS: ParkingSpot[] = [
+  { id: 'a01', code: 'A-01', zone: 'A' },
+  { id: 'a02', code: 'A-02', zone: 'A' },
+  { id: 'b01', code: 'B-01', zone: 'B' },
+  { id: 'b02', code: 'B-02', zone: 'B' },
+  { id: 'vip1', code: 'VIP-1', zone: 'VIP' },
+];
+
+const INITIAL_PARKING_SESSIONS: ParkingSession[] = [
+  { id: 'ps1', spotId: 'b02', plate: '001AAA02', guestName: 'Тест Тестов', checkedInAt: timeNow() },
+];
+
 interface AppState {
   lang: Language;
   setLang: (lang: Language) => void;
 
   isLoggedIn: boolean;
   authReady: boolean;
+  role: StaffRole | null;
   login: (profile: CleanerProfile, sessionUser?: ApiUser) => void;
   authenticate: (email: string, password: string, tenantSlug?: string) => Promise<void>;
   logout: () => void;
@@ -157,6 +199,17 @@ interface AppState {
   updateRoomChecklist: (roomId: string, checklist: RoomCheckitem[]) => void;
   uploadRoomPhoto: (roomId: string, uri: string, stage: string) => Promise<void>;
   activeRoom: HotelRoom | null;
+  verifyRoom: (roomId: string) => void;
+  rejectRoomInspection: (roomId: string, note: string) => void;
+  reassignRooms: (fromName: string, toName: string) => number;
+
+  staffList: StaffMember[];
+  rejectedInspections: RejectedInspection[];
+
+  parkingSpots: ParkingSpot[];
+  parkingSessions: ParkingSession[];
+  checkInVehicle: (plate: string, guestName: string, spotId: string, note?: string) => void;
+  checkOutVehicle: (sessionId: string) => void;
 
   supplies: SupplyItem[];
   updateSupplyQty: (supplyId: string, diff: number) => void;
@@ -177,6 +230,16 @@ interface AppState {
 
   maintenanceRequests: MaintenanceRequest[];
   addMaintenanceRequest: (req: Omit<MaintenanceRequest, 'id' | 'timestamp' | 'status'>) => void;
+  updateMaintenanceStatus: (id: string, status: MaintenanceStatus) => void;
+  toggleMaintenanceStep: (ticketId: string, stepId: string) => void;
+  saveRepairCost: (id: string, cost: number, comment: string) => void;
+  addMaintenanceComment: (id: string, text: string) => void;
+  addUsedPart: (ticketId: string, part: PartItem, qty: number) => void;
+  uploadMaintenancePhoto: (ticketId: string, uri: string, stage: 'before' | 'after') => Promise<void>;
+
+  parts: PartItem[];
+  partOrders: PartOrder[];
+  orderParts: (items: PartItem[]) => void;
 
   offlineMode: boolean;
   toggleOffline: () => void;
@@ -273,6 +336,7 @@ function mapHousekeepingTask(task: any, roomFallback?: any, checklistRecord?: an
     checklist: status === 'READY' || status === 'VERIFIED' ? checklist.map((item: RoomCheckitem) => ({ ...item, done: true })) : checklist,
     startTime: task.startedAt ? new Date(task.startedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : undefined,
     endTime: task.completedAt ? new Date(task.completedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : undefined,
+    assignedTo: task.assignedTo ? String(task.assignedTo) : undefined,
   };
 }
 
@@ -290,7 +354,7 @@ function mapSupply(item: any): SupplyItem {
   };
 }
 
-function mapMaintenance(item: any): MaintenanceRequest {
+function mapMaintenance(item: any, roomFallback?: any): MaintenanceRequest {
   const category = String(item.category || 'OTHER').toUpperCase();
   const priority = String(item.priority || 'MEDIUM').toUpperCase();
   const status = String(item.status || 'NEW').toLowerCase();
@@ -307,6 +371,67 @@ function mapMaintenance(item: any): MaintenanceRequest {
     timestamp: item.created_at ? new Date(item.created_at).toLocaleString('ru-RU') : '',
     isGuestDamage: Boolean(item.is_guest_damage),
     guestDamageType: item.guest_damage_type ? String(item.guest_damage_type) : undefined,
+    repairCost: item.repair_cost !== undefined ? Number(item.repair_cost) : undefined,
+    repairComment: item.repair_comment ? String(item.repair_comment) : undefined,
+    costCalculated: Boolean(item.cost_calculated),
+    comments: Array.isArray(item.comments) ? item.comments.map((c: unknown) => String(c)) : undefined,
+    materials: Array.isArray(item.materials) ? item.materials : undefined,
+    photosBefore: Array.isArray(item.photos_before) ? item.photos_before.map((p: unknown) => String(p)) : undefined,
+    photosAfter: Array.isArray(item.photos_after) ? item.photos_after.map((p: unknown) => String(p)) : undefined,
+    steps: Array.isArray(item.steps) ? item.steps : undefined,
+    floor: item.floor !== undefined ? Number(item.floor) : roomFallback?.floor !== undefined ? Number(roomFallback.floor) : undefined,
+    roomCategory: item.room_category ? String(item.room_category) : roomFallback?.roomType?.name ? String(roomFallback.roomType.name) : undefined,
+    startedAt: item.started_at ? new Date(item.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : undefined,
+    reportedBy: item.reported_by_name || item.created_by_name || item.author_name ? String(item.reported_by_name || item.created_by_name || item.author_name) : undefined,
+    assignedToName: item.assigned_to_name || item.assignee_name || item.technician_name ? String(item.assigned_to_name || item.assignee_name || item.technician_name) : undefined,
+  };
+}
+
+// Default 3-step repair workflow shown once a technician starts work on a ticket —
+// mirrors the production web app's fixed "diagnose / fix / verify" sequence.
+function defaultMaintenanceSteps(): MaintenanceStep[] {
+  return [
+    { id: 'diagnose', textRu: 'Диагностика · причина найдена', textEn: 'Diagnostics · cause found', done: false },
+    { id: 'fix', textRu: 'Устранение неисправности', textEn: 'Fix the issue', done: false },
+    { id: 'verify', textRu: 'Проверка после ремонта', textEn: 'Post-repair check', done: false },
+  ];
+}
+
+function mapPart(item: any): PartItem {
+  const category = String(item.category || 'CONSUMABLES').toUpperCase();
+  return {
+    id: String(item.id),
+    nameEn: String(item.nameEn || item.name || item.code || 'Part'),
+    nameRu: String(item.nameRu || item.nameEn || item.name || item.code || 'Запчасть'),
+    code: String(item.code || item.id),
+    category: ['PLUMBING', 'ELECTRICAL', 'CONSUMABLES'].includes(category) ? category as PartItem['category'] : 'CONSUMABLES',
+    currentStock: Number(item.currentStock ?? 0),
+    normStock: Number(item.normStock ?? 1),
+    orderQty: 0,
+  };
+}
+
+function mapStaff(item: any): StaffMember {
+  return {
+    id: String(item.id),
+    fullName: String(item.fullName || item.email || 'Staff'),
+    department: item.department ? String(item.department) : undefined,
+    roleCode: item.roleCode ? String(item.roleCode) : undefined,
+    phone: item.phone ? String(item.phone) : undefined,
+    shiftStatus: item.shiftStatus ? String(item.shiftStatus) : undefined,
+    isActive: Boolean(item.isActive),
+  };
+}
+
+function mapPartOrder(item: any): PartOrder {
+  return {
+    id: String(item.id),
+    titleEn: String(item.title_en || item.title || 'Order'),
+    titleRu: String(item.title_ru || item.title_en || item.title || 'Заказ'),
+    subEn: String(item.sub_en || ''),
+    subRu: String(item.sub_ru || item.sub_en || ''),
+    status: String(item.status || 'ordered'),
+    createdAt: item.created_at ? new Date(item.created_at).toLocaleString('ru-RU') : '',
   };
 }
 
@@ -316,10 +441,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLang] = useState<Language>('RU');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [authReady, setAuthReady] = useState<boolean>(false);
+  const [role, setRole] = useState<StaffRole | null>(null);
   const [cleanerProfile, setCleanerProfile] = useState<CleanerProfile>(mockCleaners[0]);
   const initialProfile = useRef(cleanerProfile);
   const [rooms, setRooms] = useState<HotelRoom[]>(mockRooms);
   const [supplies, setSupplies] = useState<SupplyItem[]>(mockSupplyItems);
+  const [parts, setParts] = useState<PartItem[]>([]);
+  const [partOrders, setPartOrders] = useState<PartOrder[]>([]);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [rejectedInspections, setRejectedInspections] = useState<RejectedInspection[]>([]);
+  const [parkingSpots] = useState<ParkingSpot[]>(INITIAL_PARKING_SPOTS);
+  const [parkingSessions, setParkingSessions] = useState<ParkingSession[]>(INITIAL_PARKING_SESSIONS);
   const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(mockMaintenanceRequests);
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryItem[]>(mockShiftHistory);
@@ -367,18 +499,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     clearSession();
     setIsLoggedIn(false);
+    setRole(null);
     setCleanerProfile(mockCleaners[0]);
   }, []);
 
-  const refreshFromApi = useCallback(async () => {
-    const [tasksResponse, roomsResponse, supplyRecords, minibarItems, maintenanceRecords, historyRecords, checklistRecordsResponse, dashboard, me] = await Promise.all([
-      listHousekeeping(),
+  const refreshFromApi = useCallback(async (roleArg?: StaffRole) => {
+    const activeRole = roleArg ?? role;
+    const isCleaner = activeRole === 'CLEANER';
+    const isTechnician = activeRole === 'TECHNICIAN';
+    const isSupervisor = activeRole === 'SUPERVISOR';
+    const needsHousekeeping = isCleaner || isSupervisor;
+    const [
+      tasksResponse, roomsResponse, supplyRecords, minibarItems, maintenanceRecords, historyRecords,
+      checklistRecordsResponse, partRecords, partOrderRecords, staffRecords, dashboard, me,
+    ] = await Promise.all([
+      needsHousekeeping ? listHousekeeping().catch(() => []) : Promise.resolve([]),
       listRooms().catch(() => []),
-      listRecord('supply').catch(() => []),
-      listMinibarItems().catch(() => []),
+      isCleaner ? listRecord('supply').catch(() => []) : Promise.resolve([]),
+      isCleaner ? listMinibarItems().catch(() => []) : Promise.resolve([]),
       listRecord('maintenance').catch(() => []),
-      listRecord('shift_history').catch(() => []),
-      listRecord('room_checklist').catch(() => []),
+      isCleaner ? listRecord('shift_history').catch(() => []) : Promise.resolve([]),
+      isCleaner ? listRecord('room_checklist').catch(() => []) : Promise.resolve([]),
+      isTechnician ? listRecord('parts').catch(() => []) : Promise.resolve([]),
+      isTechnician ? listRecord('parts_order').catch(() => []) : Promise.resolve([]),
+      isSupervisor ? listStaff().catch(() => []) : Promise.resolve([]),
       getDashboard().catch(() => ({})),
       getMe().catch(() => null),
     ]);
@@ -392,49 +536,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (taskId && record.id) nextChecklistIds[taskId] = String(record.id);
     });
     setChecklistRecordIds(nextChecklistIds);
-    const apiRooms = asList<any>(tasksResponse).map((task) => mapHousekeepingTask(task, roomsByNumber.get(String(task.room?.number || task.roomNumber)), checklistByTaskId.get(String(task.id))));
-    setRooms(apiRooms);
-    // Real shift stats derived from the actual room list, replacing the mock defaults —
-    // no dedicated "current shift" endpoint exists for housekeepers, so this is computed
-    // client-side from today's assigned rooms.
-    const roomsCompletedReal = apiRooms.filter((r) => r.status === 'READY' || r.status === 'VERIFIED').length;
-    const completedWithDuration = apiRooms.filter((r) => (r.status === 'READY' || r.status === 'VERIFIED') && r.startTime && r.endTime);
-    const avgMinutesReal = completedWithDuration.length > 0
-      ? Math.round(
-          completedWithDuration.reduce((acc, r) => acc + minutesBetweenClock(r.startTime as string, r.endTime as string), 0) /
-            completedWithDuration.length
-        )
-      : null;
-    setCleanerProfile((current) => ({
-      ...current,
-      currentShift: {
-        ...current.currentShift,
-        roomsCompleted: roomsCompletedReal,
-        roomsTotal: apiRooms.length,
-        avgTimePerRoom: avgMinutesReal !== null ? `${avgMinutesReal} min` : '— min',
-      },
-    }));
-    setSupplies([...asList<any>(supplyRecords).map(mapSupply), ...asList<any>(minibarItems).map((item) => ({
-      id: String(item.id),
-      nameEn: String(item.name || 'Item'),
-      nameRu: String(item.name || 'Позиция'),
-      category: 'MINIBAR' as const,
-      trolleyQty: 0,
-      neededQty: 2,
-      unit: 'pcs',
-      requestedQty: 0,
-    }))]);
-    setMaintenanceRequests(asList<any>(maintenanceRecords).map(mapMaintenance));
-    setShiftHistory(asList<any>(historyRecords).map((item) => ({
-      id: String(item.id),
-      shiftNumber: String(item.shiftNumber || '—'),
-      date: String(item.date || '—'),
-      hoursWorked: String(item.hoursWorked || '0'),
-      roomsCleaned: Number(item.roomsCleaned ?? 0),
-      qualityScore: Number(item.qualityScore ?? 0),
-      notes: item.notes ? String(item.notes) : undefined,
-      notesRu: item.notesRu ? String(item.notesRu) : undefined,
-    })));
+    if (needsHousekeeping) {
+      const apiRooms = asList<any>(tasksResponse).map((task) => mapHousekeepingTask(task, roomsByNumber.get(String(task.room?.number || task.roomNumber)), checklistByTaskId.get(String(task.id))));
+      setRooms(apiRooms);
+      if (isCleaner) {
+        // Real shift stats derived from the actual room list, replacing the mock defaults —
+        // no dedicated "current shift" endpoint exists for housekeepers, so this is computed
+        // client-side from today's assigned rooms.
+        const roomsCompletedReal = apiRooms.filter((r) => r.status === 'READY' || r.status === 'VERIFIED').length;
+        const completedWithDuration = apiRooms.filter((r) => (r.status === 'READY' || r.status === 'VERIFIED') && r.startTime && r.endTime);
+        const avgMinutesReal = completedWithDuration.length > 0
+          ? Math.round(
+              completedWithDuration.reduce((acc, r) => acc + minutesBetweenClock(r.startTime as string, r.endTime as string), 0) /
+                completedWithDuration.length
+            )
+          : null;
+        setCleanerProfile((current) => ({
+          ...current,
+          currentShift: {
+            ...current.currentShift,
+            roomsCompleted: roomsCompletedReal,
+            roomsTotal: apiRooms.length,
+            avgTimePerRoom: avgMinutesReal !== null ? `${avgMinutesReal} min` : '— min',
+          },
+        }));
+      }
+    }
+    if (isSupervisor) {
+      setStaffList(asList<any>(staffRecords).map(mapStaff));
+    }
+    if (isTechnician) {
+      setParts(asList<any>(partRecords).map(mapPart));
+      setPartOrders(asList<any>(partOrderRecords).map(mapPartOrder));
+    }
+    if (isCleaner) {
+      setSupplies([...asList<any>(supplyRecords).map(mapSupply), ...asList<any>(minibarItems).map((item) => ({
+        id: String(item.id),
+        nameEn: String(item.name || 'Item'),
+        nameRu: String(item.name || 'Позиция'),
+        category: 'MINIBAR' as const,
+        trolleyQty: 0,
+        neededQty: 2,
+        unit: 'pcs',
+        requestedQty: 0,
+      }))]);
+      setShiftHistory(asList<any>(historyRecords).map((item) => ({
+        id: String(item.id),
+        shiftNumber: String(item.shiftNumber || '—'),
+        date: String(item.date || '—'),
+        hoursWorked: String(item.hoursWorked || '0'),
+        roomsCleaned: Number(item.roomsCleaned ?? 0),
+        qualityScore: Number(item.qualityScore ?? 0),
+        notes: item.notes ? String(item.notes) : undefined,
+        notesRu: item.notesRu ? String(item.notesRu) : undefined,
+      })));
+    }
+    setMaintenanceRequests(asList<any>(maintenanceRecords).map((item) => mapMaintenance(item, roomsByNumber.get(String(item.room_number || item.roomNumber)))));
     if (dashboard && typeof dashboard === 'object') {
       const notifications = asList<any>((dashboard as any).notifications).map((item) => {
         const kind = String(item.kind || '').toLowerCase();
@@ -485,22 +642,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }));
     }
     setLastSyncedAt(timeNow());
-  }, [playTaskSound]);
+  }, [playTaskSound, role]);
 
   const authenticate = useCallback(async (email: string, password: string, tenantSlug?: string) => {
     try {
       const result = await apiLogin(email, password, tenantSlug);
-      const role = `${result.user.role || ''} ${result.user.roleCode || ''}`.toLowerCase();
-      const isCleaner = role.includes('cleaner') || role.includes('housekeeper') || role.includes('housekeeping');
-      if (!isCleaner) {
+      const resolvedRole = classifyRole(result.user);
+      if (!resolvedRole) {
         clearSession();
-        throw new Error('This mobile app is currently available for cleaners only.');
+        throw new Error('This mobile app does not support this staff role yet.');
       }
+      setRole(resolvedRole);
       login(initialProfile.current, result.user);
-      await refreshFromApi();
+      await refreshFromApi(resolvedRole);
     } catch (error) {
       clearSession();
       setIsLoggedIn(false);
+      setRole(null);
       throw error;
     }
   }, [login, refreshFromApi]);
@@ -508,21 +666,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     const restore = async () => {
-      const stored = getStoredSession();
+      const stored = await hydrateSession();
       if (!stored) {
         if (active) setAuthReady(true);
         return;
       }
       try {
         const me = await getMe();
-        const role = `${me.role || stored.user.role || ''} ${me.roleCode || stored.user.roleCode || ''}`.toLowerCase();
-        if (!role.includes('cleaner') && !role.includes('housekeeper') && !role.includes('housekeeping')) throw new Error('Cleaner role required');
+        const resolvedRole = classifyRole({ role: me.role || stored.user.role, roleCode: me.roleCode || stored.user.roleCode });
+        if (!resolvedRole) {
+          // The account itself isn't supported by this app (not a network hiccup) —
+          // this is the one case where staying "logged in" would be actively wrong.
+          clearSession();
+          if (active) setIsLoggedIn(false);
+          return;
+        }
         if (!active) return;
+        setRole(resolvedRole);
         login(initialProfile.current, me);
-        await refreshFromApi();
-      } catch {
-        clearSession();
-        if (active) setIsLoggedIn(false);
+        await refreshFromApi(resolvedRole);
+      } catch (error) {
+        // Only a real 401 (server rejected the token) means the session is actually
+        // invalid. Anything else — offline, timeout, a flaky backend — should not log
+        // the person out from under them; keep the cached session and let them keep
+        // working until they tap "Log out" themselves.
+        const isUnauthorized = error instanceof ApiRequestError && error.status === 401;
+        if (isUnauthorized) {
+          clearSession();
+          if (active) setIsLoggedIn(false);
+        } else if (active) {
+          const resolvedRole = classifyRole({ role: stored.user.role, roleCode: stored.user.roleCode });
+          if (resolvedRole) {
+            setRole(resolvedRole);
+            login(initialProfile.current, stored.user);
+          } else {
+            setIsLoggedIn(false);
+          }
+        }
       } finally {
         if (active) setAuthReady(true);
       }
@@ -606,6 +786,85 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const saveRoomPhoto = useCallback(async (roomId: string, uri: string, stage: string) => {
     await uploadRoomPhoto(roomId, uri, stage);
+  }, []);
+
+  // Supervisor actions — accepting/rejecting a cleaned room. `roomId` here is the
+  // housekeeping task id (see mapHousekeepingTask's `id`); the room's own id is
+  // `physicalRoomId`, which is what the `/rooms/{id}` endpoints key on.
+  const verifyRoom = useCallback(
+    (roomId: string) => {
+      setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, status: 'VERIFIED' } : r)));
+      const room = rooms.find((r) => r.id === roomId);
+      if (getStoredSession() && room?.physicalRoomId) {
+        void updateRoomStatusField(room.physicalRoomId, { status: 'INSPECTED' }).catch(() => refreshFromApi());
+      }
+      addSystemNotification(
+        `Room ${room?.roomNumber || ''} passed inspection`,
+        `Номер ${room?.roomNumber || ''} принят после проверки`,
+        'SYSTEM'
+      );
+    },
+    [rooms, addSystemNotification, refreshFromApi]
+  );
+
+  const rejectRoomInspection = useCallback(
+    (roomId: string, note: string) => {
+      setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, status: 'PENDING' } : r)));
+      const room = rooms.find((r) => r.id === roomId);
+      setRejectedInspections((prev) => [
+        { id: `rej-${Date.now()}`, roomId, roomNumber: room?.roomNumber || '', note, timestamp: timeNow(), assignedTo: room?.assignedTo },
+        ...prev,
+      ]);
+      if (getStoredSession()) {
+        void updateHousekeepingStatus(roomId, { status: 'PENDING', assignedTo: '' }).catch(() => refreshFromApi());
+        if (room?.physicalRoomId && note.trim()) {
+          void updateRoomFields(room.physicalRoomId, { notes: note.trim() }).catch(() => undefined);
+        }
+      }
+      addSystemNotification(
+        `Room ${room?.roomNumber || ''} sent back for re-cleaning${note ? `: ${note}` : ''}`,
+        `Номер ${room?.roomNumber || ''} возвращён на переуборку${note ? `: ${note}` : ''}`,
+        'SUPERVISOR'
+      );
+    },
+    [rooms, addSystemNotification, refreshFromApi]
+  );
+
+  const reassignRooms = useCallback(
+    (fromName: string, toName: string) => {
+      const toReassign = rooms.filter((r) => r.assignedTo === fromName && r.status !== 'VERIFIED');
+      if (toReassign.length === 0) return 0;
+      const reassignIds = new Set(toReassign.map((r) => r.id));
+      setRooms((prev) => prev.map((r) => (reassignIds.has(r.id) ? { ...r, assignedTo: toName } : r)));
+      if (getStoredSession()) {
+        toReassign.forEach((room) => {
+          void updateHousekeepingStatus(room.id, { assignedTo: toName }).catch(() => refreshFromApi());
+        });
+      }
+      addSystemNotification(
+        `${toReassign.length} room(s) reassigned from ${fromName} to ${toName}`,
+        `${toReassign.length} номер(ов) переданы от ${fromName} к ${toName}`,
+        'SUPERVISOR'
+      );
+      return toReassign.length;
+    },
+    [rooms, addSystemNotification, refreshFromApi]
+  );
+
+  const checkInVehicle = useCallback(
+    (plate: string, guestName: string, spotId: string, note?: string) => {
+      setParkingSessions((prev) => [...prev, { id: `ps-${Date.now()}`, spotId, plate, guestName, note, checkedInAt: timeNow() }]);
+      addSystemNotification(
+        `Vehicle ${plate} checked in`,
+        `Заезд на парковку: ${plate}`,
+        'SYSTEM'
+      );
+    },
+    [addSystemNotification]
+  );
+
+  const checkOutVehicle = useCallback((sessionId: string) => {
+    setParkingSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }, []);
 
   const updateSupplyQty = useCallback((supplyId: string, diff: number) => {
@@ -760,6 +1019,146 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [rooms, updateRoomStatus, addSystemNotification]
   );
 
+  // Technician actions — maintenance tickets are the same `records/maintenance` entries
+  // housekeepers create above; these just move them through the technician's workflow.
+  const updateMaintenanceStatus = useCallback((id: string, status: MaintenanceStatus) => {
+    const startTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    setMaintenanceRequests((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        // Seed the fixed 3-step repair workflow the first time a ticket is started —
+        // mirrors the production app, which always shows this sequence once work begins.
+        const steps = status === 'IN_PROGRESS' && !r.steps ? defaultMaintenanceSteps() : r.steps;
+        return { ...r, status, steps, startedAt: status === 'IN_PROGRESS' && !r.startedAt ? startTime : r.startedAt };
+      })
+    );
+    if (getStoredSession()) {
+      const apiStatus = status === 'IN_PROGRESS' ? 'in_progress' : status === 'RESOLVED' ? 'completed' : 'new';
+      const current = maintenanceRequests.find((r) => r.id === id);
+      const seededSteps = status === 'IN_PROGRESS' && !current?.steps ? defaultMaintenanceSteps() : undefined;
+      void updateRecord('maintenance', id, {
+        status: apiStatus,
+        ...(apiStatus === 'in_progress' ? { started_at: new Date().toISOString() } : {}),
+        ...(apiStatus === 'completed' ? { finished_at: new Date().toISOString() } : {}),
+        ...(seededSteps ? { steps: seededSteps } : {}),
+      }).catch(() => undefined);
+    }
+  }, [maintenanceRequests]);
+
+  const toggleMaintenanceStep = useCallback((ticketId: string, stepId: string) => {
+    setMaintenanceRequests((prev) =>
+      prev.map((r) => {
+        if (r.id !== ticketId || !r.steps) return r;
+        const steps = r.steps.map((s) => (s.id === stepId ? { ...s, done: !s.done } : s));
+        if (getStoredSession()) void updateRecord('maintenance', ticketId, { steps }).catch(() => undefined);
+        return { ...r, steps };
+      })
+    );
+  }, []);
+
+  const saveRepairCost = useCallback((id: string, cost: number, comment: string) => {
+    setMaintenanceRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, repairCost: cost, repairComment: comment, costCalculated: true } : r))
+    );
+    if (getStoredSession()) {
+      void updateRecord('maintenance', id, {
+        repair_cost: cost,
+        repair_comment: comment,
+        cost_calculated: true,
+      }).catch(() => undefined);
+    }
+  }, []);
+
+  const addMaintenanceComment = useCallback((id: string, text: string) => {
+    if (!text.trim()) return;
+    setMaintenanceRequests((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        const comments = [...(r.comments || []), text.trim()];
+        if (getStoredSession()) void updateRecord('maintenance', id, { comments }).catch(() => undefined);
+        return { ...r, comments };
+      })
+    );
+  }, []);
+
+  const addUsedPart = useCallback((ticketId: string, part: PartItem, qty: number) => {
+    if (qty <= 0) return;
+    setMaintenanceRequests((prev) =>
+      prev.map((r) => {
+        if (r.id !== ticketId) return r;
+        const existing = r.materials || [];
+        const idx = existing.findIndex((m) => m.id === part.id);
+        const materials =
+          idx >= 0
+            ? existing.map((m, i) => (i === idx ? { ...m, qty: m.qty + qty } : m))
+            : [...existing, { id: part.id, nameEn: part.nameEn, nameRu: part.nameRu, qty }];
+        if (getStoredSession()) void updateRecord('maintenance', ticketId, { materials }).catch(() => undefined);
+        return { ...r, materials };
+      })
+    );
+    setParts((prev) => prev.map((p) => (p.id === part.id ? { ...p, currentStock: Math.max(0, p.currentStock - qty) } : p)));
+    if (getStoredSession()) {
+      void updateRecord('parts', part.id, { currentStock: Math.max(0, part.currentStock - qty) }).catch(() => undefined);
+    }
+  }, []);
+
+  const uploadMaintenancePhoto = useCallback(
+    async (ticketId: string, uri: string, stage: 'before' | 'after') => {
+      const ticket = maintenanceRequests.find((r) => r.id === ticketId);
+      const room = rooms.find((r) => r.roomNumber === ticket?.roomNumber);
+      if (room?.physicalRoomId) {
+        await uploadRoomPhoto(room.physicalRoomId, uri, `maintenance_${stage}`).catch(() => undefined);
+      }
+      setMaintenanceRequests((prev) =>
+        prev.map((r) => {
+          if (r.id !== ticketId) return r;
+          const key = stage === 'before' ? 'photosBefore' : 'photosAfter';
+          const photos = [...(r[key] || []), uri];
+          if (getStoredSession()) {
+            void updateRecord('maintenance', ticketId, { [`photos_${stage}`]: photos }).catch(() => undefined);
+          }
+          return { ...r, [key]: photos };
+        })
+      );
+    },
+    [maintenanceRequests, rooms]
+  );
+
+  const orderParts = useCallback(
+    (items: PartItem[]) => {
+      const toOrder = items.filter((p) => p.orderQty > 0);
+      if (toOrder.length === 0) return;
+      const totalQty = toOrder.reduce((acc, p) => acc + p.orderQty, 0);
+      const order: PartOrder = {
+        id: `po-${Date.now()}`,
+        titleEn: `Spare parts order · ${totalQty} pcs`,
+        titleRu: `Заказ запчастей · ${totalQty} шт`,
+        subEn: 'Ordered today · shift delivery',
+        subRu: 'Заказан сегодня · доставка со сменой',
+        status: 'in_transit',
+        createdAt: new Date().toLocaleString('ru-RU'),
+      };
+      setPartOrders((prev) => [order, ...prev]);
+      setParts((prev) => prev.map((p) => (toOrder.some((o) => o.id === p.id) ? { ...p, orderQty: 0 } : p)));
+      if (getStoredSession()) {
+        void createRecord('parts_order', {
+          title_ru: order.titleRu,
+          title_en: order.titleEn,
+          sub_ru: order.subRu,
+          sub_en: order.subEn,
+          status: order.status,
+          items: toOrder.map((p) => ({ id: p.id, nameEn: p.nameEn, nameRu: p.nameRu, qty: p.orderQty })),
+        }).catch(() => undefined);
+      }
+      addSystemNotification(
+        `Spare parts order sent: ${totalQty} item(s)`,
+        `Заказ запчастей отправлен: ${totalQty} шт.`,
+        'SYSTEM'
+      );
+    },
+    [addSystemNotification]
+  );
+
   // Sends the front-desk minibar/consumables report for a room (e.g. at guest checkout),
   // mirroring it as a records/minibar_checkout entry, plus a guest-damage maintenance
   // ticket when damage was noted.
@@ -863,6 +1262,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLang,
     isLoggedIn,
     authReady,
+    role,
     login,
     authenticate,
     logout,
@@ -873,6 +1273,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateRoomChecklist,
     uploadRoomPhoto: saveRoomPhoto,
     activeRoom,
+    verifyRoom,
+    rejectRoomInspection,
+    reassignRooms,
+    staffList,
+    rejectedInspections,
+    parkingSpots,
+    parkingSessions,
+    checkInVehicle,
+    checkOutVehicle,
     supplies,
     updateSupplyQty,
     requestSupplyRefill,
@@ -885,6 +1294,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markAllNotificationsAsRead,
     maintenanceRequests,
     addMaintenanceRequest,
+    updateMaintenanceStatus,
+    toggleMaintenanceStep,
+    saveRepairCost,
+    addMaintenanceComment,
+    addUsedPart,
+    uploadMaintenancePhoto,
+    parts,
+    partOrders,
+    orderParts,
     offlineMode,
     toggleOffline,
     taskSoundEnabled,
