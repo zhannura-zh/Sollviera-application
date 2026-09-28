@@ -101,9 +101,9 @@ export interface RejectedInspection {
   assignedTo?: string;
 }
 
-// The real API has no parking/valet domain at all — spots and sessions are session-local
-// state (see checkInVehicle/checkOutVehicle in app-store.tsx), same "not backed by a real
-// endpoint" pattern as rejectedInspections above.
+// Backed by the real /parking/spots and /parking/tickets endpoints (see checkInVehicle/
+// checkOutVehicle and mapParkingSpot/mapParkingSession in app-store.tsx). ParkingSession
+// maps a ticket with status "OPEN" — the API has no separate checked-in boolean.
 export interface ParkingSpot {
   id: string;
   code: string;

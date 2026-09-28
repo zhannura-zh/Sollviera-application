@@ -37,8 +37,12 @@ import {
   getMe,
   getStoredSession,
   hydrateSession,
+  checkInParking,
+  checkOutParking,
   listHousekeeping,
   listMinibarItems,
+  listParkingSpots,
+  listParkingTickets,
   listRecord,
   listRooms,
   listStaff,
@@ -167,18 +171,6 @@ function classifyRole(user: Pick<ApiUser, 'role' | 'roleCode'>): StaffRole | nul
   if (role.includes('cleaner') || role.includes('housekeeper') || role.includes('housekeeping')) return 'CLEANER';
   return null;
 }
-
-const INITIAL_PARKING_SPOTS: ParkingSpot[] = [
-  { id: 'a01', code: 'A-01', zone: 'A' },
-  { id: 'a02', code: 'A-02', zone: 'A' },
-  { id: 'b01', code: 'B-01', zone: 'B' },
-  { id: 'b02', code: 'B-02', zone: 'B' },
-  { id: 'vip1', code: 'VIP-1', zone: 'VIP' },
-];
-
-const INITIAL_PARKING_SESSIONS: ParkingSession[] = [
-  { id: 'ps1', spotId: 'b02', plate: '001AAA02', guestName: 'Тест Тестов', checkedInAt: timeNow() },
-];
 
 interface AppState {
   lang: Language;
@@ -435,6 +427,27 @@ function mapPartOrder(item: any): PartOrder {
   };
 }
 
+function mapParkingSpot(item: any): ParkingSpot {
+  return {
+    id: String(item.id),
+    code: String(item.code || '—'),
+    zone: String(item.zone || ''),
+  };
+}
+
+// GET /parking/tickets?status=OPEN returns only open tickets — "checked in" is simply
+// "exists in this list", there's no separate boolean.
+function mapParkingSession(item: any): ParkingSession {
+  return {
+    id: String(item.id),
+    spotId: item.spotId ? String(item.spotId) : '',
+    plate: String(item.plateNumber || '—'),
+    guestName: String(item.guestName || ''),
+    note: item.notes ? String(item.notes) : undefined,
+    checkedInAt: item.parkedAt ? new Date(item.parkedAt).toLocaleString('ru-RU') : timeNow(),
+  };
+}
+
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -450,8 +463,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [partOrders, setPartOrders] = useState<PartOrder[]>([]);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [rejectedInspections, setRejectedInspections] = useState<RejectedInspection[]>([]);
-  const [parkingSpots] = useState<ParkingSpot[]>(INITIAL_PARKING_SPOTS);
-  const [parkingSessions, setParkingSessions] = useState<ParkingSession[]>(INITIAL_PARKING_SESSIONS);
+  const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([]);
+  const [parkingSessions, setParkingSessions] = useState<ParkingSession[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(mockMaintenanceRequests);
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryItem[]>(mockShiftHistory);
@@ -508,10 +521,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const isCleaner = activeRole === 'CLEANER';
     const isTechnician = activeRole === 'TECHNICIAN';
     const isSupervisor = activeRole === 'SUPERVISOR';
+    const isParking = activeRole === 'PARKING';
     const needsHousekeeping = isCleaner || isSupervisor;
     const [
       tasksResponse, roomsResponse, supplyRecords, minibarItems, maintenanceRecords, historyRecords,
       checklistRecordsResponse, partRecords, partOrderRecords, staffRecords, dashboard, me,
+      parkingSpotRecords, parkingTicketRecords,
     ] = await Promise.all([
       needsHousekeeping ? listHousekeeping().catch(() => []) : Promise.resolve([]),
       listRooms().catch(() => []),
@@ -525,6 +540,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isSupervisor ? listStaff().catch(() => []) : Promise.resolve([]),
       getDashboard().catch(() => ({})),
       getMe().catch(() => null),
+      isParking ? listParkingSpots().catch(() => []) : Promise.resolve([]),
+      isParking ? listParkingTickets('OPEN').catch(() => []) : Promise.resolve([]),
     ]);
 
     const roomsByNumber = new Map(asList<any>(roomsResponse).map((room) => [String(room.number), room]));
@@ -564,6 +581,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     if (isSupervisor) {
       setStaffList(asList<any>(staffRecords).map(mapStaff));
+    }
+    if (isParking) {
+      setParkingSpots(asList<any>(parkingSpotRecords).map(mapParkingSpot));
+      setParkingSessions(asList<any>(parkingTicketRecords).map(mapParkingSession));
     }
     if (isTechnician) {
       setParts(asList<any>(partRecords).map(mapPart));
@@ -853,19 +874,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const checkInVehicle = useCallback(
     (plate: string, guestName: string, spotId: string, note?: string) => {
-      setParkingSessions((prev) => [...prev, { id: `ps-${Date.now()}`, spotId, plate, guestName, note, checkedInAt: timeNow() }]);
+      const tempId = `ps-${Date.now()}`;
+      setParkingSessions((prev) => [...prev, { id: tempId, spotId, plate, guestName, note, checkedInAt: timeNow() }]);
       addSystemNotification(
         `Vehicle ${plate} checked in`,
         `Заезд на парковку: ${plate}`,
         'SYSTEM'
       );
+      if (getStoredSession()) {
+        void checkInParking({ plateNumber: plate, spotId: spotId || undefined, guestName: guestName || undefined, notes: note })
+          .then((created) => {
+            setParkingSessions((prev) => prev.map((s) => (s.id === tempId ? mapParkingSession(created) : s)));
+          })
+          .catch(() => {
+            setParkingSessions((prev) => prev.filter((s) => s.id !== tempId));
+            void refreshFromApi();
+          });
+      }
     },
-    [addSystemNotification]
+    [addSystemNotification, refreshFromApi]
   );
 
-  const checkOutVehicle = useCallback((sessionId: string) => {
-    setParkingSessions((prev) => prev.filter((s) => s.id !== sessionId));
-  }, []);
+  const checkOutVehicle = useCallback(
+    (sessionId: string) => {
+      setParkingSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (getStoredSession()) {
+        void checkOutParking(sessionId).catch(() => refreshFromApi());
+      }
+    },
+    [refreshFromApi]
+  );
 
   const updateSupplyQty = useCallback((supplyId: string, diff: number) => {
     setSupplies((prev) =>

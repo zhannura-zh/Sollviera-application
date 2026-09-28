@@ -185,3 +185,16 @@ export const updateRecord = (kind: string, id: string, payload: Json) =>
     method: 'PATCH',
     data: payload,
   });
+
+export const listParkingSpots = () => request<unknown[]>('/parking/spots');
+
+export const listParkingTickets = (status: 'OPEN' | 'CLOSED' = 'OPEN') =>
+  request<unknown[]>(`/parking/tickets?status=${status}`);
+
+// Confirmed live against the real API: only plateNumber is required, the rest are
+// optional. See ParkingSession/ParkingSpot in types/index.ts for the mapped shape.
+export const checkInParking = (payload: { plateNumber: string; spotId?: string; guestName?: string; notes?: string }) =>
+  request<Json>('/parking/tickets', { method: 'POST', data: payload });
+
+export const checkOutParking = (ticketId: string) =>
+  request<Json>(`/parking/tickets/${encodeURIComponent(ticketId)}/checkout`, { method: 'POST' });
