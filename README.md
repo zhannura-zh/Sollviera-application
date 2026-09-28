@@ -1,6 +1,6 @@
 # Sollviera Staff
 
-Мобильное приложение для персонала отеля Rixos Borovoe — Expo Router + React Native, кросс-платформенно (iOS, Android, web) на одном коде. Единый логин, дальше приложение само ведёт сотрудника в интерфейс его роли.
+Мобильное приложение для персонала отелей — Expo Router + React Native
 
 ## Роли
 
@@ -20,7 +20,6 @@
 - React Native 0.81 · React 19 · TypeScript
 - NativeWind (Tailwind для React Native)
 - Axios-клиент к REST API (`lib/api-client.ts`)
-- Сессия — `@react-native-async-storage/async-storage` (переживает перезапуск на всех платформах)
 
 ## Быстрый старт
 
