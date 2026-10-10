@@ -198,3 +198,29 @@ export const checkInParking = (payload: { plateNumber: string; spotId?: string; 
 
 export const checkOutParking = (ticketId: string) =>
   request<Json>(`/parking/tickets/${encodeURIComponent(ticketId)}/checkout`, { method: 'POST' });
+
+// CreateStaffDto / UpdateStaffDto — fully documented in /docs-json (unlike most of this
+// file's other DTOs). `position` drives the coarse role; `appAccess` is the per-module
+// permission set shown as toggles on the staff-member screen.
+export const createStaff = (payload: Json) => request<Json>('/staff', { method: 'POST', data: payload });
+
+export const updateStaff = (id: string, payload: Json) =>
+  request<Json>(`/staff/${encodeURIComponent(id)}`, { method: 'PATCH', data: payload });
+
+export const deleteStaff = (id: string) =>
+  request<Json>(`/staff/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+// Response shapes for these three are undocumented in /docs-json (no schema on the 200),
+// so mapRestaurantToday/mapRestaurantHall in app-store.tsx read them defensively.
+export const getRestaurantToday = (date: string) => request<Json>(`/restaurant/today?date=${encodeURIComponent(date)}`);
+
+export const getRestaurantHall = (date: string, meal: 'breakfast' | 'lunch' | 'dinner') =>
+  request<Json>(`/restaurant/hall?date=${encodeURIComponent(date)}&meal=${meal}`);
+
+export const saveMealAttendance = (payload: {
+  bookingId: string;
+  attended: boolean;
+  date?: string;
+  meal?: 'breakfast' | 'lunch' | 'dinner';
+  guestsCount?: number;
+}) => request<Json>('/restaurant/attendance', { method: 'PUT', data: payload });

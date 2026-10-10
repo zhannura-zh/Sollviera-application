@@ -15,6 +15,7 @@ import {
   PartItem,
   PartOrder,
   StaffMember,
+  StaffAppAccess,
   RejectedInspection,
   ParkingSpot,
   ParkingSession,
@@ -39,6 +40,10 @@ import {
   hydrateSession,
   checkInParking,
   checkOutParking,
+  createStaff,
+  deleteStaff,
+  getRestaurantHall,
+  getRestaurantToday,
   listHousekeeping,
   listMinibarItems,
   listParkingSpots,
@@ -47,10 +52,12 @@ import {
   listRooms,
   listStaff,
   login as apiLogin,
+  saveMealAttendance,
   updateHousekeepingStatus,
   updateRecord,
   updateRoomFields,
   updateRoomStatusField,
+  updateStaff,
   uploadRoomPhoto,
 } from '@/lib/api-client';
 
@@ -197,6 +204,28 @@ interface AppState {
 
   staffList: StaffMember[];
   rejectedInspections: RejectedInspection[];
+  inviteStaffMember: (payload: {
+    email: string;
+    fullName: string;
+    position: string;
+    phone?: string;
+    zone?: string;
+  }) => Promise<void>;
+  updateStaffMember: (
+    id: string,
+    payload: Partial<{
+      fullName: string;
+      position: string;
+      zone: string;
+      phone: string;
+      badgeNumber: string;
+      appAccess: StaffAppAccess;
+      schedule: string;
+      normMinutes: number;
+      status: 'active' | 'on_leave' | 'dismissed';
+    }>
+  ) => Promise<void>;
+  dismissStaffMember: (id: string) => Promise<void>;
 
   parkingSpots: ParkingSpot[];
   parkingSessions: ParkingSession[];
@@ -403,15 +432,35 @@ function mapPart(item: any): PartItem {
   };
 }
 
+function mapStaffAppAccess(item: any): StaffAppAccess | undefined {
+  if (!item || typeof item !== 'object') return undefined;
+  return {
+    ownRooms: Boolean(item.ownRooms),
+    allRooms: Boolean(item.allRooms),
+    inspection: Boolean(item.inspection),
+    maintenanceRequests: Boolean(item.maintenanceRequests),
+    staffManagement: Boolean(item.staffManagement),
+    appSettings: Boolean(item.appSettings),
+  };
+}
+
 function mapStaff(item: any): StaffMember {
   return {
     id: String(item.id),
     fullName: String(item.fullName || item.email || 'Staff'),
+    email: item.email ? String(item.email) : undefined,
     department: item.department ? String(item.department) : undefined,
     roleCode: item.roleCode ? String(item.roleCode) : undefined,
+    position: item.position ? String(item.position) : undefined,
     phone: item.phone ? String(item.phone) : undefined,
     shiftStatus: item.shiftStatus ? String(item.shiftStatus) : undefined,
     isActive: Boolean(item.isActive),
+    zone: item.zone ? String(item.zone) : undefined,
+    badgeNumber: item.badgeNumber ? String(item.badgeNumber) : undefined,
+    schedule: item.schedule ? String(item.schedule) : undefined,
+    normMinutes: item.normMinutes !== undefined ? Number(item.normMinutes) : undefined,
+    status: item.status ? (String(item.status) as StaffMember['status']) : undefined,
+    appAccess: mapStaffAppAccess(item.appAccess),
   };
 }
 
@@ -873,6 +922,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [rooms, addSystemNotification, refreshFromApi]
   );
 
+  const inviteStaffMember = useCallback(
+    async (payload: { email: string; fullName: string; position: string; phone?: string; zone?: string }) => {
+      const created = await createStaff(payload);
+      setStaffList((prev) => [mapStaff(created), ...prev]);
+      addSystemNotification(
+        `${payload.fullName} added to staff`,
+        `${payload.fullName} добавлен(а) в персонал`,
+        'SYSTEM'
+      );
+    },
+    [addSystemNotification]
+  );
+
+  const updateStaffMember = useCallback(
+    async (id: string, payload: Record<string, unknown>) => {
+      const updated = await updateStaff(id, payload);
+      setStaffList((prev) => prev.map((s) => (s.id === id ? mapStaff(updated) : s)));
+    },
+    []
+  );
+
+  const dismissStaffMember = useCallback(async (id: string) => {
+    await deleteStaff(id);
+    setStaffList((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
   const checkInVehicle = useCallback(
     (plate: string, guestName: string, spotId: string, note?: string) => {
       const tempId = `ps-${Date.now()}`;
@@ -1317,6 +1392,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     reassignRooms,
     staffList,
     rejectedInspections,
+    inviteStaffMember,
+    updateStaffMember,
+    dismissStaffMember,
     parkingSpots,
     parkingSessions,
     checkInVehicle,

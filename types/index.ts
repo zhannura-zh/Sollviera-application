@@ -122,14 +122,31 @@ export interface ParkingSession {
   checkedInAtIso: string;
 }
 
+export interface StaffAppAccess {
+  ownRooms: boolean;
+  allRooms: boolean;
+  inspection: boolean;
+  maintenanceRequests: boolean;
+  staffManagement: boolean;
+  appSettings: boolean;
+}
+
 export interface StaffMember {
   id: string;
   fullName: string;
+  email?: string;
   department?: string;
   roleCode?: string;
+  position?: string;
   phone?: string;
   shiftStatus?: string;
   isActive: boolean;
+  zone?: string;
+  badgeNumber?: string;
+  schedule?: string;
+  normMinutes?: number;
+  status?: 'active' | 'on_leave' | 'dismissed';
+  appAccess?: StaffAppAccess;
 }
 
 export type MaintenanceCategory = 'PLUMBING' | 'ELECTRICAL' | 'FURNITURE' | 'APPLIANCES' | 'CLEANLINESS' | 'OTHER';

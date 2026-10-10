@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Modal } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Search, Users, X, ChevronRight, ChevronLeft, UserPlus } from 'lucide-react-native';
@@ -10,15 +10,7 @@ interface StaffDirectoryScreenProps {
 }
 
 type RoleFilter = 'ALL' | 'CLEANER' | 'SUPERVISOR' | 'TECHNICIAN';
-type InviteRole = 'CLEANER' | 'SUPERVISOR' | 'TECHNICIAN';
-
-interface PendingInvite {
-  id: string;
-  phone: string;
-  name?: string;
-  role: InviteRole;
-  invitedDate: string;
-}
+type InvitePosition = 'CLEANER' | 'SUPERVISOR' | 'TECHNICIAN' | 'WAITER' | 'PARKING';
 
 function getInitials(name: string) {
   return name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase() || '?';
@@ -34,32 +26,32 @@ function matchesRoleFilter(roleCode: string | undefined, filter: RoleFilter) {
   }
 }
 
-function inviteRoleLabel(role: InviteRole, lang: 'RU' | 'EN') {
-  switch (role) {
+function positionLabel(position: InvitePosition, lang: 'RU' | 'EN') {
+  switch (position) {
     case 'CLEANER': return lang === 'RU' ? 'Клинер' : 'Cleaner';
     case 'SUPERVISOR': return lang === 'RU' ? 'Супервайзер' : 'Supervisor';
     case 'TECHNICIAN': return lang === 'RU' ? 'Техник' : 'Technician';
+    case 'WAITER': return lang === 'RU' ? 'Официант' : 'Waiter';
+    case 'PARKING': return lang === 'RU' ? 'Парковка' : 'Parking';
   }
 }
 
 // Staff directory (reached from Profile → "Управление персоналом"). Tapping a staff row
-// opens the full staff-member screen (app/staff-member/[id].tsx). The real API has no
-// write endpoint for inviting staff (only GET /staff), so invitations below are
-// session-local UI state, not persisted anywhere — they reset on reload, same as other
-// "demo mode" actions in the app.
+// opens the full staff-member screen (app/staff-member/[id].tsx). "Добавить сотрудника"
+// calls the real POST /staff (CreateStaffDto) — the account is created immediately, there
+// is no separate pending-invite state on the backend.
 export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
-  const { lang, staffList } = useApp();
+  const { lang, staffList, inviteStaffMember } = useApp();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
-  const [invitations, setInvitations] = useState<PendingInvite[]>([
-    { id: 'inv-seed', phone: '+7 701 555 20 14', role: 'CLEANER', invitedDate: '26 авг' },
-  ]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [invitePhone, setInvitePhone] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
-  const [inviteRole, setInviteRole] = useState<InviteRole>('CLEANER');
+  const [invitePhone, setInvitePhone] = useState('');
+  const [invitePosition, setInvitePosition] = useState<InvitePosition>('CLEANER');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filtered = staffList.filter((s) => {
     const q = searchQuery.toLowerCase().trim();
@@ -75,29 +67,31 @@ export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
   };
 
   const closeAddModal = () => {
+    if (isSubmitting) return;
     setShowAddModal(false);
-    setInvitePhone('');
+    setInviteEmail('');
     setInviteName('');
-    setInviteRole('CLEANER');
+    setInvitePhone('');
+    setInvitePosition('CLEANER');
   };
 
-  const sendInvite = () => {
-    const phone = invitePhone.trim();
-    if (!phone) return;
-    setInvitations((prev) => [
-      {
-        id: `inv-${Date.now()}`,
-        phone,
-        name: inviteName.trim() || undefined,
-        role: inviteRole,
-        invitedDate: new Date().toLocaleDateString(lang === 'RU' ? 'ru-RU' : 'en-US', { day: '2-digit', month: 'short' }),
-      },
-      ...prev,
-    ]);
-    closeAddModal();
+  const sendInvite = async () => {
+    const email = inviteEmail.trim();
+    const fullName = inviteName.trim();
+    if (!email || !fullName) return;
+    setIsSubmitting(true);
+    try {
+      await inviteStaffMember({ email, fullName, position: invitePosition, phone: invitePhone.trim() || undefined });
+      closeAddModal();
+    } catch (error) {
+      Alert.alert(
+        lang === 'RU' ? 'Не удалось добавить' : 'Could not add',
+        error instanceof Error ? error.message : (lang === 'RU' ? 'Попробуйте ещё раз' : 'Try again')
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  const removeInvite = (id: string) => setInvitations((prev) => prev.filter((i) => i.id !== id));
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
@@ -186,39 +180,6 @@ export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
             </View>
           )}
         </View>
-
-        {invitations.length > 0 && (
-          <View className="gap-2">
-            <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
-              {lang === 'RU' ? 'ПРИГЛАШЕНИЯ' : 'INVITATIONS'}
-            </Text>
-            <View className="bg-white rounded-[14px] border border-border overflow-hidden">
-              {invitations.map((inv, i) => (
-                <View key={inv.id} className={`p-3.5 flex-row items-center gap-3 ${i > 0 ? 'border-t border-border-light' : ''}`}>
-                  <View className="h-10 w-10 rounded-full bg-background items-center justify-center border border-border">
-                    <Text className="text-text-secondary font-jost text-sm">{inv.name ? getInitials(inv.name) : '?'}</Text>
-                  </View>
-                  <View className="flex-1 min-w-0">
-                    <View className="flex-row items-center gap-1.5 flex-wrap">
-                      <Text className="text-sm font-jost-semibold text-text-primary">{inv.name || inv.phone}</Text>
-                      <View className="bg-[#FFF4ED] border border-[#FED7AA] px-1.5 py-0.5 rounded">
-                        <Text className="text-[9px] font-jost-semibold text-[#C2410C] uppercase">{lang === 'RU' ? 'ждёт входа' : 'awaiting'}</Text>
-                      </View>
-                    </View>
-                    <Text className="text-[12px] font-jost text-text-secondary mt-0.5" numberOfLines={1}>
-                      {[inv.name ? inv.phone : null, inviteRoleLabel(inv.role, lang), `${lang === 'RU' ? 'приглашение от' : 'invited'} ${inv.invitedDate}`]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  </View>
-                  <Pressable onPress={() => removeInvite(inv.id)} className="h-7 w-7 items-center justify-center active:opacity-60">
-                    <X size={16} color="#8A8177" />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       <View className="p-5 border-t border-border-light bg-background" style={{ paddingBottom: insets.bottom + 20 }}>
@@ -242,18 +203,6 @@ export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
             </View>
 
             <View className="gap-1.5">
-              <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider">{lang === 'RU' ? 'Телефон (логин)' : 'Phone (login)'}</Text>
-              <TextInput
-                value={invitePhone}
-                onChangeText={setInvitePhone}
-                placeholder="+7 (701) 000-00-00"
-                placeholderTextColor="#8A8177"
-                keyboardType="phone-pad"
-                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary"
-              />
-            </View>
-
-            <View className="gap-1.5">
               <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider">{lang === 'RU' ? 'Имя и фамилия' : 'Full name'}</Text>
               <TextInput
                 value={inviteName}
@@ -265,31 +214,48 @@ export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
             </View>
 
             <View className="gap-1.5">
+              <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider">Email</Text>
+              <TextInput
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                placeholder="cleaner@hotel.kz"
+                placeholderTextColor="#8A8177"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary"
+              />
+            </View>
+
+            <View className="gap-1.5">
+              <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider">{lang === 'RU' ? 'Телефон' : 'Phone'}</Text>
+              <TextInput
+                value={invitePhone}
+                onChangeText={setInvitePhone}
+                placeholder="+7 (701) 000-00-00"
+                placeholderTextColor="#8A8177"
+                keyboardType="phone-pad"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary"
+              />
+            </View>
+
+            <View className="gap-1.5">
               <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider">{lang === 'RU' ? 'Роль' : 'Role'}</Text>
-              <View className="flex-row gap-2">
-                {(['CLEANER', 'SUPERVISOR', 'TECHNICIAN'] as const).map((role) => {
-                  const isSelected = inviteRole === role;
+              <View className="flex-row flex-wrap gap-2">
+                {(['CLEANER', 'SUPERVISOR', 'TECHNICIAN', 'WAITER', 'PARKING'] as const).map((position) => {
+                  const isSelected = invitePosition === position;
                   return (
                     <Pressable
-                      key={role}
-                      onPress={() => setInviteRole(role)}
-                      className={`flex-1 py-2 rounded-xl border items-center ${isSelected ? 'bg-dark border-dark' : 'bg-background border-border'}`}
+                      key={position}
+                      onPress={() => setInvitePosition(position)}
+                      className={`px-3.5 py-2 rounded-xl border items-center ${isSelected ? 'bg-dark border-dark' : 'bg-background border-border'}`}
                     >
                       <Text className={`text-[12px] font-jost-semibold ${isSelected ? 'text-white' : 'text-text-secondary'}`}>
-                        {inviteRoleLabel(role, lang)}
+                        {positionLabel(position, lang)}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
-            </View>
-
-            <View className="bg-[#FFF8F0] border border-amber-200/60 rounded-xl p-3">
-              <Text className="text-[12px] font-jost text-text-secondary leading-normal">
-                {lang === 'RU'
-                  ? 'Сотруднику будет отправлено SMS со ссылкой и одноразовым паролем. Приглашение действует 7 дней.'
-                  : 'The employee will receive an SMS with a link and a one-time password. The invitation is valid for 7 days.'}
-              </Text>
             </View>
 
             <View className="flex-row gap-2.5">
@@ -301,10 +267,12 @@ export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
               </Pressable>
               <Pressable
                 onPress={sendInvite}
-                disabled={!invitePhone.trim()}
-                className={`flex-1 py-3 rounded-xl items-center ${invitePhone.trim() ? 'bg-primary active:bg-primary-hover' : 'bg-border'}`}
+                disabled={!inviteEmail.trim() || !inviteName.trim() || isSubmitting}
+                className={`flex-1 py-3 rounded-xl items-center ${inviteEmail.trim() && inviteName.trim() && !isSubmitting ? 'bg-primary active:bg-primary-hover' : 'bg-border'}`}
               >
-                <Text className="text-white text-sm font-jost-semibold">{lang === 'RU' ? 'Отправить' : 'Send'}</Text>
+                {isSubmitting ? <ActivityIndicator color="#fff" /> : (
+                  <Text className="text-white text-sm font-jost-semibold">{lang === 'RU' ? 'Добавить' : 'Add'}</Text>
+                )}
               </Pressable>
             </View>
           </View>

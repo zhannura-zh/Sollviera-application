@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Switch, Alert, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, UserX } from 'lucide-react-native';
-import { StaffMember } from '@/types';
+import { ChevronLeft, ChevronRight, UserX, X } from 'lucide-react-native';
+import { StaffMember, StaffAppAccess } from '@/types';
 import { useApp } from '@/context/app-store';
 
 interface StaffMemberScreenProps {
@@ -13,23 +13,14 @@ interface StaffMemberScreenProps {
 
 type RoleTier = 'CLEANER' | 'SENIOR_CLEANER' | 'SUPERVISOR';
 
-interface Permissions {
-  ownRooms: boolean;
-  allRooms: boolean;
-  inspection: boolean;
-  maintenance: boolean;
-  staffManagement: boolean;
-  appSettings: boolean;
-}
-
-const PERMISSIONS_BY_TIER: Record<RoleTier, Permissions> = {
-  CLEANER: { ownRooms: true, allRooms: false, inspection: false, maintenance: false, staffManagement: false, appSettings: false },
-  SENIOR_CLEANER: { ownRooms: true, allRooms: true, inspection: false, maintenance: true, staffManagement: false, appSettings: false },
-  SUPERVISOR: { ownRooms: true, allRooms: true, inspection: true, maintenance: true, staffManagement: true, appSettings: true },
+const PERMISSIONS_BY_TIER: Record<RoleTier, StaffAppAccess> = {
+  CLEANER: { ownRooms: true, allRooms: false, inspection: false, maintenanceRequests: false, staffManagement: false, appSettings: false },
+  SENIOR_CLEANER: { ownRooms: true, allRooms: true, inspection: false, maintenanceRequests: true, staffManagement: false, appSettings: false },
+  SUPERVISOR: { ownRooms: true, allRooms: true, inspection: true, maintenanceRequests: true, staffManagement: true, appSettings: true },
 };
 
-function roleTierOf(roleCode: string | undefined): RoleTier {
-  const code = (roleCode || '').toLowerCase();
+function roleTierOf(value: string | undefined): RoleTier {
+  const code = (value || '').toLowerCase();
   if (code.includes('senior')) return 'SENIOR_CLEANER';
   if (code.includes('supervisor')) return 'SUPERVISOR';
   return 'CLEANER';
@@ -73,18 +64,24 @@ function PermissionRow({ title, subtitle, value, onChange, isFirst }: { title: s
   );
 }
 
-// Staff member profile (Profile → "Управление персоналом" → staff card). The real API
-// (GET /staff) has no fields for zone/schedule/norm/per-user permissions and no write
-// endpoint, so everything below the read-only Info rows is session-local demo state,
-// seeded from role-based defaults — same "not persisted" pattern as the invite flow in
-// staff-directory-screen.tsx.
+// Staff member profile (Profile → "Управление персоналом" → staff card). Role, zone,
+// schedule, norm and app-access all map directly onto PATCH /staff/{id} (UpdateStaffDto) —
+// "Сохранить" sends the lot in one call, "Уволить" sets status: 'dismissed' (the field's
+// documented meaning: turns the account off without deleting the record).
 export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScreenProps) {
-  const { lang } = useApp();
+  const { lang, updateStaffMember } = useApp();
   const insets = useSafeAreaInsets();
-  const [roleTier, setRoleTier] = useState<RoleTier>(() => roleTierOf(staff?.roleCode));
-  const [permissions, setPermissions] = useState<Permissions>(() => PERMISSIONS_BY_TIER[roleTierOf(staff?.roleCode)]);
-  const [schedule, setSchedule] = useState<'2/2' | '5/2' | 'FLEX'>('2/2');
-  const [normMinutes, setNormMinutes] = useState(25);
+  const [roleTier, setRoleTier] = useState<RoleTier>(() => roleTierOf(staff?.position || staff?.roleCode));
+  const [permissions, setPermissions] = useState<StaffAppAccess>(
+    () => staff?.appAccess || PERMISSIONS_BY_TIER[roleTierOf(staff?.position || staff?.roleCode)]
+  );
+  const [zone, setZone] = useState(staff?.zone || staff?.department || '');
+  const [zoneDraft, setZoneDraft] = useState(zone);
+  const [showZoneModal, setShowZoneModal] = useState(false);
+  const [schedule, setSchedule] = useState(staff?.schedule || (lang === 'RU' ? '2 через 2' : '2 on / 2 off'));
+  const [normMinutes, setNormMinutes] = useState(staff?.normMinutes ?? 25);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDismissing, setIsDismissing] = useState(false);
 
   if (!staff) {
     return (
@@ -94,19 +91,49 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
     );
   }
 
-  const scheduleLabel = (s: typeof schedule) => (s === '2/2' ? (lang === 'RU' ? '2 через 2' : '2 on / 2 off') : s === '5/2' ? (lang === 'RU' ? '5/2' : '5/2') : (lang === 'RU' ? 'Гибкий' : 'Flexible'));
-  const cycleSchedule = () => setSchedule((s) => (s === '2/2' ? '5/2' : s === '5/2' ? 'FLEX' : '2/2'));
+  const scheduleOptions = ['2 через 2', '5/2', lang === 'RU' ? 'Гибкий' : 'Flexible'];
+  const cycleSchedule = () => setSchedule((s) => scheduleOptions[(scheduleOptions.indexOf(s) + 1) % scheduleOptions.length] || scheduleOptions[0]);
 
   const selectRoleTier = (tier: RoleTier) => {
     setRoleTier(tier);
     setPermissions(PERMISSIONS_BY_TIER[tier]);
   };
 
-  const notPersisted = () =>
-    Alert.alert(
-      lang === 'RU' ? 'Демо-режим' : 'Demo mode',
-      lang === 'RU' ? 'Изменения не отправляются на сервер — в API нет эндпоинта для управления ролями и доступами персонала.' : 'Changes are not sent to the server — the API has no endpoint for staff roles and permissions.'
-    );
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateStaffMember(staff.id, {
+        position: roleTier,
+        zone: zone || undefined,
+        appAccess: permissions,
+        schedule,
+        normMinutes,
+      });
+      Alert.alert('', lang === 'RU' ? 'Сохранено' : 'Saved');
+    } catch (error) {
+      Alert.alert(
+        lang === 'RU' ? 'Не удалось сохранить' : 'Could not save',
+        error instanceof Error ? error.message : (lang === 'RU' ? 'Попробуйте ещё раз' : 'Try again')
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const doDismiss = async () => {
+    setIsDismissing(true);
+    try {
+      await updateStaffMember(staff.id, { status: 'dismissed' });
+      onBack();
+    } catch (error) {
+      Alert.alert(
+        lang === 'RU' ? 'Не удалось уволить' : 'Could not dismiss',
+        error instanceof Error ? error.message : (lang === 'RU' ? 'Попробуйте ещё раз' : 'Try again')
+      );
+    } finally {
+      setIsDismissing(false);
+    }
+  };
 
   const confirmDismiss = () =>
     Alert.alert(
@@ -114,9 +141,19 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
       lang === 'RU' ? `${staff.fullName} будет отключён от системы.` : `${staff.fullName} will be removed from the system.`,
       [
         { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
-        { text: lang === 'RU' ? 'Уволить' : 'Dismiss', style: 'destructive', onPress: notPersisted },
+        { text: lang === 'RU' ? 'Уволить' : 'Dismiss', style: 'destructive', onPress: doDismiss },
       ]
     );
+
+  const openZoneModal = () => {
+    setZoneDraft(zone);
+    setShowZoneModal(true);
+  };
+
+  const saveZone = () => {
+    setZone(zoneDraft.trim());
+    setShowZoneModal(false);
+  };
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
@@ -128,7 +165,7 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
         <View className="gap-0.5">
           <Text className="text-2xl font-spectral text-text-primary">{staff.fullName}</Text>
           <Text className="text-sm font-jost text-text-secondary">
-            {staff.id} · {staff.shiftStatus === 'ON_SHIFT' ? (lang === 'RU' ? 'на смене' : 'on shift') : (lang === 'RU' ? 'не на смене' : 'off shift')}
+            {staff.badgeNumber || staff.id} · {staff.shiftStatus === 'ON_SHIFT' ? (lang === 'RU' ? 'на смене' : 'on shift') : (lang === 'RU' ? 'не на смене' : 'off shift')}
           </Text>
         </View>
       </View>
@@ -153,9 +190,9 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
                 );
               })}
             </View>
-            <InfoRow label={lang === 'RU' ? 'Зона ответственности' : 'Responsibility zone'} value={staff.department || '—'} onPress={notPersisted} />
+            <InfoRow label={lang === 'RU' ? 'Зона ответственности' : 'Responsibility zone'} value={zone || '—'} onPress={openZoneModal} />
             <InfoRow label={lang === 'RU' ? 'Телефон' : 'Phone'} value={staff.phone || '—'} />
-            <InfoRow label={lang === 'RU' ? 'Табельный номер' : 'Badge ID'} value={staff.id} />
+            <InfoRow label={lang === 'RU' ? 'Табельный номер' : 'Badge ID'} value={staff.badgeNumber || staff.id} />
           </View>
         </View>
 
@@ -185,8 +222,8 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
             />
             <PermissionRow
               title={lang === 'RU' ? 'Заявки в техслужбу' : 'Maintenance tickets'}
-              value={permissions.maintenance}
-              onChange={(v) => setPermissions((p) => ({ ...p, maintenance: v }))}
+              value={permissions.maintenanceRequests}
+              onChange={(v) => setPermissions((p) => ({ ...p, maintenanceRequests: v }))}
             />
             <PermissionRow
               title={lang === 'RU' ? 'Управление персоналом' : 'Staff management'}
@@ -206,7 +243,7 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
             {lang === 'RU' ? 'СМЕНЫ' : 'SHIFTS'}
           </Text>
           <View className="bg-white rounded-[14px] border border-border overflow-hidden">
-            <InfoRow label={lang === 'RU' ? 'График' : 'Schedule'} value={scheduleLabel(schedule)} onPress={cycleSchedule} />
+            <InfoRow label={lang === 'RU' ? 'График' : 'Schedule'} value={schedule} onPress={cycleSchedule} />
             <View className="p-3.5 flex-row items-center justify-between border-t border-border-light">
               <Text className="text-sm font-jost text-text-secondary">{lang === 'RU' ? 'Норматив на номер' : 'Norm per room'}</Text>
               <View className="flex-row items-center gap-3">
@@ -230,9 +267,10 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
 
         <Pressable
           onPress={confirmDismiss}
+          disabled={isDismissing}
           className="bg-white rounded-[14px] border border-border p-3.5 flex-row items-center gap-2.5 active:bg-background"
         >
-          <UserX size={16} color="#B3261E" />
+          {isDismissing ? <ActivityIndicator color="#B3261E" /> : <UserX size={16} color="#B3261E" />}
           <Text className="text-sm font-jost-semibold text-error">{lang === 'RU' ? 'Уволить сотрудника' : 'Dismiss staff member'}</Text>
         </Pressable>
       </ScrollView>
@@ -241,10 +279,35 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
         <Pressable onPress={onMessage} className="flex-1 py-3.5 rounded-xl border border-border bg-white items-center">
           <Text className="text-sm font-jost-semibold text-text-primary">{lang === 'RU' ? 'Написать' : 'Message'}</Text>
         </Pressable>
-        <Pressable onPress={notPersisted} className="flex-1 py-3.5 rounded-xl bg-primary items-center active:bg-primary-hover">
-          <Text className="text-sm font-jost-semibold text-white">{lang === 'RU' ? 'Сохранить' : 'Save'}</Text>
+        <Pressable onPress={handleSave} disabled={isSaving} className="flex-1 py-3.5 rounded-xl bg-primary items-center active:bg-primary-hover">
+          {isSaving ? <ActivityIndicator color="#fff" /> : (
+            <Text className="text-sm font-jost-semibold text-white">{lang === 'RU' ? 'Сохранить' : 'Save'}</Text>
+          )}
         </Pressable>
       </View>
+
+      <Modal visible={showZoneModal} transparent animationType="fade" onRequestClose={() => setShowZoneModal(false)}>
+        <View className="flex-1 items-center justify-center bg-dark/60 p-3.5">
+          <View className="bg-white rounded-[20px] border border-border w-full max-w-sm p-5 gap-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-base font-jost-semibold text-text-primary">{lang === 'RU' ? 'Зона ответственности' : 'Responsibility zone'}</Text>
+              <Pressable onPress={() => setShowZoneModal(false)} className="h-8 w-8 rounded-full bg-background items-center justify-center border border-border-light active:bg-border-light">
+                <X size={16} color="#241E1A" />
+              </Pressable>
+            </View>
+            <TextInput
+              value={zoneDraft}
+              onChangeText={setZoneDraft}
+              placeholder={lang === 'RU' ? 'Например: 3 этаж, 301–320' : 'e.g. Floor 3, 301–320'}
+              placeholderTextColor="#8A8177"
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-3 text-sm text-text-primary"
+            />
+            <Pressable onPress={saveZone} className="w-full py-3 rounded-xl bg-primary items-center active:bg-primary-hover">
+              <Text className="text-white text-sm font-jost-semibold">{lang === 'RU' ? 'Готово' : 'Done'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
