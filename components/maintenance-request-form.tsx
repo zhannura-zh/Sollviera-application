@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
 import { Language, MaintenanceCategory, MaintenancePriority } from '@/types';
 import { getTranslation } from '@/lib/locales';
+import { useApp } from '@/context/app-store';
 import { SelectField } from '@/components/ui/select-field';
 
 const CATEGORIES: MaintenanceCategory[] = ['PLUMBING', 'ELECTRICAL', 'FURNITURE', 'APPLIANCES', 'CLEANLINESS', 'OTHER'];
@@ -30,8 +31,10 @@ interface MaintenanceRequestFormProps {
 // same category/priority catalog, so kept as one component instead of two near-copies.
 export function MaintenanceRequestForm({ lang, initialRoomNumber, submitLabel, onSubmit }: MaintenanceRequestFormProps) {
   const t = getTranslation(lang);
+  const { rooms } = useApp();
+  const roomNumbers = Array.from(new Set(rooms.map((r) => r.roomNumber))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-  const [roomNumber, setRoomNumber] = useState(initialRoomNumber || '');
+  const [roomNumber, setRoomNumber] = useState(initialRoomNumber && roomNumbers.includes(initialRoomNumber) ? initialRoomNumber : '');
   const [category, setCategory] = useState<MaintenanceCategory>('PLUMBING');
   const [priority, setPriority] = useState<MaintenancePriority>('MEDIUM');
   const [description, setDescription] = useState('');
@@ -89,7 +92,7 @@ export function MaintenanceRequestForm({ lang, initialRoomNumber, submitLabel, o
   };
 
   const handleSubmit = () => {
-    if (!description.trim()) return;
+    if (!description.trim() || !roomNumber) return;
     onSubmit({ roomNumber, category, priority, description, blocksCleaning, photoUrl: photoUrl || undefined });
     setDescription('');
     setPhotoUrl('');
@@ -101,12 +104,13 @@ export function MaintenanceRequestForm({ lang, initialRoomNumber, submitLabel, o
       <View className="flex-row gap-3.5">
         <View className="flex-1 gap-1">
           <Text className="text-[12px] text-text-secondary font-jost uppercase">{t.roomNumberLabel}</Text>
-          <TextInput
+          <SelectField
             value={roomNumber}
-            onChangeText={setRoomNumber}
-            placeholder="e.g. 304"
-            placeholderTextColor="#8A8177"
-            className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary font-jost"
+            onChange={setRoomNumber}
+            options={[
+              { value: '', label: lang === 'RU' ? '– Выберите номер –' : '– Select room –' },
+              ...roomNumbers.map((n) => ({ value: n, label: n })),
+            ]}
           />
         </View>
         <View className="flex-1 gap-1">
@@ -179,7 +183,10 @@ export function MaintenanceRequestForm({ lang, initialRoomNumber, submitLabel, o
 
       <Pressable
         onPress={handleSubmit}
-        className="w-full bg-primary py-3.5 px-4 rounded-xl items-center active:bg-primary-hover"
+        disabled={!description.trim() || !roomNumber}
+        className={`w-full py-3.5 px-4 rounded-xl items-center ${
+          description.trim() && roomNumber ? 'bg-primary active:bg-primary-hover' : 'bg-border'
+        }`}
       >
         <Text className="text-white text-sm font-jost-semibold">{submitLabel}</Text>
       </Pressable>

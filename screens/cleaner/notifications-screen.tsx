@@ -6,7 +6,15 @@ import { AppNotification } from '@/types';
 
 type Filter = 'ALL' | 'TASK' | 'MAINTENANCE' | 'SHIFT';
 
-export function NotificationsScreen() {
+interface NotificationsScreenProps {
+  onOpenChats: () => void;
+}
+
+function isMessageNotification(item: AppNotification) {
+  return item.messageRu.includes('Сообщение') || item.messageEn.includes('Message');
+}
+
+export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
   const { lang, notifications, markNotificationAsRead, markAllNotificationsAsRead } = useApp();
   const [selectedFilter, setSelectedFilter] = useState<Filter>('ALL');
 
@@ -24,7 +32,7 @@ export function NotificationsScreen() {
     if (item.category === 'URGENT') return <Clock size={17} color="#B3261E" />;
     if (item.category === 'NEW_ROOM') return <Clock size={17} color="#8A8177" />;
     if (item.messageRu.includes('Техник') || item.messageEn.includes('Technician')) return <Wrench size={17} color="#8A8177" />;
-    if (item.messageRu.includes('Сообщение') || item.messageEn.includes('Message')) return <MessageSquare size={17} color="#8A8177" />;
+    if (isMessageNotification(item)) return <MessageSquare size={17} color="#8A8177" />;
     if (item.messageRu.includes('Пополнение') || item.messageEn.includes('replenishment')) return <Package size={17} color="#8A8177" />;
     if (item.messageRu.includes('проверен') || item.messageEn.includes('inspected')) return <CheckCircle2 size={17} color="#8A8177" />;
     return <Clock size={17} color="#8A8177" />;
@@ -38,7 +46,10 @@ export function NotificationsScreen() {
     return (
       <Pressable
         key={item.id}
-        onPress={() => markNotificationAsRead(item.id)}
+        onPress={() => {
+          markNotificationAsRead(item.id);
+          if (isMessageNotification(item)) onOpenChats();
+        }}
         className={`bg-white border border-border rounded-[14px] p-4 flex-row gap-3 active:bg-background ${
           hasLeftRedBorder ? 'border-l-2 border-l-error' : ''
         }`}

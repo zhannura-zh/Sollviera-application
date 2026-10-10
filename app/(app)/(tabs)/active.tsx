@@ -10,8 +10,8 @@ export default function ActiveTab() {
   return (
     <RoomDetailsScreen
       room={activeRoom}
-      onBack={() => router.push('/(tabs)')}
-      onGoToMaintenance={() => router.push('/(tabs)/maintenance')}
+      onBack={() => router.replace('/(tabs)')}
+      onGoToMaintenance={() => router.replace('/(tabs)/maintenance')}
     />
   );
 }

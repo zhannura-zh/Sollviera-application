@@ -233,7 +233,8 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
                   </Text>
                   <TextInput
                     value={editFloorAssigned}
-                    onChangeText={setEditFloorAssigned}
+                    onChangeText={(v) => setEditFloorAssigned(v.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
                     className="w-full bg-background border border-border rounded-xl px-2.5 py-2 text-sm text-text-primary"
                   />
                 </View>

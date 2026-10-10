@@ -855,9 +855,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [checklistRecordIds, rooms]);
 
-  const saveRoomPhoto = useCallback(async (roomId: string, uri: string, stage: string) => {
-    await uploadRoomPhoto(roomId, uri, stage);
-  }, []);
+  // `roomId` is the housekeeping task id (room.id), matching every other room action in
+  // this file — the physicalRoomId the API actually wants is resolved internally, same
+  // pattern as verifyRoom below. Stores the photo on the room itself (not just the
+  // server) so it's still there if the cleaner navigates away and back; the API call is
+  // best-effort (see the 403-permission note where this is called from).
+  const saveRoomPhoto = useCallback(
+    async (roomId: string, uri: string, stage: string) => {
+      const room = rooms.find((r) => r.id === roomId);
+      setRooms((prev) =>
+        prev.map((r) => {
+          if (r.id !== roomId) return r;
+          if (stage === 'before') return { ...r, photoBeforeUrl: uri };
+          if (stage === 'after') return { ...r, photoAfterUrl: uri };
+          return { ...r, zonePhotos: { ...r.zonePhotos, [stage]: uri } };
+        })
+      );
+      await uploadRoomPhoto(room?.physicalRoomId || roomId, uri, stage);
+    },
+    [rooms]
+  );
 
   // Supervisor actions — accepting/rejecting a cleaned room. `roomId` here is the
   // housekeeping task id (see mapHousekeepingTask's `id`); the room's own id is

@@ -88,6 +88,12 @@ export interface HotelRoom {
   startTime?: string;
   endTime?: string;
   assignedTo?: string;
+  // Local record of the room-level before/after photos and per-zone checklist photos —
+  // kept on the room itself (not component state) so they survive navigating away and
+  // back. See saveRoomPhoto in app-store.tsx.
+  photoBeforeUrl?: string;
+  photoAfterUrl?: string;
+  zonePhotos?: Record<string, string>;
 }
 
 // Rejected-inspection log — session-local only (there's no persisted "rejected" state on

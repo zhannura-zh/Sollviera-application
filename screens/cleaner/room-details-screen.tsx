@@ -32,7 +32,7 @@ interface RoomDetailsScreenProps {
 }
 
 export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetailsScreenProps) {
-  const { lang, updateRoomStatus, updateRoomChecklist, uploadRoomPhoto, addSystemNotification, addMaintenanceRequest, supplies, deductSupplies, confirmMinibarRefill } = useApp();
+  const { lang, cleanerProfile, updateRoomStatus, updateRoomChecklist, uploadRoomPhoto, addSystemNotification, addMaintenanceRequest, supplies, deductSupplies, confirmMinibarRefill } = useApp();
   const t = getTranslation(lang);
 
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -63,9 +63,9 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   });
 
   const [confirmStandard, setConfirmStandard] = useState(false);
-  const [photoBeforeUrl, setPhotoBeforeUrl] = useState('');
-  const [photoAfterUrl, setPhotoAfterUrl] = useState('');
-  const [zonePhotos, setZonePhotos] = useState<Record<string, string>>({});
+  const photoBeforeUrl = room?.photoBeforeUrl || '';
+  const photoAfterUrl = room?.photoAfterUrl || '';
+  const zonePhotos = room?.zonePhotos || {};
   const roomStatus = room?.status;
 
   useEffect(() => {
@@ -118,6 +118,13 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   };
 
   const handleStartCleaning = () => {
+    if (cleanerProfile.currentShift.status === 'ON_BREAK') {
+      Alert.alert(
+        '',
+        lang === 'RU' ? 'Вы на перерыве. Завершите перерыв в профиле, чтобы начать уборку.' : 'You are on break. End your break in your profile to start cleaning.'
+      );
+      return;
+    }
     const started = updateRoomStatus(room.id, 'IN_PROGRESS');
     if (!started) {
       Alert.alert(
@@ -163,7 +170,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
     onPicked(uri);
 
     try {
-      await uploadRoomPhoto(room.physicalRoomId || room.id, uri, tag);
+      await uploadRoomPhoto(room.id, uri, tag);
     } catch (error) {
       // Known: this account's role is currently not permitted to call
       // POST /rooms/{id}/photos on the backend (server returns 403 "Forbidden resource"
@@ -197,6 +204,14 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
       // preserved, so the UI still shows this as "paused" rather than "never started".
       updateRoomStatus(room.id, 'PENDING');
       setIsTimerRunning(false);
+      return;
+    }
+
+    if (cleanerProfile.currentShift.status === 'ON_BREAK') {
+      Alert.alert(
+        '',
+        lang === 'RU' ? 'Вы на перерыве. Завершите перерыв в профиле, чтобы продолжить уборку.' : 'You are on break. End your break in your profile to resume cleaning.'
+      );
       return;
     }
 
@@ -262,7 +277,11 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   };
 
   const handleMarkFinished = () => {
-    if (!confirmStandard) return;
+    if (!confirmStandard || !photoBeforeUrl || !photoAfterUrl) return;
+    if (Object.values(spentQuantities).some((q) => q > 0)) {
+      deductSupplies(spentQuantities);
+      setSpentQuantities({});
+    }
     updateRoomStatus(room.id, 'READY');
     setIsTimerRunning(false);
     addSystemNotification(
@@ -542,7 +561,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                               </Text>
                             </View>
                             <View className="flex-row items-center gap-2">
-                              <Pressable onPress={() => setZonePhotos((prev) => ({ ...prev, [zone]: '' }))}>
+                              <Pressable onPress={() => choosePhotoSource(zone, () => {})}>
                                 <Image source={{ uri: zonePhotos[zone] }} className="h-10 w-16 rounded-lg border border-border" />
                               </Pressable>
                               <Text className="text-[11px] font-jost text-success">✓ {lang === 'RU' ? 'Добавлено' : 'Added'}</Text>
@@ -550,7 +569,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                           </View>
                         ) : (
                           <Pressable
-                            onPress={() => choosePhotoSource(zone, (uri) => setZonePhotos((prev) => ({ ...prev, [zone]: uri })))}
+                            onPress={() => choosePhotoSource(zone, () => {})}
                             className="pt-2.5 border-t border-border-light flex-row items-center gap-2"
                           >
                             <Camera size={16} color="#8A8177" />
@@ -658,12 +677,12 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
               <View className="flex-1 gap-1.5">
                 <Text className="text-[11px] text-text-secondary uppercase">{t.photoBefore}</Text>
                 {photoBeforeUrl ? (
-                  <Pressable onPress={() => setPhotoBeforeUrl('')}>
+                  <Pressable onPress={() => choosePhotoSource('before', () => {})}>
                     <Image source={{ uri: photoBeforeUrl }} className="w-full h-20 rounded-lg border border-border" />
                   </Pressable>
                 ) : (
                   <Pressable
-                    onPress={() => choosePhotoSource('before', setPhotoBeforeUrl)}
+                    onPress={() => choosePhotoSource('before', () => {})}
                     className="w-full h-20 border-2 border-dashed border-border rounded-lg items-center justify-center gap-1 bg-background"
                   >
                     <Camera size={16} color="#8A8177" />
@@ -674,12 +693,12 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
               <View className="flex-1 gap-1.5">
                 <Text className="text-[11px] text-text-secondary uppercase">{t.photoAfter}</Text>
                 {photoAfterUrl ? (
-                  <Pressable onPress={() => setPhotoAfterUrl('')}>
+                  <Pressable onPress={() => choosePhotoSource('after', () => {})}>
                     <Image source={{ uri: photoAfterUrl }} className="w-full h-20 rounded-lg border border-border" />
                   </Pressable>
                 ) : (
                   <Pressable
-                    onPress={() => choosePhotoSource('after', setPhotoAfterUrl)}
+                    onPress={() => choosePhotoSource('after', () => {})}
                     className="w-full h-20 border-2 border-dashed border-border rounded-lg items-center justify-center gap-1 bg-background"
                   >
                     <Camera size={16} color="#8A8177" />
@@ -827,18 +846,29 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
               <Text className="text-[12px] font-jost text-text-secondary leading-normal flex-1">{t.cleanerConfirm}</Text>
             </Pressable>
 
-            <Pressable
-              onPress={handleMarkFinished}
-              disabled={!confirmStandard || !allTasksDone}
-              className={`w-full py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 ${
-                confirmStandard && allTasksDone ? 'bg-primary active:bg-primary-hover' : 'bg-background border border-border'
-              }`}
-            >
-              <Send size={14} color={confirmStandard && allTasksDone ? '#fff' : '#8A8177'} />
-              <Text className={`text-sm font-jost ${confirmStandard && allTasksDone ? 'text-white' : 'text-text-secondary'}`}>
-                {t.btnComplete}
+            {(!photoBeforeUrl || !photoAfterUrl) && (
+              <Text className="text-[12px] font-jost text-error leading-normal">
+                {lang === 'RU' ? 'Добавьте фото «до» и «после», чтобы завершить уборку.' : 'Add "before" and "after" photos to complete the clean.'}
               </Text>
-            </Pressable>
+            )}
+
+            {(() => {
+              const canFinish = confirmStandard && allTasksDone && !!photoBeforeUrl && !!photoAfterUrl;
+              return (
+                <Pressable
+                  onPress={handleMarkFinished}
+                  disabled={!canFinish}
+                  className={`w-full py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 ${
+                    canFinish ? 'bg-primary active:bg-primary-hover' : 'bg-background border border-border'
+                  }`}
+                >
+                  <Send size={14} color={canFinish ? '#fff' : '#8A8177'} />
+                  <Text className={`text-sm font-jost ${canFinish ? 'text-white' : 'text-text-secondary'}`}>
+                    {t.btnComplete}
+                  </Text>
+                </Pressable>
+              );
+            })()}
           </View>
         )}
 

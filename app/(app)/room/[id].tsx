@@ -13,7 +13,7 @@ export default function RoomDetailRoute() {
     <RoomDetailsScreen
       room={room}
       onBack={() => router.back()}
-      onGoToMaintenance={() => router.push('/(tabs)/maintenance')}
+      onGoToMaintenance={() => router.replace('/(tabs)/maintenance')}
     />
   );
 }
