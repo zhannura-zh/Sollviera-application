@@ -35,7 +35,7 @@ function AppShell({ fontsLoaded }: { fontsLoaded: boolean }) {
         </Stack.Protected>
 
         <Stack.Protected guard={!isLoggedIn}>
-          <Stack.Screen name="(aut]h)" />
+          <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>
       <StatusBar style="dark" />
