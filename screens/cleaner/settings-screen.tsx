@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, Modal, TextInput, Alert, Switch } fr
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronRight, RefreshCw, User, Lock, HelpCircle, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { ChangePasswordModal } from '@/components/password-modals';
 
 function Toggle({ value, onToggle }: { value: boolean; onToggle: () => void }) {
   return (
@@ -21,11 +22,13 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
   const {
-    lang, setLang, offlineMode, toggleOffline, cleanerProfile, updateCleanerProfile, logout,
+    lang, setLang, offlineMode, toggleOffline, cleanerProfile, saveMyProfile, changePassword, logout,
     refreshData, lastSyncedAt, taskSoundEnabled, toggleTaskSound,
   } = useApp();
   const [pushNotifications, setPushNotifications] = useState(true);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleRefreshData = async () => {
@@ -44,28 +47,32 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
     }
   };
 
+  // Personal details are saved to the backend (PATCH /staff/me): name, email, phone.
   const [editFullName, setEditFullName] = useState(cleanerProfile.fullName);
-  const [editFullNameRu, setEditFullNameRu] = useState(cleanerProfile.fullNameRu);
-  const [editBadgeId, setEditBadgeId] = useState(cleanerProfile.badgeId);
-  const [editFloorAssigned, setEditFloorAssigned] = useState(cleanerProfile.floorAssigned);
+  const [editEmail, setEditEmail] = useState(cleanerProfile.email);
+  const [editPhone, setEditPhone] = useState(cleanerProfile.phone || '');
 
   const openEditProfile = () => {
-    setEditFullName(cleanerProfile.fullName);
-    setEditFullNameRu(cleanerProfile.fullNameRu);
-    setEditBadgeId(cleanerProfile.badgeId);
-    setEditFloorAssigned(cleanerProfile.floorAssigned);
+    setEditFullName(lang === 'RU' ? cleanerProfile.fullNameRu : cleanerProfile.fullName);
+    setEditEmail(cleanerProfile.email);
+    setEditPhone(cleanerProfile.phone || '');
     setIsEditingProfile(true);
   };
 
-  const handleSaveProfile = () => {
-    updateCleanerProfile({
-      ...cleanerProfile,
-      fullName: editFullName,
-      fullNameRu: editFullNameRu,
-      badgeId: editBadgeId,
-      floorAssigned: editFloorAssigned,
-    });
-    setIsEditingProfile(false);
+  const handleSaveProfile = async () => {
+    if (!editFullName.trim()) return;
+    setIsSavingProfile(true);
+    try {
+      await saveMyProfile({ fullName: editFullName, email: editEmail, phone: editPhone });
+      setIsEditingProfile(false);
+    } catch (error) {
+      Alert.alert(
+        lang === 'RU' ? 'Не удалось сохранить' : 'Could not save',
+        error instanceof Error ? error.message : lang === 'RU' ? 'Попробуйте ещё раз' : 'Please try again'
+      );
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   return (
@@ -156,7 +163,7 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
             <ChevronRight size={16} color="#8A8177" />
           </Pressable>
           <Pressable
-            onPress={() => Alert.alert('', lang === 'RU' ? 'Смена пароля недоступна в демо-режиме' : 'Change password is not available in demo mode')}
+            onPress={() => setIsChangingPassword(true)}
             className="p-4 flex-row items-center justify-between border-b border-border-light active:bg-background"
           >
             <View className="flex-row items-center gap-3">
@@ -203,55 +210,46 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
             </View>
 
             <View className="gap-2.5">
-              <View>
-                <Text className="text-[11px] text-text-secondary uppercase tracking-wider mb-0.5">
-                  {lang === 'RU' ? 'ФИО' : 'Full name'}
-                </Text>
-                <TextInput
-                  value={lang === 'RU' ? editFullNameRu : editFullName}
-                  onChangeText={(v) => {
-                    if (lang === 'RU') { setEditFullNameRu(v); setEditFullName(v); }
-                    else { setEditFullName(v); setEditFullNameRu(v); }
-                  }}
-                  className="w-full bg-background border border-border rounded-xl px-2.5 py-2 text-sm text-text-primary"
-                />
-              </View>
-              <View className="flex-row gap-2">
-                <View className="flex-1">
-                  <Text className="text-[11px] text-text-secondary uppercase tracking-wider mb-0.5">
-                    {lang === 'RU' ? 'Табель' : 'Staff ID'}
-                  </Text>
+              {([
+                [lang === 'RU' ? 'ФИО' : 'Full name', editFullName, setEditFullName, 'default'],
+                ['Email', editEmail, setEditEmail, 'email-address'],
+                [lang === 'RU' ? 'Телефон' : 'Phone', editPhone, setEditPhone, 'phone-pad'],
+              ] as const).map(([label, value, setValue, keyboardType]) => (
+                <View key={label}>
+                  <Text className="text-[11px] text-text-secondary uppercase tracking-wider mb-0.5">{label}</Text>
                   <TextInput
-                    value={editBadgeId}
-                    onChangeText={setEditBadgeId}
+                    value={value}
+                    onChangeText={setValue}
+                    keyboardType={keyboardType}
+                    autoCapitalize={keyboardType === 'default' ? 'words' : 'none'}
                     className="w-full bg-background border border-border rounded-xl px-2.5 py-2 text-sm text-text-primary"
                   />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-[11px] text-text-secondary uppercase tracking-wider mb-0.5">
-                    {lang === 'RU' ? 'Этаж' : 'Floor'}
-                  </Text>
-                  <TextInput
-                    value={editFloorAssigned}
-                    onChangeText={(v) => setEditFloorAssigned(v.replace(/[^0-9]/g, ''))}
-                    keyboardType="number-pad"
-                    className="w-full bg-background border border-border rounded-xl px-2.5 py-2 text-sm text-text-primary"
-                  />
-                </View>
-              </View>
+              ))}
             </View>
 
             <View className="flex-row gap-2 pt-2 border-t border-border-light">
               <Pressable onPress={() => setIsEditingProfile(false)} className="flex-1 py-2 border border-border rounded-xl items-center">
                 <Text className="text-text-secondary font-jost text-sm">{lang === 'RU' ? 'Отмена' : 'Cancel'}</Text>
               </Pressable>
-              <Pressable onPress={handleSaveProfile} className="flex-1 py-2 bg-primary rounded-xl items-center active:bg-primary-hover">
-                <Text className="text-white font-jost text-sm">{lang === 'RU' ? 'Сохранить' : 'Save'}</Text>
+              <Pressable
+                onPress={handleSaveProfile}
+                disabled={isSavingProfile || !editFullName.trim()}
+                className={`flex-1 py-2 rounded-xl items-center ${isSavingProfile || !editFullName.trim() ? 'bg-border' : 'bg-primary active:bg-primary-hover'}`}
+              >
+                <Text className="text-white font-jost text-sm">{isSavingProfile ? '…' : lang === 'RU' ? 'Сохранить' : 'Save'}</Text>
               </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <ChangePasswordModal
+        visible={isChangingPassword}
+        lang={lang}
+        onClose={() => setIsChangingPassword(false)}
+        onSubmit={changePassword}
+      />
     </ScrollView>
   );
 }

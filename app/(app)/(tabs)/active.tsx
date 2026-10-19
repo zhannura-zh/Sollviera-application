@@ -11,7 +11,7 @@ export default function ActiveTab() {
     <RoomDetailsScreen
       room={activeRoom}
       onBack={() => router.replace('/(tabs)')}
-      onGoToMaintenance={() => router.replace('/(tabs)/maintenance')}
+      onGoToMaintenance={(roomNumber) => router.replace({ pathname: '/(tabs)/maintenance', params: { room: roomNumber } })}
     />
   );
 }

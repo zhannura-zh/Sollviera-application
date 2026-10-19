@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlertTriangle, PartyPopper, Users } from 'lucide-react-native';
+import { AlertTriangle, PartyPopper, Users, Package, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { useRouter } from 'expo-router';
 import { MEAL_PERIODS, DAILY_ALERTS, DailyAlert } from './waiter-mock-data';
 
 function alertIcon(kind: DailyAlert['kind']) {
@@ -15,6 +16,7 @@ function alertIcon(kind: DailyAlert['kind']) {
 
 export function WaiterDashboardScreen() {
   const { lang, cleanerProfile } = useApp();
+  const router = useRouter();
 
   const breakfast = MEAL_PERIODS[0];
   const breakfastTotal = breakfast.breakdown.reduce((acc, b) => acc + (b.code ? b.count : 0), 0);
@@ -30,6 +32,21 @@ export function WaiterDashboardScreen() {
       </View>
 
       <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingTop: 12, paddingBottom: 24, gap: 18 }}>
+        <Pressable
+          onPress={() => router.push('/lunchboxes')}
+          className="bg-white rounded-[14px] border border-border p-4 flex-row items-center gap-3 active:bg-background"
+        >
+          <View className="h-10 w-10 rounded-xl bg-primary-light border border-border items-center justify-center">
+            <Package size={18} color="#241E1A" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-jost-semibold text-text-primary">{lang === 'RU' ? 'Ланчбоксы' : 'Lunchboxes'}</Text>
+            <Text className="text-[12px] font-jost text-text-secondary">
+              {lang === 'RU' ? 'Заказ сухого пайка для проживающих гостей' : 'Packed meals for in-house guests'}
+            </Text>
+          </View>
+          <ChevronRight size={16} color="#8A8177" />
+        </Pressable>
         {MEAL_PERIODS.map((period) => {
           const isBreakfast = period.key === 'BREAKFAST';
           const arrived = isBreakfast ? breakfastArrived : undefined;

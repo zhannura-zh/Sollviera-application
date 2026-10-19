@@ -59,90 +59,14 @@ import {
   updateRoomStatusField,
   updateStaff,
   uploadRoomPhoto,
+  getMyAttendance,
+  setAttendancePresence,
+  listOnShift,
+  updateMe,
+  changeMyPassword,
+  listBookings,
+  ShiftStatusValue,
 } from '@/lib/api-client';
-
-export interface ChatMessage {
-  sender: 'CLEANER' | 'OTHER';
-  text: string;
-  time: string;
-}
-
-export interface ChatContact {
-  id: string;
-  name: string;
-  nameRu: string;
-  role: string;
-  roleRu: string;
-  avatarUrl: string;
-  phone: string;
-  unreadCount: number;
-  messages: ChatMessage[];
-  quickRepliesRu: string[];
-  quickRepliesEn: string[];
-}
-
-const INITIAL_CHAT_CONTACTS: ChatContact[] = [
-  {
-    id: 'super-anna',
-    name: 'Anna Peterson',
-    nameRu: 'Анна Петерсон',
-    role: 'Supervisor',
-    roleRu: 'Супервайзер',
-    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    phone: '+7 (999) 450-12-88',
-    unreadCount: 0,
-    messages: [
-      { sender: 'OTHER', text: 'Доброе утро! Ваша смена активирована. Пожалуйста, проверьте этаж 3.', time: '08:00' },
-    ],
-    quickRepliesRu: ['Сообщение принято. Отправляю дежурного. Спасибо!', 'Поняла вас, проверю в течение 10 минут.', 'Спасибо за отчет!'],
-    quickRepliesEn: ['Message received. Directing shift crew. Thank you!', 'Got it, will inspect in 10 minutes.', 'Thanks for the report!'],
-  },
-  {
-    id: 'cleaner-marcus',
-    name: 'Marcus Brody',
-    nameRu: 'Маркус Броди',
-    role: 'Housekeeper',
-    roleRu: 'Горничная',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    phone: '+7 (999) 555-01-99',
-    unreadCount: 1,
-    messages: [
-      { sender: 'OTHER', text: 'Привет, у тебя есть лишние большие простыни на 3 этаже? Нам не хватило для 208 номера.', time: '13:02' },
-    ],
-    quickRepliesRu: ['Привет! Да, есть 2 штуки на тележке, забирай у лифта.', 'К сожалению, закончились, жду поставку.', 'Спроси у Светланы, у нее был запас.'],
-    quickRepliesEn: ['Hey! Yes, I have 2 sheets on my trolley near the elevator.', 'Sorry, ran out, waiting for refill.', 'Ask Svetlana, she had a reserve.'],
-  },
-  {
-    id: 'senior-svetlana',
-    name: 'Svetlana Kim',
-    nameRu: 'Светлана Ким',
-    role: 'Senior Housekeeper',
-    roleRu: 'Старшая горничная',
-    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
-    phone: '+7 (800) 100-20-30',
-    unreadCount: 0,
-    messages: [
-      { sender: 'OTHER', text: 'Пожалуйста, сверьте стандарты по 304 номеру до 13:45. Заезд VIP гостя планируется раньше.', time: '12:45' },
-    ],
-    quickRepliesRu: ['Принято в работу, уже заканчиваю спальню.', 'Всё готово, стандарты подтверждены.', 'Хорошо, сейчас перепроверю мини-бар.'],
-    quickRepliesEn: ['Accepted, already finishing the bedroom details.', 'All set, standards verified.', 'Okay, will double check the minibar now.'],
-  },
-  {
-    id: 'head-oleg',
-    name: 'Oleg Voronov',
-    nameRu: 'Олег Воронов',
-    role: 'Head of Housekeeping',
-    roleRu: 'Руководитель службы',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-    phone: '+7 (800) 100-20-30',
-    unreadCount: 0,
-    messages: [
-      { sender: 'OTHER', text: 'Отличная работа по аудитам 3 этажа на этой неделе. Качество 99%. Так держать!', time: 'Вчера' },
-    ],
-    quickRepliesRu: ['Спасибо большое, Олег! Стараемся всей командой.', 'Спасибо! Будем поддерживать этот уровень.'],
-    quickRepliesEn: ['Thank you very much, Oleg! Great team effort.', 'Thank you! We will keep up this standard.'],
-  },
-];
 
 // Minutes between two "HH:MM" clock readings (see mapHousekeepingTask), assuming both
 // fall on the same day; a negative gap means the second one crossed midnight.
@@ -157,6 +81,71 @@ function minutesBetweenClock(start: string, end: string): number {
   let diff = e - s;
   if (diff < 0) diff += 24 * 60;
   return diff;
+}
+
+function isoToClock(iso: unknown): string | null {
+  if (typeof iso !== 'string' || !iso) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(iso);
+  if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function localDateIso(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// GET /staff/attendance/mine — undocumented response; read defensively. Either the open
+// shift itself ({ id, opened_at, shiftStatus }) or a wrapper ({ shift, shiftStatus }).
+function mapMyAttendance(raw: any): { status: ShiftStatusValue | null; openedAt: string | null; open: boolean } {
+  if (!raw || typeof raw !== 'object') return { status: null, openedAt: null, open: false };
+  const shift = raw.shift && typeof raw.shift === 'object' ? raw.shift : raw.id ? raw : null;
+  const s = String(raw.shiftStatus ?? raw.status ?? shift?.shiftStatus ?? '').toUpperCase();
+  const status = s === 'ON_SHIFT' || s === 'ON_BREAK' || s === 'SHIFT_ENDED' ? (s as ShiftStatusValue) : null;
+  const openedAt = isoToClock(shift?.opened_at ?? shift?.openedAt ?? shift?.start_time ?? shift?.startTime ?? shift?.created_at ?? shift?.createdAt);
+  return { status, openedAt, open: Boolean(shift) && status !== 'SHIFT_ENDED' };
+}
+
+function bookingRoomKeys(b: any): string[] {
+  const keys: string[] = [];
+  const roomId = b?.roomId ?? b?.room?.id;
+  const number = b?.room?.number ?? b?.roomNumber;
+  if (roomId) keys.push(`id:${roomId}`);
+  if (number) keys.push(`no:${number}`);
+  return keys;
+}
+
+// Attach today's departures/arrivals from GET /bookings to housekeeping rooms, matched by
+// physical room id (or room number as a fallback). Cancelled/no-show bookings are ignored.
+function applyBookingsToRooms(rooms: HotelRoom[], bookings: any[], today: string): HotelRoom[] {
+  const departures = new Map<string, any>();
+  const arrivals = new Map<string, any>();
+  for (const b of bookings) {
+    const status = String(b?.status ?? '').toUpperCase();
+    if (status === 'CANCELLED' || status === 'NO_SHOW') continue;
+    const checkIn = String(b?.checkInDate ?? '').slice(0, 10);
+    const checkOut = String(b?.checkOutDate ?? '').slice(0, 10);
+    for (const key of bookingRoomKeys(b)) {
+      if (checkOut === today) departures.set(key, b);
+      if (checkIn === today) arrivals.set(key, b);
+    }
+  }
+  const guestName = (b: any) => String(b?.guest?.fullName ?? b?.guest?.name ?? [b?.guest?.lastName, b?.guest?.firstName].filter(Boolean).join(' ') ?? '').trim();
+  return rooms.map((room) => {
+    const keys = [room.physicalRoomId ? `id:${room.physicalRoomId}` : '', `no:${room.roomNumber}`].filter(Boolean);
+    const dep = keys.map((k) => departures.get(k)).find(Boolean);
+    const arr = keys.map((k) => arrivals.get(k)).find(Boolean);
+    if (!dep && !arr) return { ...room, departureGuest: undefined, arrivalGuest: undefined, arrivalRequests: undefined };
+    return {
+      ...room,
+      departureGuest: dep ? guestName(dep) || '—' : undefined,
+      arrivalGuest: arr ? guestName(arr) || '—' : undefined,
+      arrivalRequests: arr?.specialRequests ? String(arr.specialRequests) : undefined,
+      adults: arr ? Number(arr.adults ?? room.adults) : room.adults,
+      children: arr ? Number(arr.children ?? room.children) : room.children,
+    };
+  });
 }
 
 function timeNow() {
@@ -192,6 +181,15 @@ interface AppState {
 
   cleanerProfile: CleanerProfile;
   updateCleanerProfile: (profile: CleanerProfile) => void;
+  // Saves name/email/phone to PATCH /staff/me (the rest of CleanerProfile is local).
+  saveMyProfile: (values: { fullName: string; email: string; phone: string }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  // Break / resume / finish. Uses the attendance shift (opened by the desk QR) when there
+  // is one, otherwise the staff.shiftStatus flag. Throws on failure (state is reverted).
+  setShiftStatus: (status: ShiftStatusValue) => Promise<void>;
+  // True while an attendance shift opened at the front desk is still open — finishing it
+  // needs the desk QR, so "Завершить" only signs out of the app in that case.
+  hasOpenDeskShift: boolean;
 
   rooms: HotelRoom[];
   updateRoomStatus: (roomId: string, status: RoomStatus) => boolean;
@@ -275,10 +273,7 @@ interface AppState {
   refreshData: () => Promise<void>;
   lastSyncedAt: string | null;
 
-  chatContacts: ChatContact[];
   shiftHistory: ShiftHistoryItem[];
-  sendContactMessage: (contactId: string, text: string) => void;
-  markContactRead: (contactId: string) => void;
 }
 
 function asList<T>(value: unknown): T[] {
@@ -538,9 +533,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // ignore playback failures (e.g. platform/audio-session quirks)
     }
   }, [taskSoundPlayer]);
-  const [chatContacts, setChatContacts] = useState<ChatContact[]>(INITIAL_CHAT_CONTACTS);
   const hasLoadedNotificationsOnce = useRef(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [hasOpenDeskShift, setHasOpenDeskShift] = useState(false);
+  const hasOpenDeskShiftRef = useRef(false);
+  hasOpenDeskShiftRef.current = hasOpenDeskShift;
 
   const login = useCallback((profile: CleanerProfile, sessionUser?: ApiUser) => {
     // No backend concept of a housekeeper "shift clock-in" exists yet, so this session's
@@ -564,6 +561,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoggedIn(false);
     setRole(null);
     setCleanerProfile(mockCleaners[0]);
+  }, []);
+
+  const setShiftStatus = useCallback(async (status: ShiftStatusValue) => {
+    let previous: ShiftStatusValue | undefined;
+    setCleanerProfile((current) => {
+      previous = current.currentShift.status;
+      return { ...current, currentShift: { ...current.currentShift, status } };
+    });
+    try {
+      if (status !== 'SHIFT_ENDED' && hasOpenDeskShiftRef.current) {
+        await setAttendancePresence(status);
+      } else {
+        await updateMe({ shiftStatus: status });
+      }
+    } catch (error) {
+      if (previous) {
+        const restore = previous;
+        setCleanerProfile((current) => ({ ...current, currentShift: { ...current.currentShift, status: restore } }));
+      }
+      throw error;
+    }
+  }, []);
+
+  const saveMyProfile = useCallback(async (values: { fullName: string; email: string; phone: string }) => {
+    const updated: any = await updateMe({
+      fullName: values.fullName.trim() || undefined,
+      email: values.email.trim() || undefined,
+      phone: values.phone.trim() || undefined,
+    });
+    setCleanerProfile((current) => ({
+      ...current,
+      fullName: String(updated?.fullName ?? values.fullName) || current.fullName,
+      fullNameRu: String(updated?.fullName ?? values.fullName) || current.fullNameRu,
+      email: String(updated?.email ?? values.email) || current.email,
+      phone: String(updated?.phone ?? values.phone) || undefined,
+    }));
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await changeMyPassword(currentPassword, newPassword);
   }, []);
 
   const refreshFromApi = useCallback(async (roleArg?: StaffRole) => {
@@ -709,8 +746,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         fullName: me.fullName || current.fullName,
         fullNameRu: me.fullName || current.fullNameRu,
         floorAssigned: me.department || current.floorAssigned,
-        currentShift: { ...current.currentShift, status: me.isActive === false ? 'SHIFT_ENDED' : 'ON_SHIFT' },
+        phone: (me as any).phone ? String((me as any).phone) : current.phone,
+        currentShift: {
+          ...current.currentShift,
+          status: ['ON_SHIFT', 'ON_BREAK', 'SHIFT_ENDED'].includes(String((me as any).shiftStatus))
+            ? ((me as any).shiftStatus as ShiftStatusValue)
+            : me.isActive === false ? 'SHIFT_ENDED' : 'ON_SHIFT',
+        },
       }));
+    }
+
+    // Real shift (front-desk attendance), today's bookings for room cards, and — for the
+    // supervisor — who is on shift / on break right now. All optional: failures leave the
+    // previous values.
+    const today = localDateIso();
+    const [attendanceRaw, bookingsRaw, onShiftRaw] = await Promise.all([
+      getMyAttendance().catch(() => undefined),
+      needsHousekeeping ? listBookings(today, today).catch(() => undefined) : Promise.resolve(undefined),
+      isSupervisor ? listOnShift().catch(() => undefined) : Promise.resolve(undefined),
+    ]);
+    if (attendanceRaw !== undefined) {
+      const att = mapMyAttendance(attendanceRaw);
+      setHasOpenDeskShift(att.open);
+      if (att.status || att.openedAt) {
+        setCleanerProfile((current) => ({
+          ...current,
+          currentShift: {
+            ...current.currentShift,
+            status: att.status ?? current.currentShift.status,
+            startTime: att.openedAt ?? current.currentShift.startTime,
+          },
+        }));
+      }
+    }
+    if (bookingsRaw !== undefined) {
+      const bookings = asList<any>(bookingsRaw);
+      setRooms((prev) => applyBookingsToRooms(prev, bookings, today));
+    }
+    if (onShiftRaw !== undefined) {
+      const statusByKey = new Map<string, string>();
+      for (const s of asList<any>(onShiftRaw)) {
+        const status = String(s?.shiftStatus ?? 'ON_SHIFT');
+        const id = String(s?.employee_id ?? s?.employeeId ?? s?.userId ?? s?.employee?.id ?? '');
+        const name = String(s?.employee?.name ?? s?.employee?.fullName ?? '').trim().toLowerCase();
+        if (id) statusByKey.set(`id:${id}`, status);
+        if (name) statusByKey.set(`name:${name}`, status);
+      }
+      setStaffList((prev) => {
+        const lookup = (m: StaffMember) => statusByKey.get(`id:${m.id}`) ?? statusByKey.get(`name:${m.fullName.trim().toLowerCase()}`);
+        // Attendance employees may be keyed differently from /staff users; if nothing lines
+        // up, keep the staff flags rather than marking the whole team off shift.
+        if (statusByKey.size > 0 && !prev.some((m) => lookup(m))) return prev;
+        // Anyone without an open shift is off shift, whatever their stale staff flag says.
+        return prev.map((m) => ({ ...m, shiftStatus: lookup(m) ?? 'SHIFT_ENDED' }));
+      });
     }
     setLastSyncedAt(timeNow());
   }, [playTaskSound, role]);
@@ -1359,33 +1448,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [playTaskSound]);
 
-  const sendContactMessage = useCallback(
-    (contactId: string, text: string) => {
-      if (!text.trim()) return;
-      const time = timeNow();
-      setChatContacts((prev) =>
-        prev.map((c) => (c.id === contactId ? { ...c, messages: [...c.messages, { sender: 'CLEANER', text: text.trim(), time }] } : c))
-      );
-
-      setTimeout(() => {
-        const repTime = timeNow();
-        setChatContacts((prev) =>
-          prev.map((c) => {
-            if (c.id !== contactId) return c;
-            const replies = lang === 'RU' ? c.quickRepliesRu : c.quickRepliesEn;
-            const reply = replies[Math.floor(Math.random() * replies.length)] || 'Ok';
-            return { ...c, messages: [...c.messages, { sender: 'OTHER', text: reply, time: repTime }] };
-          })
-        );
-      }, 1500);
-    },
-    [lang]
-  );
-
-  const markContactRead = useCallback((contactId: string) => {
-    setChatContacts((prev) => prev.map((c) => (c.id === contactId ? { ...c, unreadCount: 0 } : c)));
-  }, []);
-
   const activeRoom = useMemo(() => rooms.find((r) => r.status === 'IN_PROGRESS') || null, [rooms]);
 
   const value: AppState = {
@@ -1399,6 +1461,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     logout,
     cleanerProfile,
     updateCleanerProfile: setCleanerProfile,
+    saveMyProfile,
+    changePassword,
+    setShiftStatus,
+    hasOpenDeskShift,
     rooms,
     updateRoomStatus,
     updateRoomChecklist,
@@ -1443,10 +1509,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleTaskSound,
     refreshData: refreshFromApi,
     lastSyncedAt,
-    chatContacts,
     shiftHistory,
-    sendContactMessage,
-    markContactRead,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

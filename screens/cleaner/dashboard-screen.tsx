@@ -5,6 +5,7 @@ import { Search, CheckSquare, DollarSign } from 'lucide-react-native';
 import { HotelRoom, RoomStatus, CleaningType, RoomPriority } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { RoomGuestBadges } from '@/components/room-guest-badges';
 import { RoomChecklistModal } from '@/components/room-checklist-modal';
 import { CheckoutReportModal } from '@/components/checkout-report-modal';
 import { SelectField } from '@/components/ui/select-field';
@@ -211,6 +212,9 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
         <Text className="text-[13px] font-jost text-text-secondary pl-1.5">
           {room.category} · {getCleaningTypeLabel(room.cleaningType)} · {room.floor} {lang === 'RU' ? 'этаж' : 'floor'}
         </Text>
+        <View className="pl-1.5">
+          <RoomGuestBadges room={room} lang={lang} />
+        </View>
 
         <View className="flex-row items-center gap-2 pt-1">
           <Pressable

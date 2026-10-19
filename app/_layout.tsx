@@ -10,6 +10,7 @@ import { useFonts, Jost_400Regular, Jost_500Medium, Jost_600SemiBold } from '@ex
 import { Spectral_500Medium } from '@expo-google-fonts/spectral';
 
 import { AppProvider, useApp } from '@/context/app-store';
+import { ChatProvider } from '@/context/chat-store';
 
 // Keep the native splash up until we know both the fonts AND the restored-session /
 // role decision are ready — so the very first frame the user sees is already the right
@@ -55,7 +56,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <KeyboardProvider>
         <AppProvider>
-          <AppShell fontsLoaded={fontsLoaded} />
+          <ChatProvider>
+            <AppShell fontsLoaded={fontsLoaded} />
+          </ChatProvider>
         </AppProvider>
       </KeyboardProvider>
     </SafeAreaProvider>

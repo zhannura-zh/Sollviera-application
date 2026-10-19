@@ -3,6 +3,8 @@ import { View, Text, Pressable, ScrollView, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MessageSquare, Bell, Settings, Coffee, Calendar, Users, X, ChevronRight, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { useShiftStatusHandler } from '@/hooks/use-shift-status';
+import { useChat } from '@/context/chat-store';
 import { BANQUET_BOOKINGS, SHIFT_SCHEDULE } from './waiter-mock-data';
 
 function getInitials(name: string) {
@@ -20,29 +22,16 @@ interface WaiterProfileScreenProps {
 // pushed screens — matches the actual mobile.sollviera.com waiter profile, and (like the
 // mock data in waiter-mock-data.ts) none of it is backed by a real endpoint.
 export function WaiterProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings, onLoggedOut }: WaiterProfileScreenProps) {
-  const { lang, cleanerProfile, notifications, chatContacts, updateCleanerProfile, logout } = useApp();
+  const { lang, cleanerProfile, notifications, logout } = useApp();
   const [showReport, setShowReport] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [showBanquets, setShowBanquets] = useState(false);
 
   const shiftStatus = cleanerProfile.currentShift.status;
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const totalUnreadChats = chatContacts.reduce((acc, c) => acc + c.unreadCount, 0);
+  const { totalUnread: totalUnreadChats } = useChat();
 
-  const handleSetShiftStatus = (status: 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED') => {
-    if (status === 'SHIFT_ENDED') {
-      Alert.alert(
-        lang === 'RU' ? 'Завершить смену?' : 'Finish shift?',
-        lang === 'RU' ? 'Вы будете выведены из аккаунта.' : 'You will be signed out.',
-        [
-          { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
-          { text: lang === 'RU' ? 'Завершить' : 'Finish', style: 'destructive', onPress: () => { logout(); onLoggedOut(); } },
-        ]
-      );
-      return;
-    }
-    updateCleanerProfile({ ...cleanerProfile, currentShift: { ...cleanerProfile.currentShift, status } });
-  };
+  const handleSetShiftStatus = useShiftStatusHandler(onLoggedOut);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">

@@ -5,6 +5,7 @@ import { ChevronLeft, MessageSquare, Share2 } from 'lucide-react-native';
 import { HotelRoom } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { RoomGuestBadges } from '@/components/room-guest-badges';
 
 interface RoomDetailScreenProps {
   room: HotelRoom | null;
@@ -123,6 +124,7 @@ export function RoomDetailScreen({ room, onBack, onMessage }: RoomDetailScreenPr
             <Text className="text-xs font-jost text-text-secondary mt-0.5">{statusLabel(room.status, lang)}</Text>
           </View>
         </View>
+        <RoomGuestBadges room={room} lang={lang} showRequests dark />
       </View>
 
       <ScrollView className="flex-1 bg-background px-5" contentContainerStyle={{ paddingTop: 16, paddingBottom: 20, gap: 16 }}>

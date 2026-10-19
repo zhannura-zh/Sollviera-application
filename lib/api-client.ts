@@ -224,3 +224,104 @@ export const saveMealAttendance = (payload: {
   meal?: 'breakfast' | 'lunch' | 'dinner';
   guestsCount?: number;
 }) => request<Json>('/restaurant/attendance', { method: 'PUT', data: payload });
+
+// Staff chat. Response shapes are undocumented in /docs-json; they're taken from the web
+// PMS client (app.sollviera.com), which maps the same endpoints:
+//   GET  /chat/inbox → { currentUserId, staff: [{ user, conversationId|null, lastMessage|null,
+//        unreadCount }], groups: [{ id, title, members, lastMessage|null, unreadCount }] }
+//   POST /chat/direct { userId } → conversation { id, kind: 'DIRECT'|'GROUP', title, members, peer }
+//   GET  /chat/conversations/:id/messages → [{ id, conversationId, senderId, senderName, body,
+//        createdAt, attachments }]
+// There is no realtime channel (no socket.io on the API), so callers poll.
+export const getChatInbox = () => request<Json>('/chat/inbox');
+
+export const openDirectChat = (userId: string) =>
+  request<Json>('/chat/direct', { method: 'POST', data: { userId } });
+
+export const listChatMessages = (conversationId: string) =>
+  request<unknown[]>(`/chat/conversations/${encodeURIComponent(conversationId)}/messages`);
+
+// The endpoint is multipart (it also accepts `files`), same Content-Type caveat as
+// uploadRoomPhoto above.
+export const sendChatMessage = (conversationId: string, body: string, photoUris: string[] = []) => {
+  const formData = new FormData();
+  if (body) formData.append('body', body);
+  photoUris.forEach((uri, i) => {
+    formData.append('files', { uri, name: `photo-${Date.now()}-${i}.jpg`, type: 'image/jpeg' } as unknown as Blob);
+  });
+  return request<Json>(`/chat/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': undefined },
+    data: formData,
+  });
+};
+
+export const markChatRead = (conversationId: string) =>
+  request<Json>(`/chat/conversations/${encodeURIComponent(conversationId)}/read`, { method: 'POST' });
+
+// ── Shifts (attendance) ────────────────────────────────────────────────────────
+// A shift is opened/closed by scanning the rotating QR at the front desk (POST
+// /staff/attendance/scan) — not done in this app. Inside an open shift the employee can go
+// on break and come back (presence). Without an attendance shift, the coarse
+// staff.shiftStatus flag (PATCH /staff/me) is what the web PMS shows as "на смене/перерыв".
+export type ShiftStatusValue = 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED';
+
+export const getMyAttendance = () => request<Json | null>('/staff/attendance/mine');
+
+export const setAttendancePresence = (status: 'ON_SHIFT' | 'ON_BREAK') =>
+  request<Json>('/staff/attendance/presence', { method: 'POST', data: { status } });
+
+// Open shifts of the whole team: [{ id, employee_id, employee: { name, position },
+// start_time, opened_at, shiftStatus }] (shape from the web PMS mapper).
+export const listOnShift = () => request<unknown[]>('/staff/attendance/on-shift');
+
+// ── Own profile ────────────────────────────────────────────────────────────────
+export const updateMe = (payload: { fullName?: string; email?: string; phone?: string; shiftStatus?: ShiftStatusValue }) =>
+  request<Json>('/staff/me', { method: 'PATCH', data: payload });
+
+export const changeMyPassword = (currentPassword: string, newPassword: string) =>
+  request<Json>('/staff/me/password', { method: 'POST', data: { currentPassword, newPassword } });
+
+// ── Password reset (no session) ────────────────────────────────────────────────
+// forgot-password emails a 6-digit code; reset-password exchanges it for a new password.
+export const requestPasswordReset = (email: string, requestedTenantSlug = DEFAULT_TENANT_SLUG) =>
+  request<Json>('/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'X-Tenant-Slug': requestedTenantSlug },
+    data: { email, tenantSlug: requestedTenantSlug },
+  });
+
+export const resetPassword = (email: string, code: string, newPassword: string, requestedTenantSlug = DEFAULT_TENANT_SLUG) =>
+  request<Json>('/auth/reset-password', {
+    method: 'POST',
+    headers: { 'X-Tenant-Slug': requestedTenantSlug },
+    data: { email, code, newPassword, tenantSlug: requestedTenantSlug },
+  });
+
+// ── Bookings ───────────────────────────────────────────────────────────────────
+// Bookings overlapping [from, to] (YYYY-MM-DD). Each: { id, roomId, room, guest,
+// checkInDate, checkOutDate, status, adults, children, specialRequests, … }.
+export const listBookings = (from: string, to: string) =>
+  request<unknown>(`/bookings?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+
+// Lunchbox orders: [{ id, bookingId, readyAt, quantity, notes, … }]
+export const listLunchboxOrders = (bookingId: string) =>
+  request<unknown>(`/bookings/${encodeURIComponent(bookingId)}/lunchbox-orders`);
+
+export const createLunchboxOrder = (bookingId: string, payload: { readyAt: string; quantity: number; notes?: string }) =>
+  request<Json>(`/bookings/${encodeURIComponent(bookingId)}/lunchbox-orders`, { method: 'POST', data: payload });
+
+export const cancelLunchboxOrder = (bookingId: string, orderId: string) =>
+  request<Json>(`/bookings/${encodeURIComponent(bookingId)}/lunchbox-orders/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+
+// ── Chat extras ────────────────────────────────────────────────────────────────
+export const createChatGroup = (title: string, memberIds: string[]) =>
+  request<Json>('/chat/groups', { method: 'POST', data: { title, memberIds } });
+
+// Chat attachment URLs may come back relative to the API host ("/uploads/…"); they are
+// served behind the same auth, so images need the bearer token too.
+export function fileSource(url: string) {
+  const absolute = /^https?:\/\//.test(url) ? url : `${API_BASE_URL.replace(/\/api$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+  const token = getStoredSession()?.accessToken;
+  return token ? { uri: absolute, headers: { Authorization: `Bearer ${token}`, 'X-Tenant-Slug': tenantSlug() } } : { uri: absolute };
+}

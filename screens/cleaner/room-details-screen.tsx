@@ -10,6 +10,7 @@ import {
 import { HotelRoom, RoomCheckitem, ChecklistZone } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { RoomGuestBadges } from '@/components/room-guest-badges';
 
 const DAMAGE_TYPES = ['Сломан фен', 'Сломана мебель', 'Разбито стекло', 'Повреждён ТВ', 'Другое'];
 
@@ -28,7 +29,7 @@ function elapsedSecondsSince(startTime?: string): number {
 interface RoomDetailsScreenProps {
   room: HotelRoom | null;
   onBack: () => void;
-  onGoToMaintenance: () => void;
+  onGoToMaintenance: (roomNumber: string) => void;
 }
 
 export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetailsScreenProps) {
@@ -360,6 +361,9 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                 room.cleaningType === 'DEEP_CLEAN' ? (lang === 'RU' ? 'генеральная' : 'deep clean') :
                 (lang === 'RU' ? 'после ремонта' : 'after maintenance')}
             </Text>
+            <View className="mt-2">
+              <RoomGuestBadges room={room} lang={lang} showRequests dark />
+            </View>
           </View>
 
           <View className="items-end shrink-0">
@@ -413,7 +417,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                 <Text className="text-text-primary text-sm font-jost-semibold">{isTimerRunning ? t.btnPause : t.btnResume}</Text>
               </Pressable>
               <Pressable
-                onPress={onGoToMaintenance}
+                onPress={() => onGoToMaintenance(room.roomNumber)}
                 className="flex-1 bg-white border border-error py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 active:bg-background"
               >
                 <AlertTriangle size={16} color="#B3261E" />

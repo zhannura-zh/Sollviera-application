@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'lucide-react-native';
@@ -39,6 +39,13 @@ export function MaintenanceRequestForm({ lang, initialRoomNumber, submitLabel, o
   const [priority, setPriority] = useState<MaintenancePriority>('MEDIUM');
   const [description, setDescription] = useState('');
   const [blocksCleaning, setBlocksCleaning] = useState(false);
+
+  // The form stays mounted inside its tab, so a room passed later (e.g. "Поломка" on a room
+  // card) or a room list that finishes loading after mount must still prefill the field.
+  const hasInitialRoom = !!initialRoomNumber && roomNumbers.includes(initialRoomNumber);
+  useEffect(() => {
+    if (hasInitialRoom && initialRoomNumber) setRoomNumber(initialRoomNumber);
+  }, [initialRoomNumber, hasInitialRoom]);
   const [photoUrl, setPhotoUrl] = useState('');
 
   const getCategoryLabel = (cat: MaintenanceCategory) => {

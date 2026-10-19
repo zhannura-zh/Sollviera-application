@@ -13,7 +13,7 @@ export default function StaffMemberRoute() {
     <StaffMemberScreen
       staff={staff}
       onBack={() => router.back()}
-      onMessage={() => router.push('/profile/chats')}
+      onMessage={() => router.push(staff ? `/profile/chats/${staff.id}` : '/profile/chats')}
     />
   );
 }

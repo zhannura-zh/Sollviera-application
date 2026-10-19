@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MessageSquare, Bell, Settings, BarChart3, Users, Layers, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { useChat } from '@/context/chat-store';
 import { ReassignTasksModal } from '@/components/reassign-tasks-modal';
 
 function getInitials(name: string) {
@@ -21,7 +22,7 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings, onOpenReports, onOpenStaff, onLoggedOut }: ProfileScreenProps) {
   const router = useRouter();
-  const { lang, cleanerProfile, notifications, chatContacts, rooms, staffList, updateCleanerProfile, logout } = useApp();
+  const { lang, cleanerProfile, notifications, rooms, staffList, updateCleanerProfile, logout } = useApp();
   const [showReassign, setShowReassign] = useState(false);
 
   const shiftStatus = cleanerProfile.currentShift.status;
@@ -52,7 +53,7 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const totalUnreadChats = chatContacts.reduce((acc, c) => acc + c.unreadCount, 0);
+  const { totalUnread: totalUnreadChats } = useChat();
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">

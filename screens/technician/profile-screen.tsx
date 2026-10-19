@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MessageSquare, Bell, Settings, BarChart3, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { useShiftStatusHandler } from '@/hooks/use-shift-status';
+import { useChat } from '@/context/chat-store';
 import { getTranslation } from '@/lib/locales';
 
 // currentShift.startTime is an "HH:MM" clock reading (real session-start time, see
@@ -32,7 +34,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings, onOpenReports, onLoggedOut }: ProfileScreenProps) {
-  const { lang, cleanerProfile, notifications, chatContacts, maintenanceRequests, updateCleanerProfile, logout } = useApp();
+  const { lang, cleanerProfile, notifications, maintenanceRequests } = useApp();
   const t = getTranslation(lang);
   const [elapsedSeconds, setElapsedSeconds] = useState(() => elapsedSecondsSince(cleanerProfile.currentShift.startTime));
 
@@ -48,30 +50,10 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
   const resolvedCount = maintenanceRequests.filter((r) => r.status === 'RESOLVED').length;
   const activeCount = maintenanceRequests.filter((r) => r.status !== 'RESOLVED').length;
 
-  const handleSetShiftStatus = (status: 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED') => {
-    if (status === 'SHIFT_ENDED') {
-      Alert.alert(
-        lang === 'RU' ? 'Завершить смену?' : 'Finish shift?',
-        lang === 'RU' ? 'Вы будете выведены из аккаунта.' : 'You will be signed out.',
-        [
-          { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
-          {
-            text: lang === 'RU' ? 'Завершить' : 'Finish',
-            style: 'destructive',
-            onPress: () => {
-              logout();
-              onLoggedOut();
-            },
-          },
-        ]
-      );
-      return;
-    }
-    updateCleanerProfile({ ...cleanerProfile, currentShift: { ...cleanerProfile.currentShift, status } });
-  };
+  const handleSetShiftStatus = useShiftStatusHandler(onLoggedOut);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const totalUnreadChats = chatContacts.reduce((acc, c) => acc + c.unreadCount, 0);
+  const { totalUnread: totalUnreadChats } = useChat();
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">

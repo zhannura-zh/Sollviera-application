@@ -10,6 +10,7 @@ export interface CleanerProfile {
   fullName: string;
   fullNameRu: string;
   email: string;
+  phone?: string;
   avatarUrl: string;
   role: CleanerRole;
   floorAssigned: string;
@@ -94,6 +95,11 @@ export interface HotelRoom {
   photoBeforeUrl?: string;
   photoAfterUrl?: string;
   zonePhotos?: Record<string, string>;
+  // Today's guest movement from /bookings (see applyBookingsToRooms in app-store.tsx):
+  // a departure means checkout cleaning before the arrival, if any, checks in.
+  departureGuest?: string;
+  arrivalGuest?: string;
+  arrivalRequests?: string;
 }
 
 // Rejected-inspection log — session-local only (there's no persisted "rejected" state on

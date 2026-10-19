@@ -8,7 +8,7 @@ import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
 import { MaintenanceRequestForm } from '@/components/maintenance-request-form';
 
-export function MaintenanceScreen() {
+export function MaintenanceScreen({ roomNumber }: { roomNumber?: string } = {}) {
   const { lang, maintenanceRequests, addMaintenanceRequest, activeRoom } = useApp();
   const t = getTranslation(lang);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -58,7 +58,7 @@ export function MaintenanceScreen() {
 
           <MaintenanceRequestForm
             lang={lang}
-            initialRoomNumber={activeRoom?.roomNumber}
+            initialRoomNumber={roomNumber || activeRoom?.roomNumber}
             submitLabel={lang === 'RU' ? 'Отправить заявку' : 'Submit Ticket'}
             onSubmit={(values) => {
               addMaintenanceRequest(values);

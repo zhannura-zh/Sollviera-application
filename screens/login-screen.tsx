@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { ForgotPasswordModal } from '@/components/password-modals';
 import { SollvieraLogo } from '@/components/sollviera-logo';
 
 interface LoginScreenProps {
@@ -28,6 +29,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
   const [loginError, setLoginError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   const handleLogin = async () => {
     setIsSubmitting(true);
@@ -117,9 +119,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
             <Text className="text-white font-jost-semibold text-sm">{isSubmitting ? (lang === 'RU' ? 'Авторизация...' : 'Authenticating...') : (lang === 'RU' ? 'Войти на смену' : 'Login to shift')}</Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => Alert.alert('', lang === 'RU' ? 'Связаться с ИТ-поддержкой: +7 (800) 100-20-30' : 'Contact IT Helpdesk: +7 (800) 100-20-30')}
-          >
+          <Pressable onPress={() => setShowForgot(true)}>
             <Text className="text-center text-sm font-jost text-primary pt-1">
               {lang === 'RU' ? 'Забыли пароль?' : 'Forgot password?'}
             </Text>
@@ -166,6 +166,19 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
         {lang === 'RU' ? 'Sollviera PMS v2.4 • Мобильный клининг' : 'Sollviera PMS v2.4 • Housekeeping Mobile'}
       </Text>
     </ScrollView>
+      <ForgotPasswordModal
+        visible={showForgot}
+        lang={lang}
+        initialEmail={emailInput.trim()}
+        tenantSlug={hotelCodeInput.trim() || 'demo'}
+        onClose={() => setShowForgot(false)}
+        onReset={(email) => {
+          setShowForgot(false);
+          setEmailInput(email);
+          setPasswordInput('');
+          Alert.alert('', lang === 'RU' ? 'Пароль изменён. Войдите с новым паролем.' : 'Password changed. Sign in with the new password.');
+        }}
+      />
     </KeyboardAvoidingView>
     </SafeAreaView>
   );
