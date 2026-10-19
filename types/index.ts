@@ -88,6 +88,11 @@ export interface HotelRoom {
   checklist: RoomCheckitem[];
   startTime?: string;
   endTime?: string;
+  // Exact timer state (epoch ms) so pauses aren't counted — see lib/room-timer.ts.
+  // pausedAtMs is set while paused; pausedMs is the total of finished pauses.
+  startedAtMs?: number;
+  pausedAtMs?: number;
+  pausedMs?: number;
   assignedTo?: string;
   // Local record of the room-level before/after photos and per-zone checklist photos —
   // kept on the room itself (not component state) so they survive navigating away and

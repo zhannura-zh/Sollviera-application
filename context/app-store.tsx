@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Alert } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
 import {
   Language,
@@ -146,6 +147,18 @@ function applyBookingsToRooms(rooms: HotelRoom[], bookings: any[], today: string
       children: arr ? Number(arr.children ?? room.children) : room.children,
     };
   });
+}
+
+// Housekeeping API error codes → text a cleaner understands; unknown codes pass through.
+function housekeepingErrorText(error: unknown, lang: Language): string {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const ru = lang === 'RU';
+  switch (message.trim()) {
+    case 'CLEANING_END_BEFORE_START':
+      return ru ? 'Сервер считает, что уборка закончилась раньше, чем началась.' : 'The server thinks cleaning ended before it started.';
+    default:
+      return message;
+  }
 }
 
 function timeNow() {
@@ -350,8 +363,18 @@ function mapHousekeepingTask(task: any, roomFallback?: any, checklistRecord?: an
     notesEn: notes,
     notesRu: notes,
     checklist: status === 'READY' || status === 'VERIFIED' ? checklist.map((item: RoomCheckitem) => ({ ...item, done: true })) : checklist,
-    startTime: task.startedAt ? new Date(task.startedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : undefined,
+    // PENDING on the server means not started (fresh, or sent back for re-cleaning), so no
+    // start time even if an old startedAt lingers; PAUSED without startedAt still counts as
+    // started ('—'), so the room shows "Возобновить" rather than "Начать уборку".
+    startTime: String(task.status || '').toUpperCase() === 'PENDING'
+      ? undefined
+      : task.startedAt
+        ? new Date(task.startedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+        : String(task.status || '').toUpperCase() === 'PAUSED' ? '—' : undefined,
     endTime: task.completedAt ? new Date(task.completedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : undefined,
+    startedAtMs: task.startedAt && !Number.isNaN(Date.parse(task.startedAt)) ? Date.parse(task.startedAt) : undefined,
+    // Server PAUSED → local paused room; the exact pause start is refined from local state.
+    pausedAtMs: String(task.status || '').toUpperCase() === 'PAUSED' ? Date.now() : undefined,
     assignedTo: task.assignedTo ? String(task.assignedTo) : undefined,
   };
 }
@@ -642,7 +665,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChecklistRecordIds(nextChecklistIds);
     if (needsHousekeeping) {
       const apiRooms = asList<any>(tasksResponse).map((task) => mapHousekeepingTask(task, roomsByNumber.get(String(task.room?.number || task.roomNumber)), checklistByTaskId.get(String(task.id))));
-      setRooms(apiRooms);
+      // Keep what only this device knows: photos taken here and the pause bookkeeping
+      // (the API stores neither), so a refresh doesn't wipe photos or reset the timer.
+      setRooms((prev) => {
+        const byId = new Map(prev.map((r) => [r.id, r]));
+        return apiRooms.map((r) => {
+          const old = byId.get(r.id);
+          if (!old) return r;
+          const photos = {
+            photoBeforeUrl: r.photoBeforeUrl ?? old.photoBeforeUrl,
+            photoAfterUrl: r.photoAfterUrl ?? old.photoAfterUrl,
+            zonePhotos: r.zonePhotos ?? old.zonePhotos,
+          };
+          const serverPaused = !!r.pausedAtMs;
+          // Paused here a moment ago and the server hasn't caught up yet.
+          const pauseInFlight = r.status === 'PENDING' && !!old.pausedAtMs;
+          // Server says not started (e.g. sent back for re-cleaning): start over, drop the timer.
+          if (r.status === 'PENDING' && !serverPaused && !pauseInFlight) return { ...r, ...photos };
+          return {
+            ...r,
+            ...photos,
+            startTime: r.startTime && r.startTime !== '—' ? r.startTime : old.startTime ?? r.startTime,
+            startedAtMs: old.startedAtMs ?? r.startedAtMs,
+            pausedMs: old.pausedMs,
+            pausedAtMs: serverPaused || pauseInFlight ? old.pausedAtMs ?? r.pausedAtMs : undefined,
+          };
+        });
+      });
       if (isCleaner) {
         // Real shift stats derived from the actual room list, replacing the mock defaults —
         // no dedicated "current shift" endpoint exists for housekeepers, so this is computed
@@ -896,30 +945,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return false;
         }
       }
-      const timeStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      const nowMs = Date.now();
+      const timeStr = new Date(nowMs).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
       setRooms((prev) =>
         prev.map((r) => {
           if (r.id !== roomId) return r;
-          const updated = { ...r, status };
-          if (status === 'IN_PROGRESS' && !r.startTime) updated.startTime = timeStr;
+          const updated: HotelRoom = { ...r, status };
+          // Close an open pause on resume/finish, so the timer excludes it.
+          if (status !== 'PENDING' && r.pausedAtMs) {
+            updated.pausedMs = (r.pausedMs ?? 0) + Math.max(0, nowMs - r.pausedAtMs);
+            updated.pausedAtMs = undefined;
+          }
+          if (status === 'IN_PROGRESS' && !r.startTime) {
+            updated.startTime = timeStr;
+            updated.startedAtMs = nowMs;
+          }
+          if (status === 'PENDING' && r.startTime && !r.pausedAtMs) updated.pausedAtMs = nowMs;
           if ((status === 'READY' || status === 'VERIFIED') && !r.endTime) updated.endTime = timeStr;
           return updated;
         })
       );
       if (getStoredSession()) {
-        const apiStatus = status === 'IN_PROGRESS' ? 'IN_PROGRESS' : status === 'READY' || status === 'VERIFIED' ? 'DONE' : status === 'PENDING' ? 'PENDING' : null;
+        // A started room going back to PENDING is a pause: the API has its own PAUSED status
+        // for that ("started task on hold"), distinct from PENDING ("not started"). The
+        // assignee stays — pausing doesn't hand the room back.
+        const wasStarted = !!rooms.find((r) => r.id === roomId)?.startTime;
+        const apiStatus =
+          status === 'IN_PROGRESS' ? 'IN_PROGRESS'
+          : status === 'READY' || status === 'VERIFIED' ? 'DONE'
+          : status === 'PENDING' ? (wasStarted ? 'PAUSED' : 'PENDING')
+          : null;
         if (apiStatus) {
           void updateHousekeepingStatus(roomId, {
             status: apiStatus,
-            ...(apiStatus === 'PENDING' ? { assignedTo: '' } : {}),
-            ...(apiStatus === 'IN_PROGRESS' ? { startedAt: new Date().toISOString(), assignedTo: cleanerProfile.fullName || cleanerProfile.email } : {}),
-            ...(apiStatus === 'DONE' ? { completedAt: new Date().toISOString() } : {}),
-          }).catch(() => refreshFromApi());
+            // No startedAt/completedAt from the phone: the server stamps both itself, and the
+            // phone's clock can lag the server's — then a finish right after a (re)start was
+            // rejected with CLEANING_END_BEFORE_START. The local timer keeps its own times.
+            ...(apiStatus === 'IN_PROGRESS' ? { assignedTo: cleanerProfile.fullName || cleanerProfile.email } : {}),
+          }).catch((error) => {
+            // Don't silently snap back to the server state — say what didn't go through
+            // (e.g. "sent for inspection" when the room was never actually marked done).
+            Alert.alert(
+              lang === 'RU' ? 'Статус номера не сохранён' : 'Room status not saved',
+              `${housekeepingErrorText(error, lang)}\n${lang === 'RU' ? 'Показано актуальное состояние с сервера. Повторите действие.' : 'Showing the current server state. Please try again.'}`.trim()
+            );
+            void refreshFromApi();
+          });
         }
       }
       return true;
     },
-    [rooms, cleanerProfile.email, cleanerProfile.fullName, refreshFromApi]
+    [rooms, cleanerProfile.email, cleanerProfile.fullName, refreshFromApi, lang]
   );
 
   const updateRoomChecklist = useCallback((roomId: string, checklist: RoomCheckitem[]) => {
@@ -986,7 +1062,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const rejectRoomInspection = useCallback(
     (roomId: string, note: string) => {
-      setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, status: 'PENDING' } : r)));
+      // Sent back for re-cleaning = a fresh start: clear the old timer and finish time so
+      // the cleaner sees "Начать уборку", not "Возобновить".
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.id === roomId
+            ? { ...r, status: 'PENDING', startTime: undefined, endTime: undefined, startedAtMs: undefined, pausedAtMs: undefined, pausedMs: undefined }
+            : r
+        )
+      );
       const room = rooms.find((r) => r.id === roomId);
       setRejectedInspections((prev) => [
         { id: `rej-${Date.now()}`, roomId, roomNumber: room?.roomNumber || '', note, timestamp: timeNow(), assignedTo: room?.assignedTo },

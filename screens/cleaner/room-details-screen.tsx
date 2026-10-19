@@ -10,21 +10,10 @@ import {
 import { HotelRoom, RoomCheckitem, ChecklistZone } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { roomElapsedSeconds } from '@/lib/room-timer';
 import { RoomGuestBadges } from '@/components/room-guest-badges';
 
 const DAMAGE_TYPES = ['Сломан фен', 'Сломана мебель', 'Разбито стекло', 'Повреждён ТВ', 'Другое'];
-
-// room.startTime is stored as an "HH:MM" clock reading (see updateRoomStatus /
-// mapHousekeepingTask) with no date, so this assumes the shift started today.
-function elapsedSecondsSince(startTime?: string): number {
-  const match = startTime ? /^(\d{1,2}):(\d{2})/.exec(startTime) : null;
-  if (!match) return 0;
-  const start = new Date();
-  start.setHours(Number(match[1]), Number(match[2]), 0, 0);
-  let diffSeconds = Math.floor((Date.now() - start.getTime()) / 1000);
-  if (diffSeconds < 0) diffSeconds += 24 * 60 * 60; // crossed midnight
-  return Math.max(0, diffSeconds);
-}
 
 interface RoomDetailsScreenProps {
   room: HotelRoom | null;
@@ -36,8 +25,9 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   const { lang, cleanerProfile, updateRoomStatus, updateRoomChecklist, uploadRoomPhoto, addSystemNotification, addMaintenanceRequest, supplies, deductSupplies, confirmMinibarRefill } = useApp();
   const t = getTranslation(lang);
 
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  // Re-render once a second while cleaning; the time itself is derived from the room's
+  // timestamps (lib/room-timer.ts), so pauses and leaving the screen can't skew it.
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [roomComment, setRoomComment] = useState('');
 
   const [spentQuantities, setSpentQuantities] = useState<Record<string, number>>({});
@@ -70,33 +60,17 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   const roomStatus = room?.status;
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (roomStatus === 'IN_PROGRESS' && isTimerRunning) {
-      interval = setInterval(() => setTimerSeconds((prev) => prev + 1), 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [roomStatus, isTimerRunning]);
+    setNowMs(Date.now());
+    if (roomStatus !== 'IN_PROGRESS') return;
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [roomStatus]);
 
   // Resets per-room UI (only when actually switching to a different room).
   useEffect(() => {
     if (room) setConfirmStandard(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id]);
-
-  // Keeps the timer in sync with status (e.g. after navigating back in), seeded from the
-  // real elapsed time since room.startTime rather than a fixed placeholder.
-  useEffect(() => {
-    if (!room) return;
-    const active = room.status === 'IN_PROGRESS';
-    const pausedWithProgress = room.status === 'PENDING' && !!room.startTime;
-    if (active || pausedWithProgress) {
-      if (timerSeconds === 0) setTimerSeconds(elapsedSecondsSince(room.startTime));
-    }
-    setIsTimerRunning(active);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room?.id, room?.status]);
 
   if (!room) {
     return (
@@ -111,6 +85,9 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
       </SafeAreaView>
     );
   }
+
+  const isTimerRunning = room.status === 'IN_PROGRESS';
+  const timerSeconds = roomElapsedSeconds(room, nowMs);
 
   const formatTime = (sec: number) => {
     const mm = Math.floor(sec / 60).toString().padStart(2, '0');
@@ -136,7 +113,6 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
       );
       return;
     }
-    setIsTimerRunning(true);
     addSystemNotification(
       `Cleaning started for Room ${room.roomNumber}`,
       `Начата уборка номера ${room.roomNumber}`,
@@ -204,7 +180,6 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
       // this one back to PENDING (freeing the slot for another room). room.startTime is
       // preserved, so the UI still shows this as "paused" rather than "never started".
       updateRoomStatus(room.id, 'PENDING');
-      setIsTimerRunning(false);
       return;
     }
 
@@ -226,7 +201,6 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
       );
       return;
     }
-    setIsTimerRunning(true);
   };
 
   const toggleZone = (zone: string) => setExpandedZones((prev) => ({ ...prev, [zone]: !prev[zone] }));
@@ -284,7 +258,6 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
       setSpentQuantities({});
     }
     updateRoomStatus(room.id, 'READY');
-    setIsTimerRunning(false);
     addSystemNotification(
       `Room ${room.roomNumber} ready for inspection`,
       `Номер ${room.roomNumber} готов к проверке`,
@@ -313,6 +286,9 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
   // (see updateRoomStatus), not truly untouched — keep showing its progress.
   const hasStarted = !!room.startTime;
   const isPaused = room.status === 'PENDING' && hasStarted;
+  // Cleaning sections stay on screen while paused — otherwise "Возобновить" makes half the
+  // screen appear at once and the layout jumps.
+  const isWorking = room.status === 'IN_PROGRESS' || isPaused;
   const statusLabel =
     room.status === 'READY' ? (lang === 'RU' ? 'готово' : 'ready') :
     room.status === 'PROBLEM' ? (lang === 'RU' ? 'поломка' : 'defect') :
@@ -481,7 +457,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                             </Text>
                           </View>
 
-                          {zone === 'MINIBAR' && room.status === 'IN_PROGRESS' && (
+                          {zone === 'MINIBAR' && isWorking && (
                             <View className="mt-2.5 ml-6 gap-2">
                               <View className="border border-border rounded-xl bg-background-subtle">
                                 {supplies.filter((s) => s.category === 'MINIBAR').length === 0 && (
@@ -555,7 +531,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                         </View>
                       ))}
 
-                      {room.status === 'IN_PROGRESS' && (
+                      {isWorking && (
                         zonePhotos[zone] ? (
                           <View className="pt-2.5 border-t border-border-light flex-row items-center justify-between gap-3">
                             <View className="flex-row items-center gap-2 flex-1">
@@ -591,7 +567,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           </View>
         )}
 
-        {room.status === 'IN_PROGRESS' && (
+        {isWorking && (
           <View className="bg-white rounded-[14px] border border-border overflow-hidden">
             <Pressable
               onPress={() => setIsSuppliesExpanded(!isSuppliesExpanded)}
@@ -672,7 +648,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           </View>
         )}
 
-        {room.status === 'IN_PROGRESS' && (
+        {isWorking && (
           <View className="bg-white rounded-xl border border-border p-3 gap-2.5">
             <Text className="text-[12px] font-jost uppercase text-text-secondary tracking-widest">
               {lang === 'RU' ? 'Фотоотчет состояния комнаты' : 'Room Photo Inspection'}
@@ -724,7 +700,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           </View>
         )}
 
-        {room.status === 'IN_PROGRESS' && (
+        {isWorking && (
           <View className="bg-white rounded-[14px] border border-border overflow-hidden">
             <Pressable
               onPress={() => setIsMaintenanceExpanded(!isMaintenanceExpanded)}
@@ -837,7 +813,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
           </View>
         )}
 
-        {room.status === 'IN_PROGRESS' && (
+        {isWorking && (
           <View className="bg-white rounded-xl border border-border p-3 gap-3.5">
             <Pressable onPress={() => setConfirmStandard(!confirmStandard)} className="flex-row items-start gap-2.5">
               <View
