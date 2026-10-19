@@ -1,4 +1,4 @@
-package com.anonymous.sollviera
+package kz.hyperdevelopment.sollviera
 
 import android.app.Application
 import android.content.res.Configuration

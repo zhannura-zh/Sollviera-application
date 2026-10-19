@@ -1,4 +1,4 @@
-package com.anonymous.sollviera
+package kz.hyperdevelopment.sollviera
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
