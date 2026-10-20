@@ -3,7 +3,7 @@ import {
   Users, Award, Wrench, ShieldCheck, LayoutDashboard, ChevronRight, ChevronDown, ChevronLeft, Check, X,
   AlertTriangle, Play, Pause, Trash2, Edit2, ShieldAlert, WifiOff, Globe, LogOut, CheckCircle2, User,
   Calendar, Layers, Clock, Camera, FileText, Smartphone, Monitor, Search, Sparkles, ArrowLeft, Package, Coffee, MessageSquare, Bell, Settings,
-  RotateCw, Lock, HelpCircle, Send, Pin, BarChart3, Sliders, Plus, Minus, Info, GripVertical, UserMinus, UserPlus, Download, Share2, CheckSquare, DoorClosed, Wine, Tag, Filter, CheckCheck
+  RotateCw, Lock, HelpCircle, Send, Pin, BarChart3, Sliders, Plus, Minus, Info, GripVertical, UserMinus, UserPlus, Download, Share2, CheckSquare, DoorClosed, Wine, Tag, Filter, CheckCheck, QrCode
 } from 'lucide-react';
 import { Language, HotelRoom, RoomStatus, CleanerProfile, MaintenanceRequest, RoomPriority } from '../types';
 import { mockCleaners, mockShiftHistory } from '../data/mockData';
@@ -66,6 +66,8 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
   const [targetCleanerId, setTargetCleanerId] = useState<string>('');
 
   // Supervisor Profile & Settings States
+  const [svShiftStatus, setSvShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('SHIFT_ENDED');
+  const [showSvQrShiftModal, setShowSvQrShiftModal] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
@@ -3458,60 +3460,103 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
             <span className="text-[10px] font-sans font-medium tracking-[0.08em] text-[#8A8177] uppercase block select-none">
               {lang === 'RU' ? 'ТЕКУЩАЯ СМЕНА' : 'CURRENT SHIFT'}
             </span>
-            <div className="bg-white rounded-[18px] border border-[#E5E2DD] p-4.5 space-y-4 shadow-2xs">
-              <div className="flex justify-between items-center text-xs font-sans select-none">
-                <span className="font-medium text-[#241E1A]">SH-4092</span>
-                <span className="text-[#8A8177] font-normal">27 авг · с 08:00</span>
-              </div>
-
-              {/* Status Switcher Buttons */}
-              <div className="grid grid-cols-3 gap-2">
-                <button className="bg-[#241E1A] text-white font-sans font-normal text-xs py-2 rounded-xl text-center cursor-pointer select-none">
-                  {lang === 'RU' ? 'На смене' : 'On shift'}
-                </button>
-                <button className="bg-white hover:bg-slate-50 border border-[#E5E2DD] text-[#8A8177] font-sans font-normal text-xs py-2 rounded-xl text-center cursor-pointer select-none">
-                  {lang === 'RU' ? 'Перерыв' : 'Break'}
-                </button>
-                <button 
-                  onClick={onLogout}
-                  className="bg-white hover:bg-slate-50 border border-[#E5E2DD] text-[#8A8177] font-sans font-normal text-xs py-2 rounded-xl text-center cursor-pointer select-none"
+            {svShiftStatus === 'SHIFT_ENDED' ? (
+              <div className="bg-white rounded-[18px] border border-[#E5E2DD] p-4.5 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-sans font-medium text-[#241E1A]">
+                    {lang === 'RU' ? 'Смена не начата' : 'Shift not started'}
+                  </span>
+                  <span className="text-xs font-sans font-normal text-[#8A8177]">
+                    {lang === 'RU' ? '19 окт · 08:00–17:00' : 'Oct 19 · 08:00–17:00'}
+                  </span>
+                </div>
+                <p className="text-xs font-sans font-normal text-[#8A8177] leading-relaxed">
+                  {lang === 'RU'
+                    ? 'Начните смену, отсканировав QR-код на рабочем месте.'
+                    : 'Start your shift by scanning the QR code at your workplace.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowSvQrShiftModal(true)}
+                  className="w-full py-3 rounded-[14px] bg-[#C2410C] hover:bg-[#A93A0C] text-white text-xs font-sans font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 >
-                  {lang === 'RU' ? 'Завершить' : 'End shift'}
+                  <QrCode className="h-4 w-4 text-white" />
+                  <span>{lang === 'RU' ? 'Начать смену по QR' : 'Start shift via QR'}</span>
                 </button>
               </div>
-
-              <hr className="border-[#E5E2DD]/50" />
-
-              {/* Metrics Grid */}
-              <div className="grid grid-cols-3 gap-2 text-center select-none">
-                <div className="space-y-1">
-                  <div className="text-[17px] font-sans font-medium text-[#241E1A]">
-                    14 <span className="text-[#8A8177] font-normal text-xs">/ 24</span>
-                  </div>
-                  <span className="block text-[10px] font-sans font-normal text-[#8A8177] leading-tight">
-                    {lang === 'RU' ? 'номеров сдано' : 'rooms checked'}
-                  </span>
+            ) : (
+              <div className="bg-white rounded-[18px] border border-[#E5E2DD] p-4.5 space-y-4 shadow-2xs">
+                <div className="flex justify-between items-center text-xs font-sans select-none">
+                  <span className="font-medium text-[#241E1A]">SH-4092</span>
+                  <span className="text-[#8A8177] font-normal">19 окт · с 08:00</span>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="text-[17px] font-sans font-medium text-[#241E1A]">
-                    {readyForCheckCount}
-                  </div>
-                  <span className="block text-[10px] font-sans font-normal text-[#8A8177] leading-tight">
-                    {lang === 'RU' ? 'ждут проверки' : 'pending audit'}
-                  </span>
+                {/* Status Switcher Buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSvShiftStatus('ON_SHIFT')}
+                    className={`font-sans text-xs py-2 rounded-xl text-center cursor-pointer select-none transition-all ${
+                      svShiftStatus === 'ON_SHIFT'
+                        ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                        : 'bg-white hover:bg-slate-50 border border-[#E5E2DD] text-[#8A8177] font-normal'
+                    }`}
+                  >
+                    {lang === 'RU' ? 'На смене' : 'On shift'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSvShiftStatus('ON_BREAK')}
+                    className={`font-sans text-xs py-2 rounded-xl text-center cursor-pointer select-none transition-all ${
+                      svShiftStatus === 'ON_BREAK'
+                        ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                        : 'bg-white hover:bg-slate-50 border border-[#E5E2DD] text-[#8A8177] font-normal'
+                    }`}
+                  >
+                    {lang === 'RU' ? 'Перерыв' : 'Break'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSvShiftStatus('SHIFT_ENDED')}
+                    className="bg-white hover:bg-slate-50 border border-[#E5E2DD] text-[#8A8177] font-sans font-normal text-xs py-2 rounded-xl text-center cursor-pointer select-none transition-all"
+                  >
+                    {lang === 'RU' ? 'Завершить' : 'End shift'}
+                  </button>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="text-[17px] font-sans font-medium text-[#241E1A]">
-                    {activeCleanersCount}
+                <hr className="border-[#E5E2DD]/50" />
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-3 gap-2 text-center select-none">
+                  <div className="space-y-1">
+                    <div className="text-[17px] font-sans font-medium text-[#241E1A]">
+                      14 <span className="text-[#8A8177] font-normal text-xs">/ 24</span>
+                    </div>
+                    <span className="block text-[10px] font-sans font-normal text-[#8A8177] leading-tight">
+                      {lang === 'RU' ? 'номеров сдано' : 'rooms checked'}
+                    </span>
                   </div>
-                  <span className="block text-[10px] font-sans font-normal text-[#8A8177] leading-tight">
-                    {lang === 'RU' ? 'клинеров' : 'housekeepers'}
-                  </span>
+
+                  <div className="space-y-1">
+                    <div className="text-[17px] font-sans font-medium text-[#241E1A]">
+                      {readyForCheckCount}
+                    </div>
+                    <span className="block text-[10px] font-sans font-normal text-[#8A8177] leading-tight">
+                      {lang === 'RU' ? 'ждут проверки' : 'pending audit'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[17px] font-sans font-medium text-[#241E1A]">
+                      {activeCleanersCount}
+                    </div>
+                    <span className="block text-[10px] font-sans font-normal text-[#8A8177] leading-tight">
+                      {lang === 'RU' ? 'клинеров' : 'housekeepers'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Section: Работа (Screen 08 matching ТЗ) */}
@@ -5654,6 +5699,50 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- MODAL: НАЧАТЬ СМЕНУ ПО QR ---------------- */}
+      {showSvQrShiftModal && (
+        <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#F5F2ED] w-full max-w-[340px] rounded-[24px] border border-[#E5E2DD] p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-sans font-medium text-[#241E1A]">
+                {lang === 'RU' ? 'Сканирование QR смены' : 'Scan Shift QR'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowSvQrShiftModal(false)}
+                className="h-8 w-8 rounded-full bg-white border border-[#E5E2DD] flex items-center justify-center text-[#8A8177] hover:text-[#241E1A] cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-[#1F1A17] rounded-[20px] p-5 flex flex-col items-center justify-center space-y-3">
+              <div className="w-[160px] h-[160px] relative flex items-center justify-center">
+                <div className="absolute top-0 left-0 w-6 h-6 border-t-[2.5px] border-l-[2.5px] border-[#F5F2ED] rounded-tl-[10px]" />
+                <div className="absolute top-0 right-0 w-6 h-6 border-t-[2.5px] border-r-[2.5px] border-[#F5F2ED] rounded-tr-[10px]" />
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-b-[2.5px] border-l-[2.5px] border-[#F5F2ED] rounded-bl-[10px]" />
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[2.5px] border-r-[2.5px] border-[#F5F2ED] rounded-br-[10px]" />
+                <div className="w-[125px] h-[2px] bg-[#C2410C]" />
+              </div>
+              <p className="text-xs font-sans text-[#D4CEC6] text-center">
+                {lang === 'RU' ? 'Поместите QR-код смены в рамку' : 'Place shift QR code inside frame'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSvShiftStatus('ON_SHIFT');
+                setShowSvQrShiftModal(false);
+              }}
+              className="w-full py-3 rounded-[14px] bg-[#C2410C] hover:bg-[#A93A0C] text-white text-xs font-sans font-medium transition-colors cursor-pointer shadow-xs"
+            >
+              {lang === 'RU' ? 'Подтвердить и начать смену' : 'Confirm & start shift'}
+            </button>
           </div>
         </div>
       )}

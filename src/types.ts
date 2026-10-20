@@ -2,7 +2,7 @@ export type Language = 'EN' | 'RU';
 
 export type ShiftStatus = 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED';
 
-export type CleanerRole = 'CLEANER' | 'SENIOR_CLEANER' | 'SUPERVISOR' | 'TECHNICIAN' | 'WAITER';
+export type CleanerRole = 'CLEANER' | 'SENIOR_CLEANER' | 'SUPERVISOR' | 'TECHNICIAN' | 'WAITER' | 'SERVICES';
 
 export interface CleanerProfile {
   id: string;

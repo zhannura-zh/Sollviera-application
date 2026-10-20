@@ -4,7 +4,7 @@ import {
   Bell, MessageSquare, PlusCircle, ArrowLeft, Camera, Check, CheckCircle2, 
   History, User, HelpCircle, Activity, FileText, ChevronRight, ChevronLeft, ChevronDown, Search, 
   Building, Clock, AlertTriangle, Hammer, ShieldCheck, LogOut, Plus, Minus, Info, Share2, RotateCcw,
-  Phone, Calendar, BarChart2, Lock, Headphones, Pin, AlertCircle, Package, Send, Receipt
+  Phone, Calendar, BarChart2, Lock, Headphones, Pin, AlertCircle, Package, Send, Receipt, QrCode
 } from 'lucide-react';
 import { Language, CleanerProfile, HotelRoom, MaintenanceRequest, MaintenanceCategory, MaintenancePriority, MaintenanceStatus } from '../types';
 import { SollvieraLogo } from './SollvieraLogo';
@@ -233,7 +233,8 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
   ]);
 
   // Shift Status Oleg Petrov
-  const [shiftStatus, setShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('ON_SHIFT');
+  const [shiftStatus, setShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('SHIFT_ENDED');
+  const [showQrShiftModal, setShowQrShiftModal] = useState<boolean>(false);
   
   // Tech Dashboard (Номера) view settings matching reference
   const [techTabFilter, setTechTabFilter] = useState<'WITH_ISSUES' | 'BLOCKED' | 'ALL'>('WITH_ISSUES');
@@ -2053,90 +2054,112 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                 {lang === 'RU' ? 'ТЕКУЩАЯ СМЕНА' : 'CURRENT SHIFT'}
               </span>
 
-              <div className="bg-white rounded-[24px] border border-[#E5E2DD] p-4.5 space-y-4 shadow-2xs">
-                {/* Shift ID & start time */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-sans font-medium text-[#241E1A]">
-                    {cleanerProfile.badgeId ? `SH-${cleanerProfile.badgeId.replace(/\D/g, '') || '4092'}` : 'SH-4092'}
-                  </span>
-                  <span className="text-xs font-sans font-normal text-[#8A8177]">
-                    {lang === 'RU' ? '27 авг · с 08:00' : 'Aug 27 · from 08:00'}
-                  </span>
-                </div>
-
-                {/* Status Toggle Pills */}
-                <div className="grid grid-cols-3 gap-2">
+              {shiftStatus === 'SHIFT_ENDED' ? (
+                <div className="bg-white rounded-[24px] border border-[#E5E2DD] p-4.5 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-sans font-medium text-[#241E1A]">
+                      {lang === 'RU' ? 'Смена не начата' : 'Shift not started'}
+                    </span>
+                    <span className="text-xs font-sans font-normal text-[#8A8177]">
+                      {lang === 'RU' ? '19 окт · 08:00–17:00' : 'Oct 19 · 08:00–17:00'}
+                    </span>
+                  </div>
+                  <p className="text-xs font-sans font-normal text-[#8A8177] leading-relaxed">
+                    {lang === 'RU'
+                      ? 'Начните смену, отсканировав QR-код на рабочем месте.'
+                      : 'Start your shift by scanning the QR code at your workplace.'}
+                  </p>
                   <button
                     type="button"
-                    onClick={() => setShiftStatus('ON_SHIFT')}
-                    className={`py-2.5 rounded-xl text-xs font-sans transition-all cursor-pointer text-center ${
-                      shiftStatus === 'ON_SHIFT'
-                        ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                        : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                    }`}
+                    onClick={() => setShowQrShiftModal(true)}
+                    className="w-full py-3 rounded-[14px] bg-[#C2410C] hover:bg-[#A93A0C] text-white text-xs font-sans font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs"
                   >
-                    {lang === 'RU' ? 'На смене' : 'On Shift'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShiftStatus('ON_BREAK')}
-                    className={`py-2.5 rounded-xl text-xs font-sans transition-all cursor-pointer text-center ${
-                      shiftStatus === 'ON_BREAK'
-                        ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                        : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                    }`}
-                  >
-                    {lang === 'RU' ? 'Перерыв' : 'Break'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShiftStatus('SHIFT_ENDED')}
-                    className={`py-2.5 rounded-xl text-xs font-sans transition-all cursor-pointer text-center ${
-                      shiftStatus === 'SHIFT_ENDED'
-                        ? 'bg-[#241E1A] text-white font-medium shadow-xs'
-                        : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
-                    }`}
-                  >
-                    {lang === 'RU' ? 'Завершить' : 'End'}
+                    <QrCode className="h-4 w-4 text-white" />
+                    <span>{lang === 'RU' ? 'Начать смену по QR' : 'Start shift via QR'}</span>
                   </button>
                 </div>
-
-                {/* 3 Shift Metrics */}
-                <div className="grid grid-cols-3 divide-x divide-[#E5E2DD]/50 pt-2 border-t border-[#E5E2DD]/50 text-center">
-                  <div className="px-1">
-                    <div className="text-base font-sans">
-                      <span className="font-medium text-[#241E1A]">3</span>
-                      <span className="text-xs font-normal text-[#8A8177]"> / 6</span>
-                    </div>
-                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                      {lang === 'RU' ? 'заявок закрыто' : 'orders closed'}
-                    </p>
+              ) : (
+                <div className="bg-white rounded-[24px] border border-[#E5E2DD] p-4.5 space-y-4 shadow-2xs">
+                  {/* Shift ID & start time */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-sans font-medium text-[#241E1A]">
+                      {cleanerProfile.badgeId ? `SH-${cleanerProfile.badgeId.replace(/\D/g, '') || '4092'}` : 'SH-4092'}
+                    </span>
+                    <span className="text-xs font-sans font-normal text-[#8A8177]">
+                      {lang === 'RU' ? '19 окт · с 08:00' : 'Oct 19 · from 08:00'}
+                    </span>
                   </div>
 
-                  <div className="px-1">
-                    <div className="text-base font-sans">
-                      <span className="font-medium text-[#241E1A]">32</span>
-                      <span className="text-xs font-normal text-[#8A8177]"> мин</span>
-                    </div>
-                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                      {lang === 'RU' ? 'на заявку' : 'avg per order'}
-                    </p>
+                  {/* Status Toggle Pills */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShiftStatus('ON_SHIFT')}
+                      className={`py-2.5 rounded-xl text-xs font-sans transition-all cursor-pointer text-center ${
+                        shiftStatus === 'ON_SHIFT'
+                          ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                          : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
+                      }`}
+                    >
+                      {lang === 'RU' ? 'На смене' : 'On Shift'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShiftStatus('ON_BREAK')}
+                      className={`py-2.5 rounded-xl text-xs font-sans transition-all cursor-pointer text-center ${
+                        shiftStatus === 'ON_BREAK'
+                          ? 'bg-[#241E1A] text-white font-medium shadow-xs'
+                          : 'bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal'
+                      }`}
+                    >
+                      {lang === 'RU' ? 'Перерыв' : 'Break'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShiftStatus('SHIFT_ENDED')}
+                      className="py-2.5 rounded-xl text-xs font-sans transition-all cursor-pointer text-center bg-white border border-[#E5E2DD] text-[#8A8177] hover:text-[#241E1A] font-normal"
+                    >
+                      {lang === 'RU' ? 'Завершить' : 'End'}
+                    </button>
                   </div>
 
-                  <div className="px-1">
-                    <div className="text-base font-sans">
-                      <span className="font-medium text-[#241E1A]">1</span>
-                      <span className="text-xs font-normal text-[#8A8177]"> / 3</span>
+                  {/* 3 Shift Metrics */}
+                  <div className="grid grid-cols-3 divide-x divide-[#E5E2DD]/50 pt-2 border-t border-[#E5E2DD]/50 text-center">
+                    <div className="px-1">
+                      <div className="text-base font-sans">
+                        <span className="font-medium text-[#241E1A]">3</span>
+                        <span className="text-xs font-normal text-[#8A8177]"> / 6</span>
+                      </div>
+                      <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
+                        {lang === 'RU' ? 'заявок закрыто' : 'orders closed'}
+                      </p>
                     </div>
-                    <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
-                      {lang === 'RU' ? 'плановое ТО' : 'planned TO'}
-                    </p>
+
+                    <div className="px-1">
+                      <div className="text-base font-sans">
+                        <span className="font-medium text-[#241E1A]">32</span>
+                        <span className="text-xs font-normal text-[#8A8177]"> мин</span>
+                      </div>
+                      <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
+                        {lang === 'RU' ? 'на заявку' : 'avg per order'}
+                      </p>
+                    </div>
+
+                    <div className="px-1">
+                      <div className="text-base font-sans">
+                        <span className="font-medium text-[#241E1A]">1</span>
+                        <span className="text-xs font-normal text-[#8A8177]"> / 3</span>
+                      </div>
+                      <p className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5">
+                        {lang === 'RU' ? 'плановое ТО' : 'planned TO'}
+                      </p>
+                    </div>
                   </div>
+
                 </div>
-
-              </div>
+              )}
             </div>
 
             {/* ---------------- SECTION 2: ПЛАНОВОЕ ТО ---------------- */}
@@ -3779,6 +3802,50 @@ export const TechnicianScreens: React.FC<TechnicianScreensProps> = ({
                 <span>{lang === 'RU' ? 'Сохранить расчёт' : 'Save Calculation'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- MODAL: НАЧАТЬ СМЕНУ ПО QR ---------------- */}
+      {showQrShiftModal && (
+        <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#F5F2ED] w-full max-w-[340px] rounded-[24px] border border-[#E5E2DD] p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-sans font-medium text-[#241E1A]">
+                {lang === 'RU' ? 'Сканирование QR смены' : 'Scan Shift QR'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowQrShiftModal(false)}
+                className="h-8 w-8 rounded-full bg-white border border-[#E5E2DD] flex items-center justify-center text-[#8A8177] hover:text-[#241E1A] cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-[#1F1A17] rounded-[20px] p-5 flex flex-col items-center justify-center space-y-3">
+              <div className="w-[160px] h-[160px] relative flex items-center justify-center">
+                <div className="absolute top-0 left-0 w-6 h-6 border-t-[2.5px] border-l-[2.5px] border-[#F5F2ED] rounded-tl-[10px]" />
+                <div className="absolute top-0 right-0 w-6 h-6 border-t-[2.5px] border-r-[2.5px] border-[#F5F2ED] rounded-tr-[10px]" />
+                <div className="absolute bottom-0 left-0 w-6 h-6 border-b-[2.5px] border-l-[2.5px] border-[#F5F2ED] rounded-bl-[10px]" />
+                <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[2.5px] border-r-[2.5px] border-[#F5F2ED] rounded-br-[10px]" />
+                <div className="w-[125px] h-[2px] bg-[#C2410C]" />
+              </div>
+              <p className="text-xs font-sans text-[#D4CEC6] text-center">
+                {lang === 'RU' ? 'Поместите QR-код смены в рамку' : 'Place shift QR code inside frame'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShiftStatus('ON_SHIFT');
+                setShowQrShiftModal(false);
+              }}
+              className="w-full py-3 rounded-[14px] bg-[#C2410C] hover:bg-[#A93A0C] text-white text-xs font-sans font-medium transition-colors cursor-pointer shadow-xs"
+            >
+              {lang === 'RU' ? 'Подтвердить и начать смену' : 'Confirm & start shift'}
+            </button>
           </div>
         </div>
       )}

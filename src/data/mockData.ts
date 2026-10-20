@@ -284,6 +284,31 @@ export const mockCleaners: CleanerProfile[] = [
       avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
     },
   },
+  {
+    id: 'cln-006',
+    badgeId: 'SLV-6120',
+    fullName: 'Alina Sadykova',
+    fullNameRu: 'Алина Садыкова',
+    email: 'alina.sadykova@sollviera-pms.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    role: 'SERVICES',
+    floorAssigned: 'Работа с услугами',
+    currentShift: {
+      shiftNumber: 'SH-4098',
+      date: new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      startTime: '08:00',
+      status: 'ON_SHIFT',
+      roomsCompleted: 9,
+      roomsTotal: 12,
+      avgTimePerRoom: '18 min',
+    },
+    supervisor: {
+      name: 'Svetlana Kim (Светлана Ким)',
+      phone: '+7 (999) 450-12-88',
+      role: 'Service Supervisor',
+      avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    },
+  },
 ];
 
 export const mockShiftHistory: ShiftHistoryItem[] = [

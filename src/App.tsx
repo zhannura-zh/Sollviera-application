@@ -14,6 +14,7 @@ import { NotificationsScreen } from './components/NotificationsScreen';
 import { SupervisorScreens } from './components/SupervisorScreens';
 import { TechnicianScreens } from './components/TechnicianScreens';
 import { WaiterScreens } from './components/WaiterScreens';
+import { ServicesScreens } from './components/ServicesScreens';
 import { Language, HotelRoom, RoomStatus, SupplyItem, AppNotification, MaintenanceRequest, CleanerProfile } from './types';
 import { getTranslation } from './locales';
 import { 
@@ -48,6 +49,10 @@ export default function App() {
     | 'WAITER_TODAY'
     | 'WAITER_HALL'
     | 'WAITER_PROFILE'
+    | 'SERVICES_HOME'
+    | 'SERVICES_TASKS'
+    | 'SERVICES_HISTORY'
+    | 'SERVICES_PROFILE'
   >('DASHBOARD');
 
   // Shared States (Lifting state up for persistence across tabs)
@@ -59,7 +64,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(mockMaintenanceRequests);
   const [offlineMode, setOfflineMode] = useState<boolean>(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [systemLogs, setSystemLogs] = useState<string[]>([
     'Sollviera Housekeeping PMS initialized.',
     'Floor 3 assignments successfully pulled.',
@@ -79,6 +84,8 @@ export default function App() {
         setActiveTab('TECH_DASHBOARD');
       } else if (cleanerProfile.role === 'WAITER') {
         setActiveTab('WAITER_TODAY');
+      } else if (cleanerProfile.role === 'SERVICES') {
+        setActiveTab('SERVICES_HOME');
       } else {
         setActiveTab('DASHBOARD');
       }
@@ -455,6 +462,27 @@ export default function App() {
             onLanguageChange={setLang}
           />
         );
+      case 'SERVICES_HOME':
+      case 'SERVICES_TASKS':
+      case 'SERVICES_HISTORY':
+      case 'SERVICES_PROFILE':
+        return (
+          <ServicesScreens
+            lang={lang}
+            cleanerProfile={cleanerProfile}
+            onUpdateCleanerProfile={setCleanerProfile}
+            onLogout={() => {
+              setIsLoggedIn(false);
+              setCleanerProfile(mockCleaners[0]);
+              setActiveTab('DASHBOARD');
+            }}
+            offlineMode={offlineMode}
+            onToggleOffline={handleToggleOffline}
+            activeTab={activeTab}
+            onLanguageChange={setLang}
+            onNavigateTab={handleTabChange as any}
+          />
+        );
       default:
         return null;
     }
@@ -649,6 +677,64 @@ export default function App() {
       );
     }
 
+    if (cleanerProfile.role === 'SERVICES') {
+      return (
+        <div className="grid grid-cols-4 gap-0.5 text-center">
+          {/* Tab 1: Главная (SERVICES_HOME) */}
+          <button
+            onClick={() => handleTabChange('SERVICES_HOME')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'SERVICES_HOME'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Главная' : 'Home'}</span>
+          </button>
+
+          {/* Tab 2: Мои задачи (SERVICES_TASKS) */}
+          <button
+            onClick={() => handleTabChange('SERVICES_TASKS')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'SERVICES_TASKS'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <CheckSquare className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Мои задачи' : 'My Tasks'}</span>
+          </button>
+
+          {/* Tab 3: История заявок (SERVICES_HISTORY) */}
+          <button
+            onClick={() => handleTabChange('SERVICES_HISTORY')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'SERVICES_HISTORY'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <Clock className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'История заявок' : 'History'}</span>
+          </button>
+
+          {/* Tab 4: Профиль (SERVICES_PROFILE) */}
+          <button
+            onClick={() => handleTabChange('SERVICES_PROFILE')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'SERVICES_PROFILE'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <User className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Профиль' : 'Profile'}</span>
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="grid grid-cols-5 gap-0.5 text-center">
         {/* Tab 1: Rooms list (DASHBOARD) */}
@@ -804,7 +890,7 @@ export default function App() {
             {/* Empty top padding spacer matching screen theme instead of status bar */}
             <div id="phone-top-spacer" className={`h-6 shrink-0 transition-colors duration-200 ${
               (!isLoggedIn) ? 'bg-[#FAF7F3]' :
-              (activeTab.startsWith('WAITER_')) ? 'bg-[#FAF7F3]' :
+              (activeTab.startsWith('WAITER_') || activeTab.startsWith('SERVICES_')) ? 'bg-[#FAF7F3]' :
               (activeTab === 'SV_DASHBOARD' || activeTab === 'SV_INSPECTION' || activeTab === 'SV_TEAM' || activeTab === 'SV_MAINTENANCE' || activeTab === 'SV_PROFILE') ? 'bg-[#FAF7F3]' :
               (activeTab === 'TECH_ACTIVE') ? 'bg-[#241E1A]' :
               (activeTab === 'TECH_DASHBOARD' || activeTab === 'TECH_CREATE' || activeTab === 'TECH_INVENTORY' || activeTab === 'TECH_PROFILE') ? 'bg-[#FAF7F3]' :
@@ -825,7 +911,7 @@ export default function App() {
 
             {/* iOS Home Indicator Bar */}
             {isRoundedFrame && (
-              <div className="h-5 bg-[#241E1A] flex items-center justify-center shrink-0 z-40 pb-1">
+              <div className={`h-5 ${isLoggedIn ? 'bg-[#241E1A]' : 'bg-[#FAF7F3]'} flex items-center justify-center shrink-0 z-40 pb-1`}>
                 <div className="w-28 h-1 bg-white/30 rounded-full" />
               </div>
             )}

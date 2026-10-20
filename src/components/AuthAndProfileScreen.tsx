@@ -3,7 +3,7 @@ import {
   User, Shield, Calendar, Coffee, CheckCircle2, PauseCircle, Clock, 
   LogOut, Globe, Wrench, Package, Layers, HelpCircle, ArrowLeft, 
   Settings, Bell, Edit2, MessageSquare, PhoneCall, Check, Sparkles, Send, Eye, BarChart3, Search,
-  ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Lock
+  ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Lock, QrCode, ShieldCheck
 } from 'lucide-react';
 import { Language, CleanerProfile, AppNotification, HotelRoom } from '../types';
 import { getTranslation } from '../locales';
@@ -64,6 +64,10 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
   const [passwordInput, setPasswordInput] = useState<string>('••••••••');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<boolean>(false);
+  const [showQrScanner, setShowQrScanner] = useState<boolean>(false);
+  const [showQrAccountFound, setShowQrAccountFound] = useState<boolean>(false);
+  const [showQrInvalid, setShowQrInvalid] = useState<boolean>(false);
+  const [selectedDemoId, setSelectedDemoId] = useState<string>('elena');
 
   // Sub-screens toggles
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -192,7 +196,8 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
   const [editAvatarUrl, setEditAvatarUrl] = useState<string>(cleanerProfile.avatarUrl);
 
   // Shift values
-  const [shiftStatus, setShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('ON_SHIFT');
+  const [shiftStatus, setShiftStatus] = useState<'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED'>('SHIFT_ENDED');
+  const [showQrShiftModal, setShowQrShiftModal] = useState<boolean>(false);
   const [roomsCleaned, setRoomsCleaned] = useState<number>(cleanerProfile.currentShift.roomsCompleted);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(20669); // 5h 44m 29s
 
@@ -233,6 +238,25 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
     } else {
       setLoginError(true);
     }
+  };
+
+  const handleDemoProfileLogin = (profileId: string) => {
+    setSelectedDemoId(profileId);
+    if (profileId === 'elena') {
+      onUpdateCleanerProfile(mockCleaners[0]);
+    } else if (profileId === 'svetlana') {
+      onUpdateCleanerProfile(mockCleaners[2]);
+    } else if (profileId === 'oleg') {
+      onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'TECHNICIAN') || mockCleaners[3]);
+    } else if (profileId === 'aigerim') {
+      onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'WAITER') || mockCleaners[4]);
+    } else if (profileId === 'alina') {
+      onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'SERVICES') || mockCleaners[5]);
+    }
+    setShowQrScanner(false);
+    setShowQrAccountFound(false);
+    setIsLoggedIn(true);
+    setLoginError(false);
   };
 
   // Trigger profile updates save
@@ -1165,7 +1189,7 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
         <main className="flex-1 bg-[#FAF7F3] flex flex-col overflow-y-auto no-scrollbar">
           {!isLoggedIn ? (
             /* ---------------- LOGIN SCREEN ---------------- */
-            <div className="p-5 flex-1 flex flex-col justify-between space-y-6 bg-[#FAF7F3]">
+            <div className="p-5 flex-1 flex flex-col justify-between space-y-6 bg-[#FAF7F3] relative">
               <div className="space-y-5">
                 {/* Custom Sunset Circle Logo and Title */}
                 <div className="flex flex-col items-center pt-8 pb-3">
@@ -1184,74 +1208,25 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
                   <h1 className="text-[28px] font-serif font-medium tracking-[0.2em] text-[#241E1A] uppercase pt-4 leading-none select-none">
                     SOLLVIERA
                   </h1>
+                  <p className="text-xs font-sans font-normal text-[#8A8177] tracking-wide pt-2.5 select-none">
+                    {lang === 'RU' ? 'Мобильное приложение сотрудников' : 'Employee mobile application'}
+                  </p>
                 </div>
 
-                {/* Login Form Card */}
+                {/* QR Login Card */}
                 <div className="bg-white rounded-[14px] border border-[#E5E2DD] p-5 shadow-2xs space-y-4 text-left">
-                  {loginError && (
-                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-[#B3261E] font-sans font-normal">
-                      {t.loginError}
-                    </div>
-                  )}
+                  <h2 className="text-sm font-sans font-medium text-[#241E1A]">
+                    {lang === 'RU' ? 'Вход в аккаунт' : 'Account Sign In'}
+                  </h2>
 
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Email field */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-sans font-normal text-[#8A8177]">
-                        {lang === 'RU' ? 'Email или табельный номер' : 'Email or Staff ID'}
-                      </label>
-                      <input
-                        type="text"
-                        value={emailInput}
-                        onChange={(e) => setEmailInput(e.target.value)}
-                        placeholder="elena.vance@sollviera.com"
-                        className="w-full bg-[#FAF7F3]/30 border border-[#E5E2DD] rounded-xl px-3.5 py-2.5 text-xs text-[#241E1A] placeholder-[#8A8177]/60 focus:outline-none focus:ring-1 focus:ring-[#C2410C] font-sans font-normal h-11 transition-all"
-                      />
-                    </div>
-
-                    {/* Password field */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-sans font-normal text-[#8A8177]">
-                        {lang === 'RU' ? 'Пароль' : 'Password'}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={passwordInput}
-                          onChange={(e) => setPasswordInput(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-[#FAF7F3]/30 border border-[#E5E2DD] rounded-xl px-3.5 py-2.5 text-xs text-[#241E1A] placeholder-[#8A8177]/60 w-full pr-16 focus:outline-none focus:ring-1 focus:ring-[#C2410C] font-sans font-normal h-11 transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-3 flex items-center text-xs font-sans font-normal text-[#C2410C] hover:opacity-80 cursor-pointer"
-                        >
-                          {showPassword ? (lang === 'RU' ? 'Скрыть' : 'Hide') : (lang === 'RU' ? 'Показать' : 'Show')}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Submit button */}
-                    <button
-                      type="submit"
-                      className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3 rounded-xl font-sans font-medium text-xs cursor-pointer text-center select-none active:scale-[0.98] transition-all"
-                    >
-                      {lang === 'RU' ? 'Войти на смену' : 'Login to shift'}
-                    </button>
-                  </form>
-
-                  {/* Forgot password */}
-                  <a
-                    href="#support"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert(t.contactHelpdesk + ': +7 (800) 100-20-30');
-                    }}
-                    className="text-center block text-xs font-sans font-normal text-[#C2410C] hover:underline cursor-pointer pt-1"
+                  <button
+                    type="button"
+                    onClick={() => setShowQrScanner(true)}
+                    className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3.5 rounded-xl font-sans font-medium text-xs cursor-pointer flex items-center justify-center gap-2 select-none active:scale-[0.98] transition-all"
                   >
-                    {lang === 'RU' ? 'Забыли пароль?' : 'Forgot password?'}
-                  </a>
+                    <QrCode className="h-4 w-4 shrink-0" />
+                    <span>{lang === 'RU' ? 'Сканировать QR-код' : 'Scan QR code'}</span>
+                  </button>
                 </div>
 
                 {/* Demo Profiles List */}
@@ -1267,58 +1242,62 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
                         initials: lang === 'RU' ? 'ЕВ' : 'EB',
                         name: lang === 'RU' ? 'Елена Вэнс' : 'Elena Vance',
                         role: lang === 'RU' ? 'Клинер · 3 этаж' : 'Cleaner · Floor 3',
-                        email: 'elena.vance@sollviera-pms.com',
-                        pass: 'elena8042'
                       },
                       {
                         id: 'svetlana',
                         initials: lang === 'RU' ? 'СК' : 'CK',
                         name: lang === 'RU' ? 'Светлана Ким' : 'Svetlana Kim',
                         role: lang === 'RU' ? 'Супервизор' : 'Supervisor',
-                        email: 'svetlana.kim@sollviera-pms.com',
-                        pass: 'svetlana7701'
                       },
                       {
                         id: 'oleg',
                         initials: lang === 'RU' ? 'ОП' : 'OP',
                         name: lang === 'RU' ? 'Олег Петров' : 'Oleg Petrov',
                         role: lang === 'RU' ? 'Техник' : 'Technician',
-                        email: 'oleg.petrov@sollviera-pms.com',
-                        pass: 'oleg5501'
                       },
                       {
                         id: 'aigerim',
                         initials: lang === 'RU' ? 'АД' : 'AD',
                         name: lang === 'RU' ? 'Айгерим Досова' : 'Aigerim Dossova',
                         role: lang === 'RU' ? 'Официант' : 'Waiter',
-                        email: 'aigerim.dossova@sollviera-pms.com',
-                        pass: 'aigerim4092'
+                      },
+                      {
+                        id: 'alina',
+                        initials: lang === 'RU' ? 'АС' : 'AS',
+                        name: lang === 'RU' ? 'Алина Садыкова' : 'Alina Sadykova',
+                        role: lang === 'RU' ? 'Работа с услугами' : 'Hotel Services',
                       }
-                    ].map((profile) => (
-                      <div
-                        key={profile.id}
-                        onClick={() => {
-                          setEmailInput(profile.email);
-                          setPasswordInput(profile.pass);
-                        }}
-                        className="p-4 hover:bg-[#FAF7F3]/40 transition-colors flex items-center justify-between cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-[#FAF2E6] text-[#241E1A] font-sans font-normal text-xs flex items-center justify-center shrink-0 border border-[#E5E2DD]">
-                            {profile.initials}
+                    ].map((profile) => {
+                      const isSelected = selectedDemoId === profile.id;
+                      return (
+                        <div
+                          key={profile.id}
+                          onClick={() => setSelectedDemoId(profile.id)}
+                          className={`p-4 transition-colors flex items-center justify-between cursor-pointer ${
+                            isSelected ? 'bg-[#FAF2E6]/60' : 'hover:bg-[#FAF7F3]/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-full font-sans font-normal text-xs flex items-center justify-center shrink-0 border ${
+                              isSelected
+                                ? 'bg-[#C2410C] text-white border-[#C2410C]'
+                                : 'bg-[#FAF2E6] text-[#241E1A] border-[#E5E2DD]'
+                            }`}>
+                              {profile.initials}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-sans font-medium text-[#241E1A]">
+                                {profile.name}
+                              </h4>
+                              <p className="text-[10px] text-[#8A8177] font-sans font-normal mt-0.5">
+                                {profile.role}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-xs font-sans font-medium text-[#241E1A]">
-                              {profile.name}
-                            </h4>
-                            <p className="text-[10px] text-[#8A8177] font-sans font-normal mt-0.5">
-                              {profile.role}
-                            </p>
-                          </div>
+                          <ChevronRight className={`h-4 w-4 shrink-0 ${isSelected ? 'text-[#C2410C]' : 'text-[#8A8177]'}`} />
                         </div>
-                        <ChevronRight className="h-4 w-4 text-[#8A8177] shrink-0" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1326,6 +1305,232 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
               <p className="text-[10px] text-[#8A8177] font-sans font-normal tracking-wide text-center">
                 {t.versionText}
               </p>
+
+              {/* QR Scanner Sub-Screen */}
+              {showQrScanner && !showQrAccountFound && !showQrInvalid && (
+                <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col px-5 pt-4 pb-6 text-left animate-in slide-in-from-right duration-300">
+                  {/* Header */}
+                  <div className="space-y-1.5 shrink-0">
+                    <div className="flex items-center gap-2 -ml-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowQrScanner(false)}
+                        className="flex items-center justify-center text-[#241E1A] hover:opacity-75 transition-opacity cursor-pointer"
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </button>
+                      <h2 className="text-2xl font-serif font-medium text-[#241E1A] pt-0.5 select-none">
+                        {lang === 'RU' ? 'Сканировать QR' : 'Scan QR'}
+                      </h2>
+                    </div>
+                    <p className="text-xs font-sans font-normal text-[#8A8177]">
+                      {lang === 'RU' ? 'QR-код сотрудника из веб-версии' : 'Employee QR code from web version'}
+                    </p>
+                  </div>
+
+                  {/* QR Scanner Frame */}
+                  <div
+                    onClick={() => setShowQrAccountFound(true)}
+                    className="mt-4 w-full aspect-square bg-[#221C18] rounded-[18px] relative flex items-center justify-center cursor-pointer select-none shadow-2xs"
+                  >
+                    {/* 4 Corner Brackets */}
+                    <div className="absolute top-[16%] left-[16%] w-9 h-9 border-t-2 border-l-2 border-[#C86428] rounded-tl-[10px]" />
+                    <div className="absolute top-[16%] right-[16%] w-9 h-9 border-t-2 border-r-2 border-[#C86428] rounded-tr-[10px]" />
+                    <div className="absolute bottom-[16%] left-[16%] w-9 h-9 border-b-2 border-l-2 border-[#C86428] rounded-bl-[10px]" />
+                    <div className="absolute bottom-[16%] right-[16%] w-9 h-9 border-b-2 border-r-2 border-[#C86428] rounded-br-[10px]" />
+
+                    {/* Center QR Icon */}
+                    <QrCode className="h-12 w-12 text-[#8A8177]" strokeWidth={1.75} />
+                  </div>
+
+                  {/* Caption below QR box */}
+                  <p className="text-xs font-sans font-normal text-[#8A8177] text-center mt-5 select-none">
+                    {lang === 'RU' ? 'Поместите QR-код в рамку.' : 'Place the QR code inside the frame.'}
+                  </p>
+
+                  {/* Button: Зайти */}
+                  <button
+                    type="button"
+                    onClick={() => setShowQrAccountFound(true)}
+                    className="mt-5 w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3.5 rounded-xl font-sans font-medium text-xs cursor-pointer text-center select-none active:scale-[0.98] transition-all"
+                  >
+                    {lang === 'RU' ? 'Зайти' : 'Enter'}
+                  </button>
+
+                  {/* Button: Неактивный QR */}
+                  <button
+                    type="button"
+                    onClick={() => setShowQrInvalid(true)}
+                    className="mt-2.5 w-full bg-white hover:bg-[#FAF7F3]/60 text-[#241E1A] border border-[#E5E2DD] py-3.5 rounded-xl font-sans font-normal text-xs cursor-pointer text-center select-none active:scale-[0.98] transition-all"
+                  >
+                    {lang === 'RU' ? 'Неактивный QR' : 'Inactive QR'}
+                  </button>
+                </div>
+              )}
+
+              {/* QR Invalid Sub-Screen */}
+              {showQrInvalid && (
+                <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col px-5 pt-4 pb-6 text-left animate-in slide-in-from-right duration-300">
+                  {/* Header */}
+                  <div className="space-y-1.5 shrink-0">
+                    <div className="flex items-center gap-2 -ml-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowQrInvalid(false)}
+                        className="flex items-center justify-center text-[#241E1A] hover:opacity-75 transition-opacity cursor-pointer"
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </button>
+                      <h2 className="text-2xl font-serif font-medium text-[#241E1A] pt-0.5 select-none">
+                        {lang === 'RU' ? 'Не удалось войти' : 'Unable to Sign In'}
+                      </h2>
+                    </div>
+                    <p className="text-xs font-sans font-normal text-[#8A8177]">
+                      {lang === 'RU' ? 'Попробуйте отсканировать новый код' : 'Try scanning a new code'}
+                    </p>
+                  </div>
+
+                  {/* Invalid QR Card */}
+                  <div className="mt-4 bg-white rounded-[16px] border border-[#E5E2DD] p-5 shadow-2xs space-y-4">
+                    <QrCode className="h-8 w-8 text-[#B3261E]" strokeWidth={1.75} />
+
+                    <div className="space-y-1.5">
+                      <h3 className="text-sm font-sans font-medium text-[#241E1A]">
+                        {lang === 'RU' ? 'QR-код недействителен' : 'Invalid QR code'}
+                      </h3>
+                      <p className="text-xs font-sans font-normal text-[#8A8177] leading-relaxed">
+                        {lang === 'RU'
+                          ? 'Срок действия истёк или код не предназначен для входа сотрудника.'
+                          : 'The code has expired or is not intended for employee login.'}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowQrInvalid(false)}
+                      className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3.5 rounded-xl font-sans font-medium text-xs cursor-pointer text-center select-none active:scale-[0.98] transition-all"
+                    >
+                      {lang === 'RU' ? 'Сканировать снова' : 'Scan again'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Account Found Sub-Screen */}
+              {showQrAccountFound && (() => {
+                const demoAccounts: Record<string, { initials: string; name: string; role: string; badgeId: string }> = {
+                  elena: {
+                    initials: lang === 'RU' ? 'ЕВ' : 'EV',
+                    name: lang === 'RU' ? 'Елена Вэнс' : 'Elena Vance',
+                    role: lang === 'RU' ? 'Клинер · 3 этаж' : 'Cleaner · Floor 3',
+                    badgeId: 'SLV-8042'
+                  },
+                  svetlana: {
+                    initials: lang === 'RU' ? 'СК' : 'SK',
+                    name: lang === 'RU' ? 'Светлана Ким' : 'Svetlana Kim',
+                    role: lang === 'RU' ? 'Супервизор' : 'Supervisor',
+                    badgeId: 'SLV-7701'
+                  },
+                  oleg: {
+                    initials: lang === 'RU' ? 'ОП' : 'OP',
+                    name: lang === 'RU' ? 'Олег Петров' : 'Oleg Petrov',
+                    role: lang === 'RU' ? 'Техник' : 'Technician',
+                    badgeId: 'SLV-5501'
+                  },
+                  aigerim: {
+                    initials: lang === 'RU' ? 'АД' : 'AD',
+                    name: lang === 'RU' ? 'Айгерим Досова' : 'Aigerim Dossova',
+                    role: lang === 'RU' ? 'Официант' : 'Waiter',
+                    badgeId: 'SLV-4092'
+                  },
+                  alina: {
+                    initials: lang === 'RU' ? 'АС' : 'AS',
+                    name: lang === 'RU' ? 'Алина Садыкова' : 'Alina Sadykova',
+                    role: lang === 'RU' ? 'Работа с услугами' : 'Hotel Services',
+                    badgeId: 'SLV-6120'
+                  }
+                };
+                const foundUser = demoAccounts[selectedDemoId] || demoAccounts.elena;
+
+                return (
+                  <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col px-5 pt-4 pb-6 text-left animate-in slide-in-from-right duration-300">
+                    {/* Header */}
+                    <div className="space-y-1.5 shrink-0">
+                      <div className="flex items-center gap-2 -ml-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowQrAccountFound(false)}
+                          className="flex items-center justify-center text-[#241E1A] hover:opacity-75 transition-opacity cursor-pointer"
+                        >
+                          <ChevronLeft className="h-6 w-6" />
+                        </button>
+                        <h2 className="text-2xl font-serif font-medium text-[#241E1A] pt-0.5 select-none">
+                          {lang === 'RU' ? 'Аккаунт найден' : 'Account Found'}
+                        </h2>
+                      </div>
+                      <p className="text-xs font-sans font-normal text-[#8A8177]">
+                        {lang === 'RU' ? 'Проверьте профиль перед входом' : 'Verify profile before signing in'}
+                      </p>
+                    </div>
+
+                    {/* Employee Profile Card */}
+                    <div className="mt-4 bg-white rounded-[16px] border border-[#E5E2DD] overflow-hidden shadow-2xs">
+                      <div className="p-5 flex items-center gap-3.5">
+                        <div className="h-14 w-14 rounded-full bg-[#E5DEC9]/70 text-[#5C544D] font-sans font-medium text-sm flex items-center justify-center shrink-0">
+                          {foundUser.initials}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-serif font-medium text-[#241E1A] leading-tight">
+                            {foundUser.name}
+                          </h3>
+                          <p className="text-xs font-sans font-normal text-[#8A8177] mt-1">
+                            {foundUser.role}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="px-5 py-3.5 border-t border-[#E5E2DD]/60 flex items-center justify-between text-xs font-sans">
+                        <span className="text-[#8A8177]">{lang === 'RU' ? 'Отель' : 'Hotel'}</span>
+                        <span className="text-[#241E1A] font-normal">Rixos Borovoe</span>
+                      </div>
+
+                      <div className="px-5 py-3.5 border-t border-[#E5E2DD]/60 flex items-center justify-between text-xs font-sans">
+                        <span className="text-[#8A8177]">{lang === 'RU' ? 'Табельный номер' : 'Staff ID'}</span>
+                        <span className="text-[#241E1A] font-normal">{foundUser.badgeId}</span>
+                      </div>
+                    </div>
+
+                    {/* Notice Box */}
+                    <div className="mt-3.5 bg-[#FAF5EB] border border-[#EBE3D5] rounded-[14px] p-4 flex items-start gap-2.5">
+                      <ShieldCheck className="h-4 w-4 text-[#8A8177] shrink-0 mt-0.5" />
+                      <p className="text-xs font-sans font-normal text-[#5C544D] leading-relaxed">
+                        {lang === 'RU'
+                          ? 'Вход по личному QR-коду. Смену нужно начать отдельно в профиле.'
+                          : 'Sign in via personal QR code. Shift must be started separately in profile.'}
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="mt-4 space-y-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleDemoProfileLogin(selectedDemoId)}
+                        className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3.5 rounded-xl font-sans font-medium text-xs cursor-pointer text-center select-none active:scale-[0.98] transition-all"
+                      >
+                        {lang === 'RU' ? 'Войти в аккаунт' : 'Sign in to account'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowQrAccountFound(false)}
+                        className="w-full bg-white hover:bg-[#FAF7F3]/60 text-[#241E1A] border border-[#E5E2DD] py-3.5 rounded-xl font-sans font-normal text-xs cursor-pointer text-center select-none active:scale-[0.98] transition-all"
+                      >
+                        {lang === 'RU' ? 'Сканировать другой код' : 'Scan another code'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             /* ---------------- EMPLOYEE PROFILE SCREEN ---------------- */
@@ -1362,90 +1567,112 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
                   {lang === 'RU' ? 'ТЕКУЩАЯ СМЕНА' : 'CURRENT SHIFT'}
                 </h3>
                 
-                <div className="bg-white rounded-[14px] border border-[#E5E2DD] p-4 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-sans font-medium text-[#241E1A]">
-                      {cleanerProfile.currentShift.shiftNumber}
-                    </span>
-                    <span className="text-xs font-sans font-normal text-[#8A8177]">
-                      {cleanerProfile.currentShift.date} · {lang === 'RU' ? 'с 08:00' : 'from 08:00'}
-                    </span>
-                  </div>
-
-                  {/* Status buttons */}
-                  <div className="grid grid-cols-3 gap-2 text-[11px]">
+                {shiftStatus === 'SHIFT_ENDED' ? (
+                  <div className="bg-white rounded-[18px] border border-[#E5E2DD] p-4.5 shadow-2xs space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-sans font-medium text-[#241E1A]">
+                        {lang === 'RU' ? 'Смена не начата' : 'Shift not started'}
+                      </span>
+                      <span className="text-xs font-sans font-normal text-[#8A8177]">
+                        {lang === 'RU' ? '19 окт · 08:00–17:00' : 'Oct 19 · 08:00–17:00'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-sans font-normal text-[#8A8177] leading-relaxed">
+                      {lang === 'RU'
+                        ? 'Начните смену, отсканировав QR-код на рабочем месте.'
+                        : 'Start your shift by scanning the QR code at your workplace.'}
+                    </p>
                     <button
                       type="button"
-                      onClick={() => setShiftStatus('ON_SHIFT')}
-                      className={`py-2 rounded-xl text-[11px] font-sans font-normal border transition-all cursor-pointer ${
-                        shiftStatus === 'ON_SHIFT'
-                          ? 'bg-[#241E1A] text-white border-[#241E1A]'
-                          : 'bg-white text-[#8A8177] border-[#E5E2DD] hover:bg-[#FAF7F3]/40'
-                      }`}
+                      onClick={() => setShowQrShiftModal(true)}
+                      className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3.5 rounded-xl text-xs font-sans font-medium flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
                     >
-                      {lang === 'RU' ? 'На смене' : 'On shift'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShiftStatus('ON_BREAK')}
-                      className={`py-2 rounded-xl text-[11px] font-sans font-normal border transition-all cursor-pointer ${
-                        shiftStatus === 'ON_BREAK'
-                          ? 'bg-[#241E1A] text-white border-[#241E1A]'
-                          : 'bg-white text-[#8A8177] border-[#E5E2DD] hover:bg-[#FAF7F3]/40'
-                      }`}
-                    >
-                      {lang === 'RU' ? 'Перерыв' : 'Break'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShiftStatus('SHIFT_ENDED')}
-                      className={`py-2 rounded-xl text-[11px] font-sans font-normal border transition-all cursor-pointer ${
-                        shiftStatus === 'SHIFT_ENDED'
-                          ? 'bg-[#241E1A] text-white border-[#241E1A]'
-                          : 'bg-white text-[#8A8177] border-[#E5E2DD] hover:bg-[#FAF7F3]/40'
-                      }`}
-                    >
-                      {lang === 'RU' ? 'Завершить' : 'Finish'}
+                      <QrCode className="h-4 w-4" />
+                      <span>{lang === 'RU' ? 'Начать смену по QR' : 'Start Shift via QR'}</span>
                     </button>
                   </div>
-
-                  <div className="border-t border-[#E5E2DD]/50" />
-
-                  {/* Shift Stats */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <div className="text-lg font-sans font-medium text-[#241E1A]">
-                        {roomsCleaned}
-                        <span className="text-xs text-[#8A8177] font-normal"> / {cleanerProfile.currentShift.roomsTotal}</span>
-                      </div>
-                      <span className="text-[10px] text-[#8A8177] font-sans font-normal uppercase tracking-wider block mt-0.5">
-                        {lang === 'RU' ? 'убрано' : 'cleaned'}
+                ) : (
+                  <div className="bg-white rounded-[14px] border border-[#E5E2DD] p-4 shadow-2xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-sans font-medium text-[#241E1A]">
+                        {cleanerProfile.currentShift.shiftNumber}
+                      </span>
+                      <span className="text-xs font-sans font-normal text-[#8A8177]">
+                        {cleanerProfile.currentShift.date} · {lang === 'RU' ? 'с 08:00' : 'from 08:00'}
                       </span>
                     </div>
 
-                    <div>
-                      <div className="text-lg font-sans font-medium text-[#241E1A]">
-                        {cleanerProfile.currentShift.avgTimePerRoom.split(' ')[0]}
-                        <span className="text-xs text-[#8A8177] font-normal"> {lang === 'RU' ? 'мин' : 'min'}</span>
-                      </div>
-                      <span className="text-[10px] text-[#8A8177] font-sans font-normal uppercase tracking-wider block mt-0.5">
-                        {lang === 'RU' ? 'на номер' : 'per room'}
-                      </span>
+                    {/* Status buttons */}
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setShiftStatus('ON_SHIFT')}
+                        className={`py-2 rounded-xl text-[11px] font-sans font-normal border transition-all cursor-pointer ${
+                          shiftStatus === 'ON_SHIFT'
+                            ? 'bg-[#241E1A] text-white border-[#241E1A]'
+                            : 'bg-white text-[#8A8177] border-[#E5E2DD] hover:bg-[#FAF7F3]/40'
+                        }`}
+                      >
+                        {lang === 'RU' ? 'На смене' : 'On shift'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShiftStatus('ON_BREAK')}
+                        className={`py-2 rounded-xl text-[11px] font-sans font-normal border transition-all cursor-pointer ${
+                          shiftStatus === 'ON_BREAK'
+                            ? 'bg-[#241E1A] text-white border-[#241E1A]'
+                            : 'bg-white text-[#8A8177] border-[#E5E2DD] hover:bg-[#FAF7F3]/40'
+                        }`}
+                      >
+                        {lang === 'RU' ? 'Перерыв' : 'Break'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShiftStatus('SHIFT_ENDED')}
+                        className="py-2 rounded-xl text-[11px] font-sans font-normal border bg-white text-[#8A8177] border-[#E5E2DD] hover:bg-[#FAF7F3]/40 transition-all cursor-pointer"
+                      >
+                        {lang === 'RU' ? 'Завершить' : 'Finish'}
+                      </button>
                     </div>
 
-                    <div>
-                      <div className="text-lg font-sans font-medium text-[#241E1A]">
-                        {Math.floor(elapsedSeconds / 3600)}:
-                        {String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}
+                    <div className="border-t border-[#E5E2DD]/50" />
+
+                    {/* Shift Stats */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <div className="text-lg font-sans font-medium text-[#241E1A]">
+                          {roomsCleaned}
+                          <span className="text-xs text-[#8A8177] font-normal"> / {cleanerProfile.currentShift.roomsTotal}</span>
+                        </div>
+                        <span className="text-[10px] text-[#8A8177] font-sans font-normal uppercase tracking-wider block mt-0.5">
+                          {lang === 'RU' ? 'убрано' : 'cleaned'}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-[#8A8177] font-sans font-normal uppercase tracking-wider block mt-0.5">
-                        {lang === 'RU' ? 'на смене' : 'on shift'}
-                      </span>
+
+                      <div>
+                        <div className="text-lg font-sans font-medium text-[#241E1A]">
+                          {cleanerProfile.currentShift.avgTimePerRoom.split(' ')[0]}
+                          <span className="text-xs text-[#8A8177] font-normal"> {lang === 'RU' ? 'мин' : 'min'}</span>
+                        </div>
+                        <span className="text-[10px] text-[#8A8177] font-sans font-normal uppercase tracking-wider block mt-0.5">
+                          {lang === 'RU' ? 'на номер' : 'per room'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <div className="text-lg font-sans font-medium text-[#241E1A]">
+                          {Math.floor(elapsedSeconds / 3600)}:
+                          {String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}
+                        </div>
+                        <span className="text-[10px] text-[#8A8177] font-sans font-normal uppercase tracking-wider block mt-0.5">
+                          {lang === 'RU' ? 'на смене' : 'on shift'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* 3. WORK / ACTIONS SECTION */}
@@ -1509,6 +1736,43 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
             </div>
           )}
         </main>
+
+        {/* QR Shift Start Modal */}
+        {showQrShiftModal && (
+          <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-[#FAF7F3] rounded-[24px] w-full max-w-xs p-5 space-y-4 border border-[#E5E2DD] shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif font-medium text-lg text-[#241E1A]">
+                  {lang === 'RU' ? 'Начать смену по QR' : 'Start Shift via QR'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowQrShiftModal(false)}
+                  className="h-7 w-7 rounded-full bg-white border border-[#E5E2DD] text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="w-full aspect-square bg-[#221C18] rounded-[18px] relative flex items-center justify-center">
+                <div className="absolute top-[16%] left-[16%] w-8 h-8 border-t-2 border-l-2 border-[#C86428] rounded-tl-[8px]" />
+                <div className="absolute top-[16%] right-[16%] w-8 h-8 border-t-2 border-r-2 border-[#C86428] rounded-tr-[8px]" />
+                <div className="absolute bottom-[16%] left-[16%] w-8 h-8 border-b-2 border-l-2 border-[#C86428] rounded-bl-[8px]" />
+                <div className="absolute bottom-[16%] right-[16%] w-8 h-8 border-b-2 border-r-2 border-[#C86428] rounded-br-[8px]" />
+                <QrCode className="h-12 w-12 text-[#8A8177]" />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShiftStatus('ON_SHIFT');
+                  setShowQrShiftModal(false);
+                }}
+                className="w-full bg-[#C2410C] hover:bg-[#A93A0C] text-white py-3 rounded-xl text-xs font-medium cursor-pointer"
+              >
+                {lang === 'RU' ? 'Подтвердить начало смены' : 'Confirm Shift Start'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
