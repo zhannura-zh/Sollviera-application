@@ -31,8 +31,12 @@ interface MaintenanceRequestFormProps {
 // same category/priority catalog, so kept as one component instead of two near-copies.
 export function MaintenanceRequestForm({ lang, initialRoomNumber, submitLabel, onSubmit }: MaintenanceRequestFormProps) {
   const t = getTranslation(lang);
-  const { rooms } = useApp();
-  const roomNumbers = Array.from(new Set(rooms.map((r) => r.roomNumber))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const { rooms, hotelRoomNumbers } = useApp();
+  // Only real rooms can be picked: the whole hotel (GET /rooms), plus today's tasks in case
+  // that list hasn't loaded.
+  const roomNumbers = Array.from(new Set([...hotelRoomNumbers, ...rooms.map((r) => r.roomNumber)]))
+    .filter((n) => n && n !== '—')
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const [roomNumber, setRoomNumber] = useState(initialRoomNumber && roomNumbers.includes(initialRoomNumber) ? initialRoomNumber : '');
   const [category, setCategory] = useState<MaintenanceCategory>('PLUMBING');

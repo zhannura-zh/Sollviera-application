@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState as RNAppState } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
 import {
   Language,
@@ -205,6 +205,9 @@ interface AppState {
   hasOpenDeskShift: boolean;
 
   rooms: HotelRoom[];
+  // Every room number in the hotel (GET /rooms), for pickers — `rooms` holds only the
+  // housekeeping tasks, which technicians don't load at all.
+  hotelRoomNumbers: string[];
   updateRoomStatus: (roomId: string, status: RoomStatus) => boolean;
   updateRoomChecklist: (roomId: string, checklist: RoomCheckitem[]) => void;
   uploadRoomPhoto: (roomId: string, uri: string, stage: string) => Promise<void>;
@@ -376,6 +379,10 @@ function mapHousekeepingTask(task: any, roomFallback?: any, checklistRecord?: an
     // Server PAUSED → local paused room; the exact pause start is refined from local state.
     pausedAtMs: String(task.status || '').toUpperCase() === 'PAUSED' ? Date.now() : undefined,
     assignedTo: task.assignedTo ? String(task.assignedTo) : undefined,
+    // Server copies saved by saveRoomPhoto, so other devices (the supervisor) see them too.
+    photoBeforeUrl: checklistRecord?.photo_before_url ? String(checklistRecord.photo_before_url) : undefined,
+    photoAfterUrl: checklistRecord?.photo_after_url ? String(checklistRecord.photo_after_url) : undefined,
+    zonePhotos: checklistRecord?.zone_photos && typeof checklistRecord.zone_photos === 'object' ? checklistRecord.zone_photos : undefined,
   };
 }
 
@@ -415,6 +422,7 @@ function mapMaintenance(item: any, roomFallback?: any): MaintenanceRequest {
     costCalculated: Boolean(item.cost_calculated),
     comments: Array.isArray(item.comments) ? item.comments.map((c: unknown) => String(c)) : undefined,
     materials: Array.isArray(item.materials) ? item.materials : undefined,
+    photoUrl: Array.isArray(item.photos) && item.photos[0] ? String(item.photos[0]) : undefined,
     photosBefore: Array.isArray(item.photos_before) ? item.photos_before.map((p: unknown) => String(p)) : undefined,
     photosAfter: Array.isArray(item.photos_after) ? item.photos_after.map((p: unknown) => String(p)) : undefined,
     steps: Array.isArray(item.steps) ? item.steps : undefined,
@@ -536,7 +544,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(mockMaintenanceRequests);
   const [shiftHistory, setShiftHistory] = useState<ShiftHistoryItem[]>(mockShiftHistory);
-  const [checklistRecordIds, setChecklistRecordIds] = useState<Record<string, string>>({});
+  const [hotelRoomNumbers, setHotelRoomNumbers] = useState<string[]>([]);
+  // Room number → room id (GET /rooms), for photo uploads on maintenance tickets.
+  const roomIdByNumber = useRef(new Map<string, string>());
+  // room_checklist record per housekeeping task. A pending create is stored as its promise,
+  // so a second quick write waits for it instead of creating a duplicate record.
+  const roomRecordIds = useRef<Record<string, string | Promise<string | undefined>>>({});
+  // Server URLs of a room's photos (POST /rooms/:id/photos), saved on that record. The
+  // local file stays on the room for the preview on this phone.
+  const roomPhotoUrls = useRef<Record<string, { before?: string; after?: string; zones?: Record<string, string> }>>({});
+  const roomsRef = useRef(rooms);
+  useEffect(() => {
+    roomsRef.current = rooms;
+  }, [rooms]);
   const [offlineMode, setOfflineMode] = useState<boolean>(false);
   const [taskSoundEnabled, setTaskSoundEnabled] = useState<boolean>(false);
   // Kept in a ref (not just the taskSoundEnabled dep) so playTaskSound's identity stays
@@ -644,7 +664,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isCleaner ? listMinibarItems().catch(() => []) : Promise.resolve([]),
       listRecord('maintenance').catch(() => []),
       isCleaner ? listRecord('shift_history').catch(() => []) : Promise.resolve([]),
-      isCleaner ? listRecord('room_checklist').catch(() => []) : Promise.resolve([]),
+      needsHousekeeping ? listRecord('room_checklist').catch(() => []) : Promise.resolve([]),
       isTechnician ? listRecord('parts').catch(() => []) : Promise.resolve([]),
       isTechnician ? listRecord('parts_order').catch(() => []) : Promise.resolve([]),
       isSupervisor ? listStaff().catch(() => []) : Promise.resolve([]),
@@ -655,27 +675,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ]);
 
     const roomsByNumber = new Map(asList<any>(roomsResponse).map((room) => [String(room.number), room]));
+    if (roomsByNumber.size > 0) {
+      roomIdByNumber.current = new Map([...roomsByNumber].filter(([, room]) => room?.id).map(([number, room]) => [number, String(room.id)]));
+      setHotelRoomNumbers([...roomsByNumber.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })));
+    }
     const checklistRecords = asList<any>(checklistRecordsResponse);
     const checklistByTaskId = new Map(checklistRecords.map((record) => [String(record.housekeeping_id || record.housekeepingId || record.task_id || ''), record]));
-    const nextChecklistIds: Record<string, string> = {};
     checklistRecords.forEach((record) => {
       const taskId = String(record.housekeeping_id || record.housekeepingId || record.task_id || '');
-      if (taskId && record.id) nextChecklistIds[taskId] = String(record.id);
+      if (!taskId || !record.id) return;
+      if (typeof roomRecordIds.current[taskId] !== 'object') roomRecordIds.current[taskId] = String(record.id);
+      roomPhotoUrls.current[taskId] = {
+        before: record.photo_before_url || roomPhotoUrls.current[taskId]?.before,
+        after: record.photo_after_url || roomPhotoUrls.current[taskId]?.after,
+        zones: { ...record.zone_photos, ...roomPhotoUrls.current[taskId]?.zones },
+      };
     });
-    setChecklistRecordIds(nextChecklistIds);
     if (needsHousekeeping) {
       const apiRooms = asList<any>(tasksResponse).map((task) => mapHousekeepingTask(task, roomsByNumber.get(String(task.room?.number || task.roomNumber)), checklistByTaskId.get(String(task.id))));
-      // Keep what only this device knows: photos taken here and the pause bookkeeping
-      // (the API stores neither), so a refresh doesn't wipe photos or reset the timer.
+      // Keep what only this device knows: photo files taken here (the server has copies,
+      // but the local file is already on screen) and the pause bookkeeping, so a refresh
+      // doesn't swap photos or reset the timer.
       setRooms((prev) => {
         const byId = new Map(prev.map((r) => [r.id, r]));
         return apiRooms.map((r) => {
           const old = byId.get(r.id);
           if (!old) return r;
           const photos = {
-            photoBeforeUrl: r.photoBeforeUrl ?? old.photoBeforeUrl,
-            photoAfterUrl: r.photoAfterUrl ?? old.photoAfterUrl,
-            zonePhotos: r.zonePhotos ?? old.zonePhotos,
+            photoBeforeUrl: old.photoBeforeUrl ?? r.photoBeforeUrl,
+            photoAfterUrl: old.photoAfterUrl ?? r.photoAfterUrl,
+            zonePhotos: old.zonePhotos || r.zonePhotos ? { ...r.zonePhotos, ...old.zonePhotos } : undefined,
           };
           const serverPaused = !!r.pausedAtMs;
           // Paused here a moment ago and the server hasn't caught up yet.
@@ -769,6 +798,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           subtitleRu: item.subtitle ? String(item.subtitle) : undefined,
           category,
           isRead: false,
+          kind: kind || undefined,
         } satisfies AppNotification;
       });
       // Play the "new task" chime only for genuinely new NEW_ROOM/URGENT items that
@@ -780,7 +810,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             (n) => !prevIds.has(n.id) && (n.category === 'NEW_ROOM' || n.category === 'URGENT')
           );
           if (hasNewImportant) playTaskSound();
-          return notifications;
+          // The API has no read flag, and this runs every 30 s: keep what was read here, and
+          // the app's own notices (addSystemNotification, ids "n-…").
+          const readIds = new Set(prev.filter((n) => n.isRead).map((n) => n.id));
+          const local = prev.filter((n) => n.id.startsWith('n-'));
+          return [...local, ...notifications.map((n) => (readIds.has(n.id) ? { ...n, isRead: true } : n))];
         });
       } else {
         setNotifications(notifications);
@@ -920,6 +954,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => { active = false; };
   }, [login, refreshFromApi]);
 
+  // Changes made elsewhere (the web PMS, a supervisor's phone) show up without a manual
+  // refresh: re-sync every 30 s while the app is open, and right away when it comes back
+  // to the foreground. There is no push/realtime channel on the API.
+  useEffect(() => {
+    if (!isLoggedIn || !role) return;
+    const sync = () => {
+      if (RNAppState.currentState === 'active' && getStoredSession()) void refreshFromApi().catch(() => undefined);
+    };
+    const interval = setInterval(sync, 30_000);
+    const subscription = RNAppState.addEventListener('change', (state) => {
+      if (state === 'active') sync();
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [isLoggedIn, role, refreshFromApi]);
+
   const addSystemNotification = useCallback((msgEn: string, msgRu: string, cat: AppNotification['category']) => {
     const notif: AppNotification = {
       id: `n-${Date.now()}`,
@@ -998,27 +1050,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [rooms, cleanerProfile.email, cleanerProfile.fullName, refreshFromApi, lang]
   );
 
+  // Writes the room's room_checklist record: the checklist plus the server photo URLs, sent
+  // together every time so neither overwrites the other.
+  const saveRoomRecord = useCallback(async (roomId: string, checklist: RoomCheckitem[] | undefined) => {
+    const room = roomsRef.current.find((r) => r.id === roomId);
+    const photos = roomPhotoUrls.current[roomId] ?? {};
+    const payload = {
+      housekeeping_id: roomId,
+      room_id: room?.physicalRoomId,
+      room_number: room?.roomNumber,
+      checklist: checklist ?? room?.checklist,
+      photo_before_url: photos.before,
+      photo_after_url: photos.after,
+      zone_photos: photos.zones,
+      updated_at: new Date().toISOString(),
+    };
+    const recordId = await Promise.resolve(roomRecordIds.current[roomId]).catch(() => undefined);
+    if (recordId) {
+      await updateRecord('room_checklist', recordId, payload);
+      return;
+    }
+    const creating = createRecord('room_checklist', payload).then((created: any) => (created?.id ? String(created.id) : undefined));
+    roomRecordIds.current[roomId] = creating;
+    const id = await creating.catch(() => undefined);
+    if (id) roomRecordIds.current[roomId] = id;
+    else delete roomRecordIds.current[roomId];
+  }, []);
+
   const updateRoomChecklist = useCallback((roomId: string, checklist: RoomCheckitem[]) => {
     setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, checklist } : r)));
-    if (getStoredSession()) {
-      void (async () => {
-        const payload = {
-          housekeeping_id: roomId,
-          room_id: rooms.find((room) => room.id === roomId)?.physicalRoomId,
-          room_number: rooms.find((room) => room.id === roomId)?.roomNumber,
-          checklist,
-          updated_at: new Date().toISOString(),
-        };
-        const recordId = checklistRecordIds[roomId];
-        if (recordId) {
-          await updateRecord('room_checklist', recordId, payload);
-        } else {
-          const created = await createRecord('room_checklist', payload) as { id?: string };
-          if (created?.id) setChecklistRecordIds((prev) => ({ ...prev, [roomId]: String(created.id) }));
-        }
-      })().catch(() => undefined);
-    }
-  }, [checklistRecordIds, rooms]);
+    if (getStoredSession()) void saveRoomRecord(roomId, checklist).catch(() => undefined);
+  }, [saveRoomRecord]);
 
   // `roomId` is the housekeeping task id (room.id), matching every other room action in
   // this file — the physicalRoomId the API actually wants is resolved internally, same
@@ -1036,9 +1098,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return { ...r, zonePhotos: { ...r.zonePhotos, [stage]: uri } };
         })
       );
-      await uploadRoomPhoto(room?.physicalRoomId || roomId, uri, stage);
+      const url = await uploadRoomPhoto(room?.physicalRoomId || roomId, uri, stage);
+      if (!url) return;
+      const current = roomPhotoUrls.current[roomId] ?? {};
+      roomPhotoUrls.current[roomId] =
+        stage === 'before' ? { ...current, before: url }
+        : stage === 'after' ? { ...current, after: url }
+        : { ...current, zones: { ...current.zones, [stage]: url } };
+      await saveRoomRecord(roomId, undefined);
     },
-    [rooms]
+    [rooms, saveRoomRecord]
   );
 
   // Supervisor actions — accepting/rejecting a cleaned room. `roomId` here is the
@@ -1209,14 +1278,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deductSupplies = useCallback((deductions: Record<string, number>) => {
     if (getStoredSession()) {
-      Object.entries(deductions).forEach(([id, ded]) => {
-        if (ded <= 0) return;
+      const writes = Object.entries(deductions).flatMap(([id, ded]) => {
+        if (ded <= 0) return [];
         const item = supplies.find((s) => s.id === id);
         // MINIBAR items live in a separate catalog (/minibar/items), not in records/supply,
         // so their trolleyQty isn't a writable field there.
-        if (!item || item.category === 'MINIBAR') return;
+        if (!item || item.category === 'MINIBAR') return [];
         const next = Math.max(0, item.trolleyQty - ded);
-        void updateRecord('supply', id, { trolleyQty: next }).catch(() => undefined);
+        return [updateRecord('supply', id, { trolleyQty: next })];
+      });
+      // A failed write used to vanish silently and the next refresh put the old count back.
+      void Promise.all(writes).catch((error) => {
+        Alert.alert(
+          lang === 'RU' ? 'Списание не сохранено' : 'Deduction not saved',
+          `${error instanceof Error ? error.message : ''}\n${lang === 'RU' ? 'Остатки на тележке обновятся с сервера.' : 'Trolley stock will be reloaded from the server.'}`.trim()
+        );
+        void refreshFromApi();
       });
     }
     setSupplies((prev) =>
@@ -1225,7 +1302,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return ded > 0 ? { ...s, trolleyQty: Math.max(0, s.trolleyQty - ded) } : s;
       })
     );
-  }, [supplies]);
+  }, [supplies, lang, refreshFromApi]);
 
   // Records a minibar restock for a room. Minibar items don't carry a meaningful
   // trolleyQty from the API (that endpoint is a catalog, not per-room stock), so this
@@ -1303,21 +1380,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         'URGENT'
       );
       if (getStoredSession()) {
-        void createRecord('maintenance', {
-          room_id: rooms.find((room) => room.roomNumber === req.roomNumber)?.physicalRoomId,
-          room_number: req.roomNumber,
-          category: req.category.toLowerCase(),
-          source: 'housekeeper',
-          kind: 'repair',
-          description: req.descriptionEn || req.description,
-          description_ru: req.descriptionRu || req.description,
-          status: 'new',
-          priority: req.priority.toLowerCase(),
-          blocks_cleaning: req.blocksCleaning,
-          is_guest_damage: Boolean(req.isGuestDamage),
-          guest_damage_type: req.guestDamageType,
-          photos: req.photoUrl ? [req.photoUrl] : [],
-        }).catch(() => undefined);
+        const roomId = rooms.find((room) => room.roomNumber === req.roomNumber)?.physicalRoomId || roomIdByNumber.current.get(req.roomNumber);
+        void (async () => {
+          // The record keeps the server copy of the photo (a phone file path means nothing to
+          // the technician's or supervisor's device).
+          const photo = req.photoUrl && roomId ? await uploadRoomPhoto(roomId, req.photoUrl, 'defect').catch(() => undefined) : undefined;
+          await createRecord('maintenance', {
+            room_id: roomId,
+            room_number: req.roomNumber,
+            category: req.category.toLowerCase(),
+            source: 'housekeeper',
+            kind: 'repair',
+            description: req.descriptionEn || req.description,
+            description_ru: req.descriptionRu || req.description,
+            status: 'new',
+            priority: req.priority.toLowerCase(),
+            blocks_cleaning: req.blocksCleaning,
+            is_guest_damage: Boolean(req.isGuestDamage),
+            guest_damage_type: req.guestDamageType,
+            photos: photo ? [photo] : [],
+          });
+        })().catch(() => undefined);
       }
     },
     [rooms, updateRoomStatus, addSystemNotification]
@@ -1409,23 +1492,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const uploadMaintenancePhoto = useCallback(
     async (ticketId: string, uri: string, stage: 'before' | 'after') => {
       const ticket = maintenanceRequests.find((r) => r.id === ticketId);
-      const room = rooms.find((r) => r.roomNumber === ticket?.roomNumber);
-      if (room?.physicalRoomId) {
-        await uploadRoomPhoto(room.physicalRoomId, uri, `maintenance_${stage}`).catch(() => undefined);
+      const key = stage === 'before' ? 'photosBefore' : 'photosAfter';
+      // Show the local file right away; it's swapped for the server copy once uploaded.
+      setMaintenanceRequests((prev) => prev.map((r) => (r.id === ticketId ? { ...r, [key]: [...(r[key] || []), uri] } : r)));
+      if (!getStoredSession()) return;
+      const roomId = rooms.find((r) => r.roomNumber === ticket?.roomNumber)?.physicalRoomId || roomIdByNumber.current.get(ticket?.roomNumber ?? '');
+      const url = roomId ? await uploadRoomPhoto(roomId, uri, `maintenance_${stage}`).catch(() => undefined) : undefined;
+      if (!url) {
+        Alert.alert(
+          lang === 'RU' ? 'Фото не загружено' : 'Photo not uploaded',
+          lang === 'RU' ? 'Фото видно только на этом телефоне. Проверьте интернет и добавьте его ещё раз.' : 'The photo is only on this phone. Check your connection and add it again.'
+        );
+        return;
       }
-      setMaintenanceRequests((prev) =>
-        prev.map((r) => {
-          if (r.id !== ticketId) return r;
-          const key = stage === 'before' ? 'photosBefore' : 'photosAfter';
-          const photos = [...(r[key] || []), uri];
-          if (getStoredSession()) {
-            void updateRecord('maintenance', ticketId, { [`photos_${stage}`]: photos }).catch(() => undefined);
-          }
-          return { ...r, [key]: photos };
-        })
-      );
+      // Only server URLs go into the record — file paths from this phone mean nothing elsewhere.
+      const saved = [...(ticket?.[key] || []).filter((p) => /^(https?:)?\//.test(p)), url];
+      setMaintenanceRequests((prev) => prev.map((r) => (r.id === ticketId ? { ...r, [key]: (r[key] || []).map((p) => (p === uri ? url : p)) } : r)));
+      await updateRecord('maintenance', ticketId, { [`photos_${stage}`]: saved }).catch(() => undefined);
     },
-    [maintenanceRequests, rooms]
+    [maintenanceRequests, rooms, lang]
   );
 
   const orderParts = useCallback(
@@ -1550,6 +1635,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setShiftStatus,
     hasOpenDeskShift,
     rooms,
+    hotelRoomNumbers,
     updateRoomStatus,
     updateRoomChecklist,
     uploadRoomPhoto: saveRoomPhoto,

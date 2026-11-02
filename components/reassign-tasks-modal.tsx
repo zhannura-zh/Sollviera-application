@@ -3,6 +3,14 @@ import { View, Text, Pressable, Modal, Alert } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { SelectField } from '@/components/ui/select-field';
+import type { StaffMember } from '@/types';
+
+// Rooms only go between cleaners: by role code (housekeeper/cleaner), or position text.
+function isCleaner(s: StaffMember) {
+  const role = (s.roleCode || '').toLowerCase();
+  if (role.includes('supervisor') || role.includes('technician')) return false;
+  return /clean|housekeep|клинер|горничн/i.test(`${role} ${s.position || ''}`);
+}
 
 interface ReassignTasksModalProps {
   visible: boolean;
@@ -25,8 +33,10 @@ export function ReassignTasksModal({ visible, onClose }: ReassignTasksModalProps
     }
   }, [visible]);
 
-  const fromStaff = staffList.find((s) => s.id === fromId) || null;
-  const toStaff = staffList.find((s) => s.id === toId) || null;
+  // If no roles match at all (role codes missing), show everyone rather than an empty list.
+  const cleaners = staffList.some(isCleaner) ? staffList.filter(isCleaner) : staffList;
+  const fromStaff = cleaners.find((s) => s.id === fromId) || null;
+  const toStaff = cleaners.find((s) => s.id === toId) || null;
   const pendingCount = fromStaff ? rooms.filter((r) => r.assignedTo === fromStaff.fullName && r.status !== 'VERIFIED').length : 0;
   const canConfirm = !!fromStaff && !!toStaff && fromStaff.id !== toStaff.id;
 
@@ -64,7 +74,7 @@ export function ReassignTasksModal({ visible, onClose }: ReassignTasksModalProps
               onChange={setFromId}
               options={[
                 { value: '', label: lang === 'RU' ? '– Выберите клинера –' : '– Select staff –' },
-                ...staffList.map((s) => ({ value: s.id, label: s.fullName })),
+                ...cleaners.map((s) => ({ value: s.id, label: s.fullName })),
               ]}
             />
             {!!fromStaff && (
@@ -83,7 +93,7 @@ export function ReassignTasksModal({ visible, onClose }: ReassignTasksModalProps
               onChange={setToId}
               options={[
                 { value: '', label: lang === 'RU' ? '– Выберите клинера –' : '– Select staff –' },
-                ...staffList.filter((s) => s.id !== fromId).map((s) => ({ value: s.id, label: s.fullName })),
+                ...cleaners.filter((s) => s.id !== fromId).map((s) => ({ value: s.id, label: s.fullName })),
               ]}
             />
           </View>

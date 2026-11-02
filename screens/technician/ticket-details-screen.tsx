@@ -7,6 +7,8 @@ import { ChevronLeft, Camera, Receipt, X, Plus, Minus, Check, Pause, Share2, Che
 import { MaintenanceCategory, MaintenanceRequest, PartItem } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { photoSource } from '@/lib/api-client';
+import { TicketPhotos } from '@/components/ticket-photos';
 
 // ticket.startedAt is an "HH:MM" clock reading with no date (see updateMaintenanceStatus
 // in app-store.tsx), so this assumes the ticket was started today.
@@ -38,7 +40,7 @@ interface TicketDetailsScreenProps {
 }
 
 export function TicketDetailsScreen({ ticket, onBack, readOnly = false }: TicketDetailsScreenProps) {
-  const { lang, parts, updateMaintenanceStatus, toggleMaintenanceStep, saveRepairCost, addMaintenanceComment, addUsedPart, uploadMaintenancePhoto } = useApp();
+  const { lang, cleanerProfile, parts, updateMaintenanceStatus, toggleMaintenanceStep, saveRepairCost, addMaintenanceComment, addUsedPart, uploadMaintenancePhoto } = useApp();
   const insets = useSafeAreaInsets();
   const t = getTranslation(lang);
   const [comment, setComment] = useState('');
@@ -79,19 +81,33 @@ export function TicketDetailsScreen({ ticket, onBack, readOnly = false }: Ticket
 
   const isBlocked = ticket.blocksCleaning && ticket.status !== 'RESOLVED';
 
-  const pickPhoto = async (stage: 'before' | 'after') => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+  const takePhoto = async (stage: 'before' | 'after', source: 'camera' | 'library') => {
+    const permission = source === 'camera'
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
         lang === 'RU' ? 'Нет доступа' : 'Permission required',
-        lang === 'RU' ? 'Разрешите доступ к камере в настройках устройства.' : 'Allow camera access in device settings.'
+        lang === 'RU' ? 'Разрешите доступ к камере или фото в настройках устройства.' : 'Allow access to the camera or photo library in device settings.'
       );
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    const options = { mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 };
+    const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets[0]?.uri) return;
     void uploadMaintenancePhoto(ticket.id, result.assets[0].uri, stage);
   };
+
+  const pickPhoto = (stage: 'before' | 'after') =>
+    Alert.alert(
+      lang === 'RU' ? 'Добавить фото' : 'Add photo',
+      lang === 'RU' ? 'Выберите источник' : 'Choose a source',
+      [
+        { text: lang === 'RU' ? 'Снять фото' : 'Take photo', onPress: () => void takePhoto(stage, 'camera') },
+        { text: lang === 'RU' ? 'Выбрать из галереи' : 'Choose from gallery', onPress: () => void takePhoto(stage, 'library') },
+        { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
+      ]
+    );
 
   const handleSaveComment = () => {
     if (!comment.trim()) return;
@@ -247,6 +263,8 @@ export function TicketDetailsScreen({ ticket, onBack, readOnly = false }: Ticket
               </View>
             </View>
           )}
+
+          <TicketPhotos ticket={ticket} lang={lang} />
         </ScrollView>
 
         {!readOnly && (
@@ -261,7 +279,16 @@ export function TicketDetailsScreen({ ticket, onBack, readOnly = false }: Ticket
             ) : (
               <>
                 <Pressable
-                  onPress={() => updateMaintenanceStatus(ticket.id, 'IN_PROGRESS')}
+                  onPress={() => {
+                    if (cleanerProfile.currentShift.status === 'ON_BREAK') {
+                      Alert.alert(
+                        '',
+                        lang === 'RU' ? 'Вы на перерыве. Завершите перерыв в профиле, чтобы взять заявку в работу.' : 'You are on break. End your break in your profile to start work.'
+                      );
+                      return;
+                    }
+                    updateMaintenanceStatus(ticket.id, 'IN_PROGRESS');
+                  }}
                   className="flex-1 bg-dark py-3.5 rounded-xl items-center"
                 >
                   <Text className="text-white text-sm font-jost-semibold">{lang === 'RU' ? 'Взять в работу' : 'Start work'}</Text>
@@ -412,7 +439,7 @@ export function TicketDetailsScreen({ ticket, onBack, readOnly = false }: Ticket
                     className="flex-1 aspect-square border border-dashed border-border rounded-2xl items-center justify-center bg-white overflow-hidden"
                   >
                     {uri ? (
-                      <Image source={{ uri }} className="w-full h-full" />
+                      <Image source={photoSource(uri)} className="w-full h-full" />
                     ) : (
                       <View className="items-center gap-1.5">
                         <Camera size={18} color="#8A8177" />

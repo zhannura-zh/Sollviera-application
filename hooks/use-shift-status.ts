@@ -7,8 +7,10 @@ import type { ShiftStatusValue } from '@/lib/api-client';
 // Break and resume are saved to the backend (attendance presence, or the staff
 // shiftStatus flag when no desk shift is open). Finishing marks the shift ended and signs
 // out; a shift opened at the front desk still has to be closed with the desk QR.
+// A break can't overlap work: the cleaner's running room is paused, and a technician has
+// to finish the repair first (tickets have no paused state).
 export function useShiftStatusHandler(onLoggedOut: () => void) {
-  const { lang, setShiftStatus, hasOpenDeskShift, logout } = useApp();
+  const { lang, role, rooms, maintenanceRequests, updateRoomStatus, setShiftStatus, hasOpenDeskShift, logout } = useApp();
   const ru = lang === 'RU';
 
   return useCallback(
@@ -19,8 +21,29 @@ export function useShiftStatusHandler(onLoggedOut: () => void) {
           error instanceof Error ? error.message : ru ? 'Проверьте интернет и попробуйте ещё раз' : 'Check your connection and try again'
         );
 
+      if (status === 'ON_BREAK' && role === 'TECHNICIAN') {
+        const repair = maintenanceRequests.find((r) => r.status === 'IN_PROGRESS');
+        if (repair) {
+          Alert.alert(
+            ru ? 'Ремонт в работе' : 'Repair in progress',
+            ru
+              ? `Завершите заявку${repair.roomNumber ? ` по номеру ${repair.roomNumber}` : ''}, прежде чем уходить на перерыв.`
+              : `Complete the ticket${repair.roomNumber ? ` for room ${repair.roomNumber}` : ''} before taking a break.`
+          );
+          return;
+        }
+      }
+
       if (status !== 'SHIFT_ENDED') {
-        setShiftStatus(status).catch(fail);
+        setShiftStatus(status)
+          .then(() => {
+            if (status !== 'ON_BREAK') return;
+            const cleaning = rooms.find((r) => r.status === 'IN_PROGRESS');
+            if (!cleaning) return;
+            updateRoomStatus(cleaning.id, 'PENDING');
+            Alert.alert('', ru ? `Уборка номера ${cleaning.roomNumber} поставлена на паузу.` : `Cleaning of room ${cleaning.roomNumber} is paused.`);
+          })
+          .catch(fail);
         return;
       }
 
@@ -51,6 +74,6 @@ export function useShiftStatusHandler(onLoggedOut: () => void) {
         ]
       );
     },
-    [ru, setShiftStatus, hasOpenDeskShift, logout, onLoggedOut]
+    [ru, role, rooms, maintenanceRequests, updateRoomStatus, setShiftStatus, hasOpenDeskShift, logout, onLoggedOut]
   );
 }

@@ -5,6 +5,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { MaintenanceCategory, MaintenanceRequest } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { TicketPhotos } from '@/components/ticket-photos';
 
 interface MaintenanceDetailScreenProps {
   ticket: MaintenanceRequest | null;
@@ -152,6 +153,8 @@ export function MaintenanceDetailScreen({ ticket, onBack }: MaintenanceDetailScr
             )}
           </View>
         )}
+
+        <TicketPhotos ticket={ticket} lang={lang} />
       </ScrollView>
     </SafeAreaView>
   );

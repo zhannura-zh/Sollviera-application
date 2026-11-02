@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronLeft, Check, X, Camera } from 'lucide-react-native';
 import { HotelRoom, RoomCheckitem, ChecklistZone } from '@/types';
+import { photoSource } from '@/lib/api-client';
 import { useApp } from '@/context/app-store';
 
 interface InspectionDetailScreenProps {
@@ -109,10 +110,35 @@ export function InspectionDetailScreen({ room, onBack }: InspectionDetailScreenP
           </View>
         )}
 
+        {(!!room.photoBeforeUrl || !!room.photoAfterUrl) && (
+          <View className="gap-2">
+            <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
+              {lang === 'RU' ? 'ФОТО ДО И ПОСЛЕ' : 'BEFORE & AFTER'}
+            </Text>
+            <View className="flex-row gap-3">
+              {([
+                [lang === 'RU' ? 'До' : 'Before', room.photoBeforeUrl],
+                [lang === 'RU' ? 'После' : 'After', room.photoAfterUrl],
+              ] as const).map(([label, uri]) => (
+                <View key={label} className="flex-1 gap-1.5">
+                  <Text className="text-xs font-jost text-text-secondary px-1">{label}</Text>
+                  {uri ? (
+                    <Image source={photoSource(uri)} className="w-full aspect-square rounded-[14px] border border-border" />
+                  ) : (
+                    <View className="w-full aspect-square rounded-[14px] border border-dashed border-border items-center justify-center bg-white">
+                      <Text className="text-xs font-jost text-text-secondary">{lang === 'RU' ? 'Нет фото' : 'No photo'}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {ZONE_ORDER.filter((z) => grouped[z]?.length).map((zone) => {
           const items = grouped[zone]!;
           const doneCount = items.filter((i) => i.done).length;
-          const photos = items.map((i) => i.photoUrl).filter(Boolean) as string[];
+          const photos = [...items.map((i) => i.photoUrl), room.zonePhotos?.[zone]].filter(Boolean) as string[];
           return (
             <View key={zone} className="gap-2">
               <View className="flex-row items-center justify-between px-1">
@@ -138,7 +164,7 @@ export function InspectionDetailScreen({ room, onBack }: InspectionDetailScreenP
                     </View>
                     <View className="flex-row gap-2 flex-wrap">
                       {photos.map((uri, i) => (
-                        <Image key={i} source={{ uri }} className="w-20 h-20 rounded-xl border border-border" />
+                        <Image key={i} source={photoSource(uri)} className="w-20 h-20 rounded-xl border border-border" />
                       ))}
                     </View>
                   </View>

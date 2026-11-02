@@ -11,7 +11,8 @@ interface NotificationsScreenProps {
 }
 
 function isMessageNotification(item: AppNotification) {
-  return item.messageRu.includes('Сообщение') || item.messageEn.includes('Message');
+  const kind = item.kind || '';
+  return kind.includes('message') || kind.includes('chat') || /сообщени/i.test(item.messageRu) || /message/i.test(item.messageEn);
 }
 
 export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {

@@ -145,13 +145,36 @@ export const updateRoomFields = (id: string, payload: Json) =>
 export const updateRoomStatusField = (id: string, payload: Json) =>
   request<Json>(`/rooms/${encodeURIComponent(id)}/status`, { method: 'PATCH', data: payload });
 
-// `stage` tags the photo: 'before'/'after' for the overall room shot, or a checklist zone
-// name (e.g. 'BEDROOM') for a per-zone photo — the API doesn't constrain it to an enum.
-export const uploadRoomPhoto = (roomId: string, uri: string, stage: string) => {
+// The upload response shape is undocumented: take the last URL-looking string it carries
+// (a bare url, or the last entry of a photos/files/urls list, as strings or {url}).
+function lastUploadedUrl(body: unknown): string | undefined {
+  if (!body) return undefined;
+  if (typeof body === 'string') return /^(https?:\/\/|\/)/.test(body) ? body : undefined;
+  if (Array.isArray(body)) {
+    for (let i = body.length - 1; i >= 0; i -= 1) {
+      const url = lastUploadedUrl(body[i]);
+      if (url) return url;
+    }
+    return undefined;
+  }
+  if (typeof body === 'object') {
+    const obj = body as Record<string, unknown>;
+    for (const key of ['url', 'path', 'photos', 'files', 'urls', 'images', 'data']) {
+      const url = lastUploadedUrl(obj[key]);
+      if (url) return url;
+    }
+  }
+  return undefined;
+}
+
+// Housekeeping/maintenance photos go to POST /rooms/:id/photos (multipart field `files`,
+// allowed for housekeeping staff). `stage` is only used in the file name ('before',
+// 'after', a checklist zone like 'BEDROOM', 'maintenance_after'…). Resolves to the stored
+// photo's URL so it can be saved in records and seen on other devices.
+export const uploadRoomPhoto = async (roomId: string, uri: string, stage: string) => {
   const formData = new FormData();
-  formData.append('file', { uri, name: `room-${roomId}-${stage}.jpg`, type: 'image/jpeg' } as unknown as Blob);
-  formData.append('stage', stage);
-  return request<Json>(`/rooms/${encodeURIComponent(roomId)}/photos`, {
+  formData.append('files', { uri, name: `room-${roomId}-${stage}-${Date.now()}.jpg`, type: 'image/jpeg' } as unknown as Blob);
+  const body = await request<Json>(`/rooms/${encodeURIComponent(roomId)}/photos`, {
     method: 'POST',
     // Do NOT set 'multipart/form-data' explicitly: without the boundary parameter
     // (which only the native FormData/XHR layer can compute) the server can't parse the
@@ -159,6 +182,7 @@ export const uploadRoomPhoto = (roomId: string, uri: string, stage: string) => {
     headers: { 'Content-Type': undefined },
     data: formData,
   });
+  return lastUploadedUrl(body);
 };
 
 export const updateHousekeepingStatus = (id: string, payload: Json) =>
@@ -320,6 +344,12 @@ export const createChatGroup = (title: string, memberIds: string[]) =>
 
 // Chat attachment URLs may come back relative to the API host ("/uploads/…"); they are
 // served behind the same auth, so images need the bearer token too.
+// Image source for a photo that is either a file on this device (just taken/picked) or a
+// server URL (needs the auth headers, see fileSource).
+export function photoSource(uri: string) {
+  return /^(file|content|ph|assets-library|data|blob):/.test(uri) ? { uri } : fileSource(uri);
+}
+
 export function fileSource(url: string) {
   const absolute = /^https?:\/\//.test(url) ? url : `${API_BASE_URL.replace(/\/api$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
   const token = getStoredSession()?.accessToken;

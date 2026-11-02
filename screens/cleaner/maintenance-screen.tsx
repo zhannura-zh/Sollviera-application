@@ -6,6 +6,7 @@ import { Wrench, CheckCircle } from 'lucide-react-native';
 import { MaintenanceCategory } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { photoSource } from '@/lib/api-client';
 import { MaintenanceRequestForm } from '@/components/maintenance-request-form';
 
 export function MaintenanceScreen({ roomNumber }: { roomNumber?: string } = {}) {
@@ -107,7 +108,7 @@ export function MaintenanceScreen({ roomNumber }: { roomNumber?: string } = {}) 
                     <Text className="text-[13px] font-jost text-text-secondary leading-normal">
                       {getCategoryLabel(req.category)} · <Text className="text-text-primary">{req.description}</Text> · {req.timestamp}
                     </Text>
-                    {!!req.photoUrl && <Image source={{ uri: req.photoUrl }} className="h-10 w-16 rounded border border-border mt-1" />}
+                    {!!req.photoUrl && <Image source={photoSource(req.photoUrl)} className="h-10 w-16 rounded border border-border mt-1" />}
                   </View>
                 );
               })}

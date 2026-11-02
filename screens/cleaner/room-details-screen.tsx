@@ -12,6 +12,7 @@ import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
 import { roomElapsedSeconds } from '@/lib/room-timer';
 import { RoomGuestBadges } from '@/components/room-guest-badges';
+import { photoSource } from '@/lib/api-client';
 
 const DAMAGE_TYPES = ['Сломан фен', 'Сломана мебель', 'Разбито стекло', 'Повреждён ТВ', 'Другое'];
 
@@ -145,6 +146,8 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
 
     const uri = result.assets[0].uri;
     onPicked(uri);
+    // The defect photo belongs to the maintenance ticket — uploaded with it on submit.
+    if (tag === 'defect') return;
 
     try {
       await uploadRoomPhoto(room.id, uri, tag);
@@ -542,7 +545,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                             </View>
                             <View className="flex-row items-center gap-2">
                               <Pressable onPress={() => choosePhotoSource(zone, () => {})}>
-                                <Image source={{ uri: zonePhotos[zone] }} className="h-10 w-16 rounded-lg border border-border" />
+                                <Image source={photoSource(zonePhotos[zone])} className="h-10 w-16 rounded-lg border border-border" />
                               </Pressable>
                               <Text className="text-[11px] font-jost text-success">✓ {lang === 'RU' ? 'Добавлено' : 'Added'}</Text>
                             </View>
@@ -658,7 +661,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                 <Text className="text-[11px] text-text-secondary uppercase">{t.photoBefore}</Text>
                 {photoBeforeUrl ? (
                   <Pressable onPress={() => choosePhotoSource('before', () => {})}>
-                    <Image source={{ uri: photoBeforeUrl }} className="w-full h-20 rounded-lg border border-border" />
+                    <Image source={photoSource(photoBeforeUrl)} className="w-full h-20 rounded-lg border border-border" />
                   </Pressable>
                 ) : (
                   <Pressable
@@ -674,7 +677,7 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                 <Text className="text-[11px] text-text-secondary uppercase">{t.photoAfter}</Text>
                 {photoAfterUrl ? (
                   <Pressable onPress={() => choosePhotoSource('after', () => {})}>
-                    <Image source={{ uri: photoAfterUrl }} className="w-full h-20 rounded-lg border border-border" />
+                    <Image source={photoSource(photoAfterUrl)} className="w-full h-20 rounded-lg border border-border" />
                   </Pressable>
                 ) : (
                   <Pressable
@@ -849,6 +852,26 @@ export function RoomDetailsScreen({ room, onBack, onGoToMaintenance }: RoomDetai
                 </Pressable>
               );
             })()}
+          </View>
+        )}
+
+        {(room.status === 'READY' || room.status === 'VERIFIED') && (photoBeforeUrl || photoAfterUrl || Object.keys(zonePhotos).length > 0) && (
+          <View className="bg-white rounded-xl border border-border p-3 gap-2.5">
+            <Text className="text-[12px] font-jost uppercase text-text-secondary tracking-widest">
+              {lang === 'RU' ? 'Фотоотчет состояния комнаты' : 'Room Photo Inspection'}
+            </Text>
+            <View className="flex-row flex-wrap gap-3">
+              {[
+                ...(photoBeforeUrl ? [{ key: 'before', label: t.photoBefore, uri: photoBeforeUrl }] : []),
+                ...(photoAfterUrl ? [{ key: 'after', label: t.photoAfter, uri: photoAfterUrl }] : []),
+                ...Object.entries(zonePhotos).map(([zone, uri]) => ({ key: zone, label: getZoneLabel(zone), uri })),
+              ].map((photo) => (
+                <View key={photo.key} className="w-[30%] gap-1.5">
+                  <Text className="text-[11px] text-text-secondary uppercase" numberOfLines={1}>{photo.label}</Text>
+                  <Image source={photoSource(photo.uri)} className="w-full h-20 rounded-lg border border-border" />
+                </View>
+              ))}
+            </View>
           </View>
         )}
 

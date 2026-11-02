@@ -250,4 +250,6 @@ export interface AppNotification {
   isRead: boolean;
   subtitleEn?: string;
   subtitleRu?: string;
+  // Raw `kind` from the API (e.g. a chat message), when the notification came from there.
+  kind?: string;
 }
