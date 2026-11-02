@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MessageSquare, Bell, Settings, BarChart3, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { useShiftStatusHandler } from '@/hooks/use-shift-status';
+import { ShiftControls } from '@/components/shift-controls';
 import { useChat } from '@/context/chat-store';
 import { getTranslation } from '@/lib/locales';
 
@@ -46,11 +46,9 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
     return () => clearInterval(interval);
   }, [cleanerProfile.currentShift.startTime]);
 
-  const shiftStatus = cleanerProfile.currentShift.status;
   const resolvedCount = maintenanceRequests.filter((r) => r.status === 'RESOLVED').length;
   const activeCount = maintenanceRequests.filter((r) => r.status !== 'RESOLVED').length;
 
-  const handleSetShiftStatus = useShiftStatusHandler(onLoggedOut);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const { totalUnread: totalUnreadChats } = useChat();
@@ -112,25 +110,7 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
               </Text>
             </View>
 
-            <View className="flex-row gap-2">
-              {(['ON_SHIFT', 'ON_BREAK', 'SHIFT_ENDED'] as const).map((status) => (
-                <Pressable
-                  key={status}
-                  onPress={() => handleSetShiftStatus(status)}
-                  className={`flex-1 py-2 rounded-xl border items-center ${
-                    shiftStatus === status ? 'bg-dark border-dark' : 'bg-white border-border'
-                  }`}
-                >
-                  <Text className={`text-[13px] font-jost ${shiftStatus === status ? 'text-white' : 'text-text-secondary'}`}>
-                    {status === 'ON_SHIFT'
-                      ? (lang === 'RU' ? 'На смене' : 'On shift')
-                      : status === 'ON_BREAK'
-                      ? (lang === 'RU' ? 'Перерыв' : 'Break')
-                      : (lang === 'RU' ? 'Завершить' : 'Finish')}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <ShiftControls />
 
             <View className="border-t border-border-light" />
 

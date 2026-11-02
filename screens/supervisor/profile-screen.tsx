@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MessageSquare, Bell, Settings, BarChart3, Users, Layers, ChevronRight } from 'lucide-react-native';
+import { ShiftControls } from '@/components/shift-controls';
 import { useApp } from '@/context/app-store';
 import { useChat } from '@/context/chat-store';
 import { ReassignTasksModal } from '@/components/reassign-tasks-modal';
@@ -22,35 +23,13 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings, onOpenReports, onOpenStaff, onLoggedOut }: ProfileScreenProps) {
   const router = useRouter();
-  const { lang, cleanerProfile, notifications, rooms, staffList, updateCleanerProfile, logout } = useApp();
+  const { lang, cleanerProfile, notifications, rooms, staffList } = useApp();
   const [showReassign, setShowReassign] = useState(false);
 
-  const shiftStatus = cleanerProfile.currentShift.status;
   const verifiedCount = rooms.filter((r) => r.status === 'VERIFIED').length;
   const pendingReviewCount = rooms.filter((r) => r.status === 'READY').length;
   const onShiftCount = staffList.filter((s) => s.shiftStatus === 'ON_SHIFT').length;
 
-  const handleSetShiftStatus = (status: 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED') => {
-    if (status === 'SHIFT_ENDED') {
-      Alert.alert(
-        lang === 'RU' ? 'Завершить смену?' : 'Finish shift?',
-        lang === 'RU' ? 'Вы будете выведены из аккаунта.' : 'You will be signed out.',
-        [
-          { text: lang === 'RU' ? 'Отмена' : 'Cancel', style: 'cancel' },
-          {
-            text: lang === 'RU' ? 'Завершить' : 'Finish',
-            style: 'destructive',
-            onPress: () => {
-              logout();
-              onLoggedOut();
-            },
-          },
-        ]
-      );
-      return;
-    }
-    updateCleanerProfile({ ...cleanerProfile, currentShift: { ...cleanerProfile.currentShift, status } });
-  };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const { totalUnread: totalUnreadChats } = useChat();
@@ -111,25 +90,7 @@ export function ProfileScreen({ onOpenChats, onOpenNotifications, onOpenSettings
               </Text>
             </View>
 
-            <View className="flex-row gap-2">
-              {(['ON_SHIFT', 'ON_BREAK', 'SHIFT_ENDED'] as const).map((status) => (
-                <Pressable
-                  key={status}
-                  onPress={() => handleSetShiftStatus(status)}
-                  className={`flex-1 py-2 rounded-xl border items-center ${
-                    shiftStatus === status ? 'bg-dark border-dark' : 'bg-white border-border'
-                  }`}
-                >
-                  <Text className={`text-[13px] font-jost ${shiftStatus === status ? 'text-white' : 'text-text-secondary'}`}>
-                    {status === 'ON_SHIFT'
-                      ? (lang === 'RU' ? 'На смене' : 'On shift')
-                      : status === 'ON_BREAK'
-                      ? (lang === 'RU' ? 'Перерыв' : 'Break')
-                      : (lang === 'RU' ? 'Завершить' : 'Finish')}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <ShiftControls />
 
             <View className="border-t border-border-light" />
 

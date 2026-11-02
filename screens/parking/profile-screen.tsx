@@ -3,6 +3,7 @@ import { View, Text, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogOut, User } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { ShiftControls } from '@/components/shift-controls';
 
 interface ParkingProfileScreenProps {
   onLoggedOut: () => void;
@@ -54,6 +55,15 @@ export function ParkingProfileScreen({ onLoggedOut }: ParkingProfileScreenProps)
             <Text className="text-[13px] font-jost text-text-secondary mt-0.5">
               {lang === 'RU' ? 'Сотрудник парковки' : 'Parking attendant'} · #{cleanerProfile.badgeId}
             </Text>
+          </View>
+        </View>
+
+        <View className="gap-2">
+          <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
+            {lang === 'RU' ? 'ТЕКУЩАЯ СМЕНА' : 'CURRENT SHIFT'}
+          </Text>
+          <View className="bg-white rounded-[14px] border border-border p-4">
+            <ShiftControls />
           </View>
         </View>
 

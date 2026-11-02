@@ -62,6 +62,7 @@ import {
   uploadRoomPhoto,
   getMyAttendance,
   setAttendancePresence,
+  scanAttendanceQr,
   listOnShift,
   updateMe,
   changeMyPassword,
@@ -203,6 +204,9 @@ interface AppState {
   // True while an attendance shift opened at the front desk is still open — finishing it
   // needs the desk QR, so "Завершить" only signs out of the app in that case.
   hasOpenDeskShift: boolean;
+  // Opens or closes the attendance shift with the front-desk QR payload (see
+  // components/shift-qr-scanner.tsx). Resolves to the new state; throws with the API message.
+  scanShiftQr: (token: string, action: 'open' | 'close') => Promise<'opened' | 'closed'>;
 
   rooms: HotelRoom[];
   // Every room number in the hotel (GET /rooms), for pickers — `rooms` holds only the
@@ -580,6 +584,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [hasOpenDeskShift, setHasOpenDeskShift] = useState(false);
   const hasOpenDeskShiftRef = useRef(false);
+  // scanShiftQr is declared before refreshFromApi, so it reaches it through this ref.
+  const refreshFromApiRef = useRef<(() => Promise<void>) | null>(null);
   hasOpenDeskShiftRef.current = hasOpenDeskShift;
 
   const login = useCallback((profile: CleanerProfile, sessionUser?: ApiUser) => {
@@ -625,6 +631,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       throw error;
     }
+  }, []);
+
+  const scanShiftQr = useCallback(async (token: string, action: 'open' | 'close') => {
+    const result: any = await scanAttendanceQr(token, action);
+    const opened = String(result?.action ?? '').toLowerCase() === 'opened'
+      || String(result?.shiftStatus ?? '').toUpperCase() === 'ON_SHIFT'
+      || (!result?.action && !result?.shiftStatus && action === 'open');
+    setHasOpenDeskShift(opened);
+    setCleanerProfile((current) => ({
+      ...current,
+      currentShift: {
+        ...current.currentShift,
+        status: opened ? 'ON_SHIFT' : 'SHIFT_ENDED',
+        startTime: opened ? timeNow() : current.currentShift.startTime,
+      },
+    }));
+    // Pull the server's view of the shift (exact open time, status) and the work lists.
+    void refreshFromApiRef.current?.().catch(() => undefined);
+    return opened ? 'opened' as const : 'closed' as const;
   }, []);
 
   const saveMyProfile = useCallback(async (values: { fullName: string; email: string; phone: string }) => {
@@ -886,6 +911,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setLastSyncedAt(timeNow());
   }, [playTaskSound, role]);
+  useEffect(() => {
+    refreshFromApiRef.current = () => refreshFromApi();
+  }, [refreshFromApi]);
 
   const authenticate = useCallback(async (email: string, password: string, tenantSlug?: string) => {
     try {
@@ -1634,6 +1662,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     changePassword,
     setShiftStatus,
     hasOpenDeskShift,
+    scanShiftQr,
     rooms,
     hotelRoomNumbers,
     updateRoomStatus,

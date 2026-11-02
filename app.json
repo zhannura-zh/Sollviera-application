@@ -48,10 +48,17 @@
         "expo-image-picker",
         {
           "photosPermission": "Разрешите Sollviera выбирать фотографии для фотоотчётов по уборке.",
-          "cameraPermission": "Разрешите Sollviera использовать камеру для фотоотчётов по уборке."
+          "cameraPermission": "Разрешите Sollviera использовать камеру для фотоотчётов и сканирования QR-кода смены."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Разрешите Sollviera использовать камеру для фотоотчётов и сканирования QR-кода смены.",
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

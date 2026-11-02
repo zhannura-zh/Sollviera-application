@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MessageSquare, Bell, Settings, Coffee, Calendar, Users, X, ChevronRight, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { useShiftStatusHandler } from '@/hooks/use-shift-status';
+import { ShiftControls } from '@/components/shift-controls';
 import { useChat } from '@/context/chat-store';
 import { BANQUET_BOOKINGS, SHIFT_SCHEDULE } from './waiter-mock-data';
 
@@ -27,11 +27,9 @@ export function WaiterProfileScreen({ onOpenChats, onOpenNotifications, onOpenSe
   const [showSchedule, setShowSchedule] = useState(false);
   const [showBanquets, setShowBanquets] = useState(false);
 
-  const shiftStatus = cleanerProfile.currentShift.status;
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const { totalUnread: totalUnreadChats } = useChat();
 
-  const handleSetShiftStatus = useShiftStatusHandler(onLoggedOut);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-background">
@@ -89,25 +87,7 @@ export function WaiterProfileScreen({ onOpenChats, onOpenNotifications, onOpenSe
               </Text>
             </View>
 
-            <View className="flex-row gap-2">
-              {(['ON_SHIFT', 'ON_BREAK', 'SHIFT_ENDED'] as const).map((status) => (
-                <Pressable
-                  key={status}
-                  onPress={() => handleSetShiftStatus(status)}
-                  className={`flex-1 py-2 rounded-xl border items-center ${
-                    shiftStatus === status ? 'bg-dark border-dark' : 'bg-white border-border'
-                  }`}
-                >
-                  <Text className={`text-[13px] font-jost ${shiftStatus === status ? 'text-white' : 'text-text-secondary'}`}>
-                    {status === 'ON_SHIFT'
-                      ? (lang === 'RU' ? 'На смене' : 'On shift')
-                      : status === 'ON_BREAK'
-                      ? (lang === 'RU' ? 'Перерыв' : 'Break')
-                      : (lang === 'RU' ? 'Завершить' : 'Finish')}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            <ShiftControls />
 
             <View className="border-t border-border-light" />
 

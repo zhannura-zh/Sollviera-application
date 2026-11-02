@@ -284,11 +284,19 @@ export const markChatRead = (conversationId: string) =>
   request<Json>(`/chat/conversations/${encodeURIComponent(conversationId)}/read`, { method: 'POST' });
 
 // ── Shifts (attendance) ────────────────────────────────────────────────────────
-// A shift is opened/closed by scanning the rotating QR at the front desk (POST
-// /staff/attendance/scan) — not done in this app. Inside an open shift the employee can go
-// on break and come back (presence). Without an attendance shift, the coarse
-// staff.shiftStatus flag (PATCH /staff/me) is what the web PMS shows as "на смене/перерыв".
+// A shift is opened/closed by scanning the rotating QR on the front-desk screen (POST
+// /staff/attendance/scan). Inside an open shift the employee can go on break and come back
+// (presence). Without an attendance shift, the coarse staff.shiftStatus flag (PATCH
+// /staff/me) is what the web PMS shows as "на смене/перерыв".
 export type ShiftStatusValue = 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED';
+
+// Desk QR payloads start with this; personal login QRs start with LOGIN_QR_PREFIX.
+export const SHIFT_QR_PREFIX = 'RHPMS-ATT|';
+export const LOGIN_QR_PREFIX = 'RHPMS-LOGIN|';
+
+// Response (from the web PMS client): { action: 'opened' | 'closed', shiftStatus, … }.
+export const scanAttendanceQr = (token: string, action: 'open' | 'close' | 'toggle' = 'toggle') =>
+  request<Json>('/staff/attendance/scan', { method: 'POST', data: { token, action } });
 
 export const getMyAttendance = () => request<Json | null>('/staff/attendance/mine');
 
