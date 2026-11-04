@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Bell, Clock, Wrench, MessageSquare, Package, CheckCircle2 } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { AppNotification } from '@/types';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 type Filter = 'ALL' | 'TASK' | 'MAINTENANCE' | 'SHIFT';
 
@@ -17,6 +18,7 @@ function isMessageNotification(item: AppNotification) {
 
 export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
   const { lang, notifications, markNotificationAsRead, markAllNotificationsAsRead } = useApp();
+  const refreshControl = usePullRefresh();
   const [selectedFilter, setSelectedFilter] = useState<Filter>('ALL');
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -101,7 +103,7 @@ export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
         })}
       </ScrollView>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
         {filtered.length === 0 ? (
           <View className="items-center py-12 gap-1 bg-white rounded-[14px] border border-border">
             <Bell size={22} color="#8A8177" />

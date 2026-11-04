@@ -3,9 +3,11 @@ import { View, Text, TextInput, Pressable, ScrollView, Alert } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ParkingSquare, RefreshCw, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 export function ParkingYardScreen() {
   const { lang, parkingSpots, parkingSessions, refreshData, checkOutVehicle } = useApp();
+  const refreshControl = usePullRefresh();
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -58,7 +60,7 @@ export function ParkingYardScreen() {
         </Pressable>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingTop: 12, paddingBottom: 20, gap: 16 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingTop: 12, paddingBottom: 20, gap: 16 }}>
         <View className="relative">
           <View className="absolute left-3 top-0 bottom-0 justify-center z-10">
             <ParkingSquare size={14} color="#8A8177" />

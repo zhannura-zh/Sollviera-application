@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, MessageSquare, Share2 } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { staffRoleLabel } from '@/lib/staff-role';
 
 interface StaffWorkloadScreenProps {
   staffName: string | null;
@@ -53,7 +54,7 @@ export function StaffWorkloadScreen({ staffName, onBack, onMessage }: StaffWorkl
         <View className="gap-1">
           <Text className="text-2xl font-spectral text-text-primary">{staffName}</Text>
           <Text className="text-[13px] font-jost text-text-secondary">
-            {staff?.roleCode || (lang === 'RU' ? 'Клинер' : 'Cleaner')} ·{' '}
+            {staffRoleLabel(staff, lang)} ·{' '}
             <Text className={staff?.shiftStatus === 'ON_SHIFT' ? 'text-success-text' : 'text-text-secondary'}>
               {staff?.shiftStatus === 'ON_SHIFT' ? (lang === 'RU' ? 'на смене' : 'on shift') : (lang === 'RU' ? 'не на смене' : 'off shift')}
             </Text>

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Users, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { ReassignTasksModal } from '@/components/reassign-tasks-modal';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 interface TeamScreenProps {
   onOpenStaff: (name: string) => void;
@@ -17,6 +18,7 @@ function getInitials(name: string) {
 // operational at-a-glance view (name + shift status) instead of the HR-style directory.
 export function TeamScreen({ onOpenStaff }: TeamScreenProps) {
   const { lang, staffList, cleanerProfile } = useApp();
+  const refreshControl = usePullRefresh();
   const [searchQuery, setSearchQuery] = useState('');
   const [showReassign, setShowReassign] = useState(false);
 
@@ -52,7 +54,7 @@ export function TeamScreen({ onOpenStaff }: TeamScreenProps) {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
         {filtered.length === 0 ? (
           <View className="bg-white rounded-[14px] border border-border p-8 items-center gap-2">
             <Users size={28} color="#8A8177" />

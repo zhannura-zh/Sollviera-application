@@ -5,9 +5,11 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Plus } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { SelectField } from '@/components/ui/select-field';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 export function ParkingCheckinScreen() {
   const { lang, parkingSpots, parkingSessions, checkInVehicle } = useApp();
+  const refreshControl = usePullRefresh();
   const freeSpots = parkingSpots.filter((s) => !parkingSessions.some((session) => session.spotId === s.id));
 
   const [plate, setPlate] = useState('');
@@ -37,7 +39,7 @@ export function ParkingCheckinScreen() {
           <Text className="text-sm font-jost text-text-secondary mt-0.5">{lang === 'RU' ? 'Номер авто и место' : 'Plate and spot'}</Text>
         </View>
 
-        <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingTop: 12, paddingBottom: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
+        <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingTop: 12, paddingBottom: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
           <View className="gap-1.5">
             <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider px-1">{lang === 'RU' ? 'Госномер' : 'Plate'}</Text>
             <TextInput

@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search } from 'lucide-react-native';
 import { PartCategory, PartItem } from '@/types';
 import { useApp } from '@/context/app-store';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 type CategoryFilter = 'ALL' | PartCategory;
 const CATEGORIES: CategoryFilter[] = ['ALL', 'ELECTRICAL', 'PLUMBING', 'CONSUMABLES'];
 
 export function InventoryScreen() {
   const { lang, parts, partOrders, orderParts } = useApp();
+  const refreshControl = usePullRefresh();
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
@@ -95,7 +97,7 @@ export function InventoryScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ gap: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ gap: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         {parts.length === 0 ? (
           <View className="bg-white rounded-[14px] border border-border p-8 items-center gap-2">
             <Text className="text-sm font-jost text-text-secondary">

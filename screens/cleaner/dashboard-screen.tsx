@@ -9,6 +9,7 @@ import { RoomGuestBadges } from '@/components/room-guest-badges';
 import { RoomChecklistModal } from '@/components/room-checklist-modal';
 import { CheckoutReportModal } from '@/components/checkout-report-modal';
 import { SelectField } from '@/components/ui/select-field';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 interface DashboardScreenProps {
   onOpenRoom: (roomId: string) => void;
@@ -28,6 +29,7 @@ function elapsedMinutesSince(startTime?: string): number | null {
 
 export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
   const { lang, cleanerProfile, rooms, updateRoomStatus, updateRoomChecklist, supplies, submitMinibarCheckout } = useApp();
+  const refreshControl = usePullRefresh();
   const t = getTranslation(lang);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -327,7 +329,7 @@ export function DashboardScreen({ onOpenRoom }: DashboardScreenProps) {
       </View>
 
       {/* Room list */}
-      <ScrollView className="flex-1 px-3.5" contentContainerStyle={{ paddingVertical: 8, gap: 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-3.5" contentContainerStyle={{ paddingVertical: 8, gap: 16 }} keyboardShouldPersistTaps="handled">
         {filteredRooms.length === 0 ? (
           <View className="p-8 items-center gap-2">
             <CheckSquare size={40} color="#cbd5e1" />

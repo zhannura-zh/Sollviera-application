@@ -4,11 +4,11 @@ import { Wrench } from 'lucide-react-native';
 import { MaintenanceCategory } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { ReportShiftLine } from '@/components/report-shift-line';
 
 export function ReportsScreen() {
-  const { lang, cleanerProfile, maintenanceRequests } = useApp();
+  const { lang, maintenanceRequests } = useApp();
   const t = getTranslation(lang);
-  const shift = cleanerProfile.currentShift;
 
   const getCategoryLabel = (cat: MaintenanceCategory) => {
     switch (cat) {
@@ -24,6 +24,8 @@ export function ReportsScreen() {
   const resolved = maintenanceRequests
     .filter((r) => r.status === 'RESOLVED')
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const repairTimes = resolved.map((r) => r.repairMinutes).filter((m): m is number => m !== undefined);
+  const avgRepairMinutes = repairTimes.length > 0 ? Math.round(repairTimes.reduce((a, m) => a + m, 0) / repairTimes.length) : null;
   const guestDamageCost = maintenanceRequests.reduce((acc, r) => acc + (r.repairCost || 0), 0);
   const categoryCounts: Record<string, number> = {};
   maintenanceRequests.forEach((r) => {
@@ -33,9 +35,7 @@ export function ReportsScreen() {
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 20, gap: 20 }}>
-      <Text className="text-sm font-jost text-text-secondary">
-        {shift.shiftNumber} · {shift.date} · {lang === 'RU' ? 'с' : 'from'} {shift.startTime}
-      </Text>
+      <ReportShiftLine />
 
       <View className="gap-2">
         <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
@@ -50,7 +50,7 @@ export function ReportsScreen() {
           </View>
           <View className="flex-1 items-center gap-1 border-l border-border-light">
             <Text className="text-sm text-text-secondary">
-              <Text className="text-xl font-jost-semibold text-text-primary">{shift.avgTimePerRoom.replace(/[^0-9]/g, '') || '—'}</Text>{' '}
+              <Text className="text-xl font-jost-semibold text-text-primary">{avgRepairMinutes ?? '—'}</Text>{' '}
               {lang === 'RU' ? 'мин' : 'min'}
             </Text>
             <Text className="text-[12px] font-jost text-text-secondary">{lang === 'RU' ? 'на заявку' : 'per ticket'}</Text>

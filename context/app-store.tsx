@@ -32,6 +32,9 @@ import {
 import {
   ApiRequestError,
   ApiUser,
+  ApiSession,
+  qrLogin as apiQrLogin,
+  startSession,
   chargeMinibar,
   clearSession,
   createRecord,
@@ -102,7 +105,9 @@ function localDateIso(d = new Date()) {
 // shift itself ({ id, opened_at, shiftStatus }) or a wrapper ({ shift, shiftStatus }).
 function mapMyAttendance(raw: any): { status: ShiftStatusValue | null; openedAt: string | null; open: boolean } {
   if (!raw || typeof raw !== 'object') return { status: null, openedAt: null, open: false };
-  const shift = raw.shift && typeof raw.shift === 'object' ? raw.shift : raw.id ? raw : null;
+  // GET /staff/attendance/mine → { openShift: {…} | null, shiftStatus } (checked on stage).
+  const nested = raw.openShift ?? raw.shift;
+  const shift = nested && typeof nested === 'object' ? nested : raw.id ? raw : null;
   const s = String(raw.shiftStatus ?? raw.status ?? shift?.shiftStatus ?? '').toUpperCase();
   const status = s === 'ON_SHIFT' || s === 'ON_BREAK' || s === 'SHIFT_ENDED' ? (s as ShiftStatusValue) : null;
   const openedAt = isoToClock(shift?.opened_at ?? shift?.openedAt ?? shift?.start_time ?? shift?.startTime ?? shift?.created_at ?? shift?.createdAt);
@@ -172,6 +177,9 @@ export type StaffRole = 'CLEANER' | 'TECHNICIAN' | 'SUPERVISOR' | 'WAITER' | 'PA
 // role/roleCode the backend returns. Returns null when neither matches, so callers can
 // reject unsupported roles without guessing. Checked via roleCode primarily — the
 // backend's demo supervisor account carries role:"RECEPTION" but roleCode:"supervisor".
+// Message for accounts whose role has no screens in this app (e.g. a hotel admin).
+export const UNSUPPORTED_ROLE = 'This mobile app does not support this staff role yet.';
+
 function classifyRole(user: Pick<ApiUser, 'role' | 'roleCode'>): StaffRole | null {
   const role = `${user.role || ''} ${user.roleCode || ''}`.toLowerCase();
   if (role.includes('technician')) return 'TECHNICIAN';
@@ -191,6 +199,10 @@ interface AppState {
   role: StaffRole | null;
   login: (profile: CleanerProfile, sessionUser?: ApiUser) => void;
   authenticate: (email: string, password: string, tenantSlug?: string) => Promise<void>;
+  // Personal login QR: checks the code and returns the account (and its role in this app)
+  // without signing in; completeQrLogin signs in once the employee confirms it's them.
+  previewQrLogin: (token: string) => Promise<{ session: ApiSession; role: StaffRole }>;
+  completeQrLogin: (session: ApiSession) => Promise<void>;
   logout: () => void;
 
   cleanerProfile: CleanerProfile;
@@ -404,6 +416,12 @@ function mapSupply(item: any): SupplyItem {
   };
 }
 
+function repairMinutesOf(startIso: unknown, endIso: unknown): number | undefined {
+  if (typeof startIso !== 'string' || typeof endIso !== 'string') return undefined;
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  return Number.isFinite(ms) && ms >= 0 ? Math.round(ms / 60000) : undefined;
+}
+
 function mapMaintenance(item: any, roomFallback?: any): MaintenanceRequest {
   const category = String(item.category || 'OTHER').toUpperCase();
   const priority = String(item.priority || 'MEDIUM').toUpperCase();
@@ -433,6 +451,7 @@ function mapMaintenance(item: any, roomFallback?: any): MaintenanceRequest {
     floor: item.floor !== undefined ? Number(item.floor) : roomFallback?.floor !== undefined ? Number(roomFallback.floor) : undefined,
     roomCategory: item.room_category ? String(item.room_category) : roomFallback?.roomType?.name ? String(roomFallback.roomType.name) : undefined,
     startedAt: item.started_at ? new Date(item.started_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : undefined,
+    repairMinutes: repairMinutesOf(item.started_at, item.finished_at ?? item.completed_at),
     reportedBy: item.reported_by_name || item.created_by_name || item.author_name ? String(item.reported_by_name || item.created_by_name || item.author_name) : undefined,
     assignedToName: item.assigned_to_name || item.assignee_name || item.technician_name ? String(item.assigned_to_name || item.assignee_name || item.technician_name) : undefined,
   };
@@ -482,6 +501,7 @@ function mapStaff(item: any): StaffMember {
     department: item.department ? String(item.department) : undefined,
     roleCode: item.roleCode ? String(item.roleCode) : undefined,
     position: item.position ? String(item.position) : undefined,
+    role: item.role ? String(item.role) : undefined,
     phone: item.phone ? String(item.phone) : undefined,
     shiftStatus: item.shiftStatus ? String(item.shiftStatus) : undefined,
     isActive: Boolean(item.isActive),
@@ -591,7 +611,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback((profile: CleanerProfile, sessionUser?: ApiUser) => {
     // No backend concept of a housekeeper "shift clock-in" exists yet, so this session's
     // start is the closest honest proxy for "on shift since" — real time, not a mock value.
-    setCleanerProfile({ ...profile, currentShift: { ...profile.currentShift, startTime: timeNow() } });
+    // Counters start empty (not the demo profile's numbers) until the first sync fills them.
+    setCleanerProfile({
+      ...profile,
+      currentShift: { ...profile.currentShift, startTime: timeNow(), roomsCompleted: 0, roomsTotal: 0, avgTimePerRoom: '— min' },
+    });
     setIsLoggedIn(true);
     if (sessionUser) {
       setCleanerProfile((current) => ({
@@ -634,7 +658,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const scanShiftQr = useCallback(async (token: string, action: 'open' | 'close') => {
-    const result: any = await scanAttendanceQr(token, action);
+    const result: any = await scanAttendanceQr(token, action).catch((error: unknown) => {
+      // The shift was already closed on the server (e.g. from the desk) — closing is done.
+      if (action === 'close' && error instanceof Error && error.message === 'SHIFT_NOT_OPEN') {
+        return { action: 'closed', shiftStatus: 'SHIFT_ENDED' };
+      }
+      throw error;
+    });
     const opened = String(result?.action ?? '').toLowerCase() === 'opened'
       || String(result?.shiftStatus ?? '').toUpperCase() === 'ON_SHIFT'
       || (!result?.action && !result?.shiftStatus && action === 'open');
@@ -915,14 +945,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshFromApiRef.current = () => refreshFromApi();
   }, [refreshFromApi]);
 
-  const authenticate = useCallback(async (email: string, password: string, tenantSlug?: string) => {
+  // Signs in with a session whose token is already saved; undoes it all on failure.
+  const enterSession = useCallback(async (result: ApiSession) => {
     try {
-      const result = await apiLogin(email, password, tenantSlug);
       const resolvedRole = classifyRole(result.user);
-      if (!resolvedRole) {
-        clearSession();
-        throw new Error('This mobile app does not support this staff role yet.');
-      }
+      if (!resolvedRole) throw new Error(UNSUPPORTED_ROLE);
       setRole(resolvedRole);
       login(initialProfile.current, result.user);
       await refreshFromApi(resolvedRole);
@@ -933,6 +960,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
   }, [login, refreshFromApi]);
+
+  const authenticate = useCallback(async (email: string, password: string, tenantSlug?: string) => {
+    await enterSession(await apiLogin(email, password, tenantSlug));
+  }, [enterSession]);
+
+  const previewQrLogin = useCallback(async (token: string) => {
+    const session = await apiQrLogin(token);
+    const resolvedRole = classifyRole(session.user);
+    if (!resolvedRole) throw new Error(UNSUPPORTED_ROLE);
+    return { session, role: resolvedRole };
+  }, []);
+
+  const completeQrLogin = useCallback(async (session: ApiSession) => {
+    startSession(session);
+    await enterSession(session);
+  }, [enterSession]);
 
   useEffect(() => {
     let active = true;
@@ -982,22 +1025,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => { active = false; };
   }, [login, refreshFromApi]);
 
-  // Changes made elsewhere (the web PMS, a supervisor's phone) show up without a manual
-  // refresh: re-sync every 30 s while the app is open, and right away when it comes back
-  // to the foreground. There is no push/realtime channel on the API.
+  // Changes made elsewhere (the web PMS, a supervisor's phone) are picked up when the app
+  // comes back to the foreground; otherwise screens re-sync on pull-to-refresh.
+  // There is no push/realtime channel on the API.
   useEffect(() => {
     if (!isLoggedIn || !role) return;
-    const sync = () => {
-      if (RNAppState.currentState === 'active' && getStoredSession()) void refreshFromApi().catch(() => undefined);
-    };
-    const interval = setInterval(sync, 30_000);
     const subscription = RNAppState.addEventListener('change', (state) => {
-      if (state === 'active') sync();
+      if (state === 'active' && getStoredSession()) void refreshFromApi().catch(() => undefined);
     });
-    return () => {
-      clearInterval(interval);
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, [isLoggedIn, role, refreshFromApi]);
 
   const addSystemNotification = useCallback((msgEn: string, msgRu: string, cat: AppNotification['category']) => {
@@ -1655,6 +1691,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     role,
     login,
     authenticate,
+    previewQrLogin,
+    completeQrLogin,
     logout,
     cleanerProfile,
     updateCleanerProfile: setCleanerProfile,

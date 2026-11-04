@@ -155,6 +155,8 @@ export interface StaffMember {
   department?: string;
   roleCode?: string;
   position?: string;
+  // System role of the account (HOTEL_ADMIN, RECEPTION…); see lib/staff-role.ts.
+  role?: string;
   phone?: string;
   shiftStatus?: string;
   isActive: boolean;
@@ -196,6 +198,8 @@ export interface MaintenanceRequest {
   floor?: number;
   roomCategory?: string;
   startedAt?: string;
+  // started_at → finished_at of a completed repair, for reports.
+  repairMinutes?: number;
   reportedBy?: string;
   assignedToName?: string;
 }

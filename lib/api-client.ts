@@ -16,6 +16,7 @@ export interface ApiUser {
   role?: string;
   roleCode?: string;
   department?: string;
+  badgeNumber?: string;
   tenantSlug?: string;
   tenantId?: string;
   isActive?: boolean;
@@ -293,6 +294,46 @@ export type ShiftStatusValue = 'ON_SHIFT' | 'ON_BREAK' | 'SHIFT_ENDED';
 // Desk QR payloads start with this; personal login QRs start with LOGIN_QR_PREFIX.
 export const SHIFT_QR_PREFIX = 'RHPMS-ATT|';
 export const LOGIN_QR_PREFIX = 'RHPMS-LOGIN|';
+
+// A scanned QR is either the bare payload or a link carrying it in a query parameter.
+// Returns the payload when it has the given prefix.
+export function qrPayloadFrom(raw: string, prefix: string): string | null {
+  const value = raw.trim();
+  if (value.startsWith(prefix)) return value;
+  try {
+    return Array.from(new URL(value).searchParams.values()).map((v) => v.trim()).find((v) => v.startsWith(prefix)) ?? null;
+  } catch {
+    return null; // Not a URL.
+  }
+}
+
+// Personal login QR (issued in the PMS: Settings → Staff), RHPMS-LOGIN|1.<tenant>.… — the
+// code itself names the hotel. Unlike login() this doesn't save the session: the app first
+// shows whose account it is, and startSession() runs once the employee confirms.
+export async function qrLogin(token: string): Promise<ApiSession> {
+  const qrTenant = token.slice(LOGIN_QR_PREFIX.length).split('.')[1];
+  const body = await request<ApiSession>('/auth/qr-login', {
+    method: 'POST',
+    headers: qrTenant ? { 'X-Tenant-Slug': qrTenant } : {},
+    data: { token },
+  });
+  // The login response has no name; /staff/me does (but its tenantSlug is null, so only
+  // the profile fields are taken from it).
+  const me = await request<ApiUser>('/staff/me', {
+    headers: { Authorization: `Bearer ${body.accessToken}`, 'X-Tenant-Slug': body.user.tenantSlug || qrTenant || DEFAULT_TENANT_SLUG },
+  }).catch(() => null);
+  return {
+    ...body,
+    user: {
+      ...body.user,
+      fullName: me?.fullName || body.user.fullName,
+      department: me?.department || body.user.department,
+      badgeNumber: me?.badgeNumber || body.user.badgeNumber,
+    },
+  };
+}
+
+export const startSession = (value: ApiSession) => saveSession(value);
 
 // Response (from the web PMS client): { action: 'opened' | 'closed', shiftStatus, … }.
 export const scanAttendanceQr = (token: string, action: 'open' | 'close' | 'toggle' = 'toggle') =>

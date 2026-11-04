@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router';
 import { Search, Users, X, ChevronRight, ChevronLeft, UserPlus } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { staffRoleLabel } from '@/lib/staff-role';
 
 interface StaffDirectoryScreenProps {
   onBack: () => void;
@@ -166,7 +167,7 @@ export function StaffDirectoryScreen({ onBack }: StaffDirectoryScreenProps) {
                   <View className="flex-1">
                     <Text className="text-sm font-jost-semibold text-text-primary">{s.fullName}</Text>
                     <Text className="text-[12px] font-jost text-text-secondary mt-0.5">
-                      {s.roleCode || '—'}{s.department ? ` · ${s.department}` : ''}
+                      {staffRoleLabel(s, lang)}{s.department ? ` · ${s.department}` : ''}
                     </Text>
                   </View>
                   {s.shiftStatus === 'ON_SHIFT' && (

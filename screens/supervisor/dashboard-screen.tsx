@@ -6,6 +6,7 @@ import { HotelRoom, RoomStatus } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
 import { SelectField } from '@/components/ui/select-field';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 interface DashboardScreenProps {
   onOpenRoom: (roomId: string) => void;
@@ -44,6 +45,7 @@ function rightText(room: HotelRoom, lang: 'RU' | 'EN') {
 
 export function SupervisorDashboardScreen({ onOpenRoom }: DashboardScreenProps) {
   const { lang, rooms } = useApp();
+  const refreshControl = usePullRefresh();
   const t = getTranslation(lang);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | 'ALL'>('ALL');
@@ -123,7 +125,7 @@ export function SupervisorDashboardScreen({ onOpenRoom }: DashboardScreenProps) 
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-3.5" contentContainerStyle={{ paddingVertical: 8 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-3.5" contentContainerStyle={{ paddingVertical: 8 }}>
         {filteredRooms.length === 0 ? (
           <View className="p-8 items-center gap-2">
             <LayoutDashboard size={40} color="#cbd5e1" />

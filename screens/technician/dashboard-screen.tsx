@@ -5,6 +5,7 @@ import { Search, ChevronRight, Wrench } from 'lucide-react-native';
 import { MaintenanceCategory, MaintenanceRequest } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 type Filter = 'WITH_ISSUES' | 'BLOCKED' | 'ALL';
 
@@ -31,6 +32,7 @@ function relativeDay(timestamp: string) {
 
 export function DashboardScreen({ onOpenTicket }: DashboardScreenProps) {
   const { lang, maintenanceRequests } = useApp();
+  const refreshControl = usePullRefresh();
   const t = getTranslation(lang);
   const [filter, setFilter] = useState<Filter>('WITH_ISSUES');
   const [searchQuery, setSearchQuery] = useState('');
@@ -152,7 +154,7 @@ export function DashboardScreen({ onOpenTicket }: DashboardScreenProps) {
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
         <View className="gap-2">
           <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
             {lang === 'RU' ? 'НОМЕРА' : 'ROOMS'}

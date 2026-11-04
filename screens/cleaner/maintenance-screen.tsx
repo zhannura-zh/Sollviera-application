@@ -8,9 +8,11 @@ import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
 import { photoSource } from '@/lib/api-client';
 import { MaintenanceRequestForm } from '@/components/maintenance-request-form';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 export function MaintenanceScreen({ roomNumber }: { roomNumber?: string } = {}) {
   const { lang, maintenanceRequests, addMaintenanceRequest, activeRoom } = useApp();
+  const refreshControl = usePullRefresh();
   const t = getTranslation(lang);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -42,7 +44,7 @@ export function MaintenanceScreen({ roomNumber }: { roomNumber?: string } = {}) 
       </View>
 
       <KeyboardAvoidingView className="flex-1" behavior="padding">
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
         {showSuccess && (
           <View className="bg-[#FFFDF5] rounded-xl border border-warning/40 p-3.5 flex-row items-center gap-2.5">
             <CheckCircle size={18} color="#5B8C6E" />

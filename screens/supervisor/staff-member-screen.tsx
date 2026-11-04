@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Switch, Alert, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, UserX, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, ShieldCheck, UserX, X } from 'lucide-react-native';
 import { StaffMember, StaffAppAccess } from '@/types';
+import { isHotelAdmin, staffRoleLabel } from '@/lib/staff-role';
 import { useApp } from '@/context/app-store';
 
 interface StaffMemberScreenProps {
@@ -19,11 +20,14 @@ const PERMISSIONS_BY_TIER: Record<RoleTier, StaffAppAccess> = {
   SUPERVISOR: { ownRooms: true, allRooms: true, inspection: true, maintenanceRequests: true, staffManagement: true, appSettings: true },
 };
 
-function roleTierOf(value: string | undefined): RoleTier {
-  const code = (value || '').toLowerCase();
+// Housekeeping tier of the employee, or null for anyone else (admin, reception, technician…)
+// so their role isn't shown — or saved — as "Клинер".
+function roleTierOf(staff: StaffMember | null | undefined): RoleTier | null {
+  const code = `${staff?.position || ''} ${staff?.roleCode || ''}`.toLowerCase();
   if (code.includes('senior')) return 'SENIOR_CLEANER';
   if (code.includes('supervisor')) return 'SUPERVISOR';
-  return 'CLEANER';
+  if (code.includes('cleaner') || code.includes('housekeep')) return 'CLEANER';
+  return null;
 }
 
 function roleTierLabel(tier: RoleTier, lang: 'RU' | 'EN') {
@@ -71,10 +75,13 @@ function PermissionRow({ title, subtitle, value, onChange, isFirst }: { title: s
 export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScreenProps) {
   const { lang, updateStaffMember } = useApp();
   const insets = useSafeAreaInsets();
-  const [roleTier, setRoleTier] = useState<RoleTier>(() => roleTierOf(staff?.position || staff?.roleCode));
+  const [roleTier, setRoleTier] = useState<RoleTier | null>(() => roleTierOf(staff));
   const [permissions, setPermissions] = useState<StaffAppAccess>(
-    () => staff?.appAccess || PERMISSIONS_BY_TIER[roleTierOf(staff?.position || staff?.roleCode)]
+    () => staff?.appAccess || PERMISSIONS_BY_TIER[roleTierOf(staff) ?? 'SUPERVISOR']
   );
+  // Without a known tier or saved access the switches only show a guess; don't save it
+  // unless the supervisor actually changed something.
+  const [permissionsTouched, setPermissionsTouched] = useState(false);
   const [zone, setZone] = useState(staff?.zone || staff?.department || '');
   const [zoneDraft, setZoneDraft] = useState(zone);
   const [showZoneModal, setShowZoneModal] = useState(false);
@@ -94,18 +101,24 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
   const scheduleOptions = ['2 через 2', '5/2', lang === 'RU' ? 'Гибкий' : 'Flexible'];
   const cycleSchedule = () => setSchedule((s) => scheduleOptions[(scheduleOptions.indexOf(s) + 1) % scheduleOptions.length] || scheduleOptions[0]);
 
+  const updatePermissions = (update: (p: StaffAppAccess) => StaffAppAccess) => {
+    setPermissions(update);
+    setPermissionsTouched(true);
+  };
+
   const selectRoleTier = (tier: RoleTier) => {
     setRoleTier(tier);
     setPermissions(PERMISSIONS_BY_TIER[tier]);
+    setPermissionsTouched(true);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await updateStaffMember(staff.id, {
-        position: roleTier,
+        position: roleTier ?? undefined,
         zone: zone || undefined,
-        appAccess: permissions,
+        appAccess: staff.appAccess || roleTier || permissionsTouched ? permissions : undefined,
         schedule,
         normMinutes,
       });
@@ -145,6 +158,8 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
       ]
     );
 
+  const readOnly = isHotelAdmin(staff);
+
   const openZoneModal = () => {
     setZoneDraft(zone);
     setShowZoneModal(true);
@@ -165,125 +180,146 @@ export function StaffMemberScreen({ staff, onBack, onMessage }: StaffMemberScree
         <View className="gap-0.5">
           <Text className="text-2xl font-spectral text-text-primary">{staff.fullName}</Text>
           <Text className="text-sm font-jost text-text-secondary">
-            {staff.badgeNumber || staff.id} · {staff.shiftStatus === 'ON_SHIFT' ? (lang === 'RU' ? 'на смене' : 'on shift') : (lang === 'RU' ? 'не на смене' : 'off shift')}
+            {staffRoleLabel(staff, lang)} · {staff.badgeNumber || staff.id} · {staff.shiftStatus === 'ON_SHIFT' ? (lang === 'RU' ? 'на смене' : 'on shift') : (lang === 'RU' ? 'не на смене' : 'off shift')}
           </Text>
         </View>
       </View>
 
       <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
+        {readOnly && (
+          <View className="bg-primary-light/40 border border-border rounded-[14px] p-4 flex-row items-start gap-2.5">
+            <ShieldCheck size={16} color="#8A8177" />
+            <Text className="flex-1 text-xs font-jost text-text-secondary leading-relaxed">
+              {lang === 'RU'
+                ? 'Это администратор отеля. Его данные и доступы меняются только в PMS.'
+                : 'This is a hotel administrator. Their details and access are managed in the PMS only.'}
+            </Text>
+          </View>
+        )}
+
         <View className="gap-2">
           <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
             {lang === 'RU' ? 'ДОЛЖНОСТЬ' : 'ROLE'}
           </Text>
           <View className="bg-white rounded-[14px] border border-border overflow-hidden">
-            <View className="flex-row gap-2 p-3.5">
-              {(['CLEANER', 'SENIOR_CLEANER', 'SUPERVISOR'] as const).map((tier) => {
-                const isSelected = roleTier === tier;
-                return (
-                  <Pressable
-                    key={tier}
-                    onPress={() => selectRoleTier(tier)}
-                    className={`flex-1 py-2 rounded-xl border items-center ${isSelected ? 'bg-dark border-dark' : 'bg-white border-border'}`}
-                  >
-                    <Text className={`text-[12px] font-jost ${isSelected ? 'text-white' : 'text-text-secondary'}`}>{roleTierLabel(tier, lang)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <InfoRow label={lang === 'RU' ? 'Зона ответственности' : 'Responsibility zone'} value={zone || '—'} onPress={openZoneModal} />
+            {readOnly ? (
+              <InfoRow label={lang === 'RU' ? 'Должность' : 'Role'} value={staffRoleLabel(staff, lang)} />
+            ) : (
+              <View className="flex-row gap-2 p-3.5">
+                {(['CLEANER', 'SENIOR_CLEANER', 'SUPERVISOR'] as const).map((tier) => {
+                  const isSelected = roleTier === tier;
+                  return (
+                    <Pressable
+                      key={tier}
+                      onPress={() => selectRoleTier(tier)}
+                      className={`flex-1 py-2 rounded-xl border items-center ${isSelected ? 'bg-dark border-dark' : 'bg-white border-border'}`}
+                    >
+                      <Text className={`text-[12px] font-jost ${isSelected ? 'text-white' : 'text-text-secondary'}`}>{roleTierLabel(tier, lang)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            <InfoRow label={lang === 'RU' ? 'Зона ответственности' : 'Responsibility zone'} value={zone || '—'} onPress={readOnly ? undefined : openZoneModal} />
             <InfoRow label={lang === 'RU' ? 'Телефон' : 'Phone'} value={staff.phone || '—'} />
             <InfoRow label={lang === 'RU' ? 'Табельный номер' : 'Badge ID'} value={staff.badgeNumber || staff.id} />
           </View>
         </View>
 
-        <View className="gap-2">
-          <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
-            {lang === 'RU' ? 'ДОСТУП В ПРИЛОЖЕНИИ' : 'APP ACCESS'}
-          </Text>
-          <View className="bg-white rounded-[14px] border border-border overflow-hidden">
-            <PermissionRow
-              isFirst
-              title={lang === 'RU' ? 'Свои номера' : 'Own rooms'}
-              subtitle={lang === 'RU' ? 'список задач и чек-листы' : 'task list and checklists'}
-              value={permissions.ownRooms}
-              onChange={(v) => setPermissions((p) => ({ ...p, ownRooms: v }))}
-            />
-            <PermissionRow
-              title={lang === 'RU' ? 'Все номера отеля' : 'All hotel rooms'}
-              subtitle={lang === 'RU' ? 'мониторинг чужих задач' : 'monitor other staff tasks'}
-              value={permissions.allRooms}
-              onChange={(v) => setPermissions((p) => ({ ...p, allRooms: v }))}
-            />
-            <PermissionRow
-              title={lang === 'RU' ? 'Инспекция и приёмка' : 'Inspection and acceptance'}
-              subtitle={lang === 'RU' ? 'принимать и отклонять номера' : 'accept and reject rooms'}
-              value={permissions.inspection}
-              onChange={(v) => setPermissions((p) => ({ ...p, inspection: v }))}
-            />
-            <PermissionRow
-              title={lang === 'RU' ? 'Заявки в техслужбу' : 'Maintenance tickets'}
-              value={permissions.maintenanceRequests}
-              onChange={(v) => setPermissions((p) => ({ ...p, maintenanceRequests: v }))}
-            />
-            <PermissionRow
-              title={lang === 'RU' ? 'Управление персоналом' : 'Staff management'}
-              value={permissions.staffManagement}
-              onChange={(v) => setPermissions((p) => ({ ...p, staffManagement: v }))}
-            />
-            <PermissionRow
-              title={lang === 'RU' ? 'Настройки приложения' : 'App settings'}
-              value={permissions.appSettings}
-              onChange={(v) => setPermissions((p) => ({ ...p, appSettings: v }))}
-            />
-          </View>
-        </View>
-
-        <View className="gap-2">
-          <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
-            {lang === 'RU' ? 'СМЕНЫ' : 'SHIFTS'}
-          </Text>
-          <View className="bg-white rounded-[14px] border border-border overflow-hidden">
-            <InfoRow label={lang === 'RU' ? 'График' : 'Schedule'} value={schedule} onPress={cycleSchedule} />
-            <View className="p-3.5 flex-row items-center justify-between border-t border-border-light">
-              <Text className="text-sm font-jost text-text-secondary">{lang === 'RU' ? 'Норматив на номер' : 'Norm per room'}</Text>
-              <View className="flex-row items-center gap-3">
-                <Pressable
-                  onPress={() => setNormMinutes((m) => Math.max(5, m - 1))}
-                  className="h-7 w-7 rounded-lg border border-border items-center justify-center active:bg-background"
-                >
-                  <Text className="text-text-primary font-jost-semibold">-</Text>
-                </Pressable>
-                <Text className="text-sm font-jost-semibold text-text-primary w-14 text-center">{normMinutes} {lang === 'RU' ? 'мин' : 'min'}</Text>
-                <Pressable
-                  onPress={() => setNormMinutes((m) => Math.min(90, m + 1))}
-                  className="h-7 w-7 rounded-lg border border-border items-center justify-center active:bg-background"
-                >
-                  <Text className="text-text-primary font-jost-semibold">+</Text>
-                </Pressable>
+        {!readOnly && (
+          <>
+            <View className="gap-2">
+              <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
+                {lang === 'RU' ? 'ДОСТУП В ПРИЛОЖЕНИИ' : 'APP ACCESS'}
+              </Text>
+              <View className="bg-white rounded-[14px] border border-border overflow-hidden">
+                <PermissionRow
+                  isFirst
+                  title={lang === 'RU' ? 'Свои номера' : 'Own rooms'}
+                  subtitle={lang === 'RU' ? 'список задач и чек-листы' : 'task list and checklists'}
+                  value={permissions.ownRooms}
+                  onChange={(v) => updatePermissions((p) => ({ ...p, ownRooms: v }))}
+                />
+                <PermissionRow
+                  title={lang === 'RU' ? 'Все номера отеля' : 'All hotel rooms'}
+                  subtitle={lang === 'RU' ? 'мониторинг чужих задач' : 'monitor other staff tasks'}
+                  value={permissions.allRooms}
+                  onChange={(v) => updatePermissions((p) => ({ ...p, allRooms: v }))}
+                />
+                <PermissionRow
+                  title={lang === 'RU' ? 'Инспекция и приёмка' : 'Inspection and acceptance'}
+                  subtitle={lang === 'RU' ? 'принимать и отклонять номера' : 'accept and reject rooms'}
+                  value={permissions.inspection}
+                  onChange={(v) => updatePermissions((p) => ({ ...p, inspection: v }))}
+                />
+                <PermissionRow
+                  title={lang === 'RU' ? 'Заявки в техслужбу' : 'Maintenance tickets'}
+                  value={permissions.maintenanceRequests}
+                  onChange={(v) => updatePermissions((p) => ({ ...p, maintenanceRequests: v }))}
+                />
+                <PermissionRow
+                  title={lang === 'RU' ? 'Управление персоналом' : 'Staff management'}
+                  value={permissions.staffManagement}
+                  onChange={(v) => updatePermissions((p) => ({ ...p, staffManagement: v }))}
+                />
+                <PermissionRow
+                  title={lang === 'RU' ? 'Настройки приложения' : 'App settings'}
+                  value={permissions.appSettings}
+                  onChange={(v) => updatePermissions((p) => ({ ...p, appSettings: v }))}
+                />
               </View>
             </View>
-          </View>
-        </View>
 
-        <Pressable
-          onPress={confirmDismiss}
-          disabled={isDismissing}
-          className="bg-white rounded-[14px] border border-border p-3.5 flex-row items-center gap-2.5 active:bg-background"
-        >
-          {isDismissing ? <ActivityIndicator color="#B3261E" /> : <UserX size={16} color="#B3261E" />}
-          <Text className="text-sm font-jost-semibold text-error">{lang === 'RU' ? 'Уволить сотрудника' : 'Dismiss staff member'}</Text>
-        </Pressable>
+            <View className="gap-2">
+              <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
+                {lang === 'RU' ? 'СМЕНЫ' : 'SHIFTS'}
+              </Text>
+              <View className="bg-white rounded-[14px] border border-border overflow-hidden">
+                <InfoRow label={lang === 'RU' ? 'График' : 'Schedule'} value={schedule} onPress={cycleSchedule} />
+                <View className="p-3.5 flex-row items-center justify-between border-t border-border-light">
+                  <Text className="text-sm font-jost text-text-secondary">{lang === 'RU' ? 'Норматив на номер' : 'Norm per room'}</Text>
+                  <View className="flex-row items-center gap-3">
+                    <Pressable
+                      onPress={() => setNormMinutes((m) => Math.max(5, m - 1))}
+                      className="h-7 w-7 rounded-lg border border-border items-center justify-center active:bg-background"
+                    >
+                      <Text className="text-text-primary font-jost-semibold">-</Text>
+                    </Pressable>
+                    <Text className="text-sm font-jost-semibold text-text-primary w-14 text-center">{normMinutes} {lang === 'RU' ? 'мин' : 'min'}</Text>
+                    <Pressable
+                      onPress={() => setNormMinutes((m) => Math.min(90, m + 1))}
+                      className="h-7 w-7 rounded-lg border border-border items-center justify-center active:bg-background"
+                    >
+                      <Text className="text-text-primary font-jost-semibold">+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={confirmDismiss}
+              disabled={isDismissing}
+              className="bg-white rounded-[14px] border border-border p-3.5 flex-row items-center gap-2.5 active:bg-background"
+            >
+              {isDismissing ? <ActivityIndicator color="#B3261E" /> : <UserX size={16} color="#B3261E" />}
+              <Text className="text-sm font-jost-semibold text-error">{lang === 'RU' ? 'Уволить сотрудника' : 'Dismiss staff member'}</Text>
+            </Pressable>
+          </>
+        )}
       </ScrollView>
 
       <View className="p-5 border-t border-border-light bg-background flex-row gap-2.5" style={{ paddingBottom: insets.bottom + 20 }}>
         <Pressable onPress={onMessage} className="flex-1 py-3.5 rounded-xl border border-border bg-white items-center">
           <Text className="text-sm font-jost-semibold text-text-primary">{lang === 'RU' ? 'Написать' : 'Message'}</Text>
         </Pressable>
-        <Pressable onPress={handleSave} disabled={isSaving} className="flex-1 py-3.5 rounded-xl bg-primary items-center active:bg-primary-hover">
-          {isSaving ? <ActivityIndicator color="#fff" /> : (
-            <Text className="text-sm font-jost-semibold text-white">{lang === 'RU' ? 'Сохранить' : 'Save'}</Text>
-          )}
-        </Pressable>
+        {!readOnly && (
+          <Pressable onPress={handleSave} disabled={isSaving} className="flex-1 py-3.5 rounded-xl bg-primary items-center active:bg-primary-hover">
+            {isSaving ? <ActivityIndicator color="#fff" /> : (
+              <Text className="text-sm font-jost-semibold text-white">{lang === 'RU' ? 'Сохранить' : 'Save'}</Text>
+            )}
+          </Pressable>
+        )}
       </View>
 
       <Modal visible={showZoneModal} transparent animationType="fade" onRequestClose={() => setShowZoneModal(false)}>

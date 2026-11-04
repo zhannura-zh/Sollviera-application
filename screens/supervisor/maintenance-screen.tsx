@@ -5,6 +5,7 @@ import { Search, Wrench, ChevronRight } from 'lucide-react-native';
 import { MaintenanceCategory } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 interface SupervisorMaintenanceScreenProps {
   onOpenTicket: (id: string) => void;
@@ -16,6 +17,7 @@ type Filter = 'ALL' | 'ACTIVE' | 'RESOLVED';
 
 export function SupervisorMaintenanceScreen({ onOpenTicket }: SupervisorMaintenanceScreenProps) {
   const { lang, maintenanceRequests } = useApp();
+  const refreshControl = usePullRefresh();
   const t = getTranslation(lang);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
@@ -95,7 +97,7 @@ export function SupervisorMaintenanceScreen({ onOpenTicket }: SupervisorMaintena
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20 }}>
         {filtered.length === 0 ? (
           <View className="bg-white rounded-[14px] border border-border p-8 items-center gap-2">
             <Wrench size={28} color="#8A8177" />

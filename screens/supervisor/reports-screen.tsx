@@ -5,6 +5,7 @@ import { BarChart3, ChevronRight } from 'lucide-react-native';
 import { MaintenanceCategory } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { ReportShiftLine } from '@/components/report-shift-line';
 
 const NORM_MINUTES = 25;
 
@@ -29,7 +30,7 @@ function getInitials(name: string) {
 type ShiftEvent = { id: string; kind: 'rejected' | 'overdue' | 'blocked'; roomNumber: string; title: string; subtitle: string; timestamp: string };
 
 export function ReportsScreen() {
-  const { lang, rooms, staffList, cleanerProfile, rejectedInspections, maintenanceRequests } = useApp();
+  const { lang, rooms, staffList, rejectedInspections, maintenanceRequests } = useApp();
   const t = getTranslation(lang);
   const router = useRouter();
 
@@ -44,7 +45,8 @@ export function ReportsScreen() {
     }
   };
 
-  const shift = cleanerProfile.currentShift;
+  // Hotel-wide numbers for today's housekeeping (the supervisor's own profile has none).
+  const submittedCount = rooms.filter((r) => r.status === 'READY' || r.status === 'VERIFIED').length;
   const verifiedCount = rooms.filter((r) => r.status === 'VERIFIED').length;
   const acceptedFirstTry = verifiedCount + rejectedInspections.length > 0
     ? Math.round((verifiedCount / (verifiedCount + rejectedInspections.length)) * 100)
@@ -53,6 +55,9 @@ export function ReportsScreen() {
   const roomDurations = rooms
     .filter((r) => (r.status === 'READY' || r.status === 'VERIFIED') && r.startTime && r.endTime)
     .map((r) => ({ room: r.roomNumber, minutes: minutesBetweenClock(r.startTime as string, r.endTime as string) }));
+  const avgRoomMinutes = roomDurations.length > 0
+    ? Math.round(roomDurations.reduce((acc, d) => acc + d.minutes, 0) / roomDurations.length)
+    : null;
   const maxDurationMinutes = Math.max(NORM_MINUTES + 10, ...roomDurations.map((d) => d.minutes));
 
   const byStaff: Record<string, { total: number; verified: number; minutesSum: number; minutesCount: number; deviations: number }> = {};
@@ -117,9 +122,7 @@ export function ReportsScreen() {
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerStyle={{ padding: 20, gap: 20 }}>
-      <Text className="text-sm font-jost text-text-secondary">
-        {shift.shiftNumber} · {shift.date} · {lang === 'RU' ? 'с' : 'from'} {shift.startTime}
-      </Text>
+      <ReportShiftLine />
 
       <View className="gap-2">
         <Text className="text-[12px] text-text-secondary font-jost tracking-widest uppercase px-1">
@@ -128,13 +131,13 @@ export function ReportsScreen() {
         <View className="bg-white rounded-[14px] border border-border p-4 flex-row">
           <View className="flex-1 items-center gap-1">
             <Text className="text-sm text-text-secondary">
-              <Text className="text-xl font-jost-semibold text-text-primary">{shift.roomsCompleted}</Text> / {shift.roomsTotal}
+              <Text className="text-xl font-jost-semibold text-text-primary">{submittedCount}</Text> / {rooms.length}
             </Text>
             <Text className="text-[12px] font-jost text-text-secondary">{lang === 'RU' ? 'сдано' : 'submitted'}</Text>
           </View>
           <View className="flex-1 items-center gap-1 border-l border-border-light">
             <Text className="text-sm text-text-secondary">
-              <Text className="text-xl font-jost-semibold text-text-primary">{shift.avgTimePerRoom.replace(/[^0-9]/g, '') || '—'}</Text>{' '}
+              <Text className="text-xl font-jost-semibold text-text-primary">{avgRoomMinutes ?? '—'}</Text>{' '}
               {lang === 'RU' ? 'мин' : 'min'}
             </Text>
             <Text className="text-[12px] font-jost text-text-secondary">{lang === 'RU' ? 'в среднем' : 'average'}</Text>

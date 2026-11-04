@@ -4,11 +4,14 @@ import { X } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { SelectField } from '@/components/ui/select-field';
 import type { StaffMember } from '@/types';
+import { isHotelAdmin } from '@/lib/staff-role';
 
 // Rooms only go between cleaners: by role code (housekeeper/cleaner), or position text.
+// Only cleaners take rooms — never an admin, reception, supervisor or technician, even
+// when the hotel has no cleaners at all (then the lists are empty and say so).
 function isCleaner(s: StaffMember) {
-  const role = (s.roleCode || '').toLowerCase();
-  if (role.includes('supervisor') || role.includes('technician')) return false;
+  const role = `${s.roleCode || ''} ${s.role || ''}`.toLowerCase();
+  if (isHotelAdmin(s) || /supervisor|technician|reception/.test(role)) return false;
   return /clean|housekeep|клинер|горничн/i.test(`${role} ${s.position || ''}`);
 }
 
@@ -33,8 +36,7 @@ export function ReassignTasksModal({ visible, onClose }: ReassignTasksModalProps
     }
   }, [visible]);
 
-  // If no roles match at all (role codes missing), show everyone rather than an empty list.
-  const cleaners = staffList.some(isCleaner) ? staffList.filter(isCleaner) : staffList;
+  const cleaners = staffList.filter(isCleaner);
   const fromStaff = cleaners.find((s) => s.id === fromId) || null;
   const toStaff = cleaners.find((s) => s.id === toId) || null;
   const pendingCount = fromStaff ? rooms.filter((r) => r.assignedTo === fromStaff.fullName && r.status !== 'VERIFIED').length : 0;
@@ -64,6 +66,14 @@ export function ReassignTasksModal({ visible, onClose }: ReassignTasksModalProps
               <X size={16} color="#241E1A" />
             </Pressable>
           </View>
+
+          {cleaners.length < 2 && (
+            <Text className="text-sm font-jost text-text-secondary leading-relaxed">
+              {cleaners.length === 0
+                ? lang === 'RU' ? 'В отеле нет клинеров — перераспределять уборки некому.' : 'There are no cleaners in the hotel to reassign cleanings to.'
+                : lang === 'RU' ? 'В отеле только один клинер — перераспределять уборки некому.' : 'There is only one cleaner in the hotel, so there is no one to reassign cleanings to.'}
+            </Text>
+          )}
 
           <View className="gap-1.5">
             <Text className="text-[12px] font-jost text-text-secondary uppercase tracking-wider">

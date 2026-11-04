@@ -5,12 +5,14 @@ import { Search } from 'lucide-react-native';
 import { SupplyItem } from '@/types';
 import { getTranslation } from '@/lib/locales';
 import { useApp } from '@/context/app-store';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 type CategoryFilter = 'ALL' | SupplyItem['category'];
 const CATEGORIES: CategoryFilter[] = ['ALL', 'LINEN', 'TOWELS', 'AMENITIES', 'CLEANING', 'MINIBAR'];
 
 export function SuppliesScreen() {
   const { lang, supplies, requestSupplyRefill } = useApp();
+  const refreshControl = usePullRefresh();
   const t = getTranslation(lang);
 
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('ALL');
@@ -107,7 +109,7 @@ export function SuppliesScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ gap: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ gap: 20, paddingBottom: 20 }} keyboardShouldPersistTaps="handled">
         {successMessage !== '' && (
           <View className="bg-[#FFFDF5] rounded-xl border border-warning/40 p-3.5 flex-row items-center gap-2.5">
             <Text className="text-success font-jost-semibold">✓</Text>

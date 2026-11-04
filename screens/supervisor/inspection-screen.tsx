@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
 type Tab = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 
@@ -26,6 +27,7 @@ function minutesBetweenClock(start: string, end: string): number {
 
 export function InspectionScreen({ onOpenRoom }: InspectionScreenProps) {
   const { lang, rooms, rejectedInspections } = useApp();
+  const refreshControl = usePullRefresh();
   const [tab, setTab] = useState<Tab>('PENDING');
 
   const pending = rooms.filter((r) => r.status === 'READY');
@@ -67,7 +69,7 @@ export function InspectionScreen({ onOpenRoom }: InspectionScreenProps) {
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView refreshControl={refreshControl} className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 20 }}>
         {tab === 'PENDING' && (
           pending.length === 0 ? (
             <View className="bg-white rounded-[14px] border border-border p-8 items-center gap-2">
