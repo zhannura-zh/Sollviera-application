@@ -309,6 +309,31 @@ export const mockCleaners: CleanerProfile[] = [
       avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
     },
   },
+  {
+    id: 'cln-007',
+    badgeId: 'SLV-3018',
+    fullName: 'Dinara Karimova',
+    fullNameRu: 'Динара Каримова',
+    email: 'dinara.karimova@sollviera-pms.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    role: 'RECEPTION',
+    floorAssigned: 'Ресепшн · Стойка бронирования',
+    currentShift: {
+      shiftNumber: 'SH-4102',
+      date: new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      startTime: '08:00',
+      status: 'ON_SHIFT',
+      roomsCompleted: 12,
+      roomsTotal: 15,
+      avgTimePerRoom: '4 min',
+    },
+    supervisor: {
+      name: 'Arman Nurlanov (Арман Нурланов)',
+      phone: '+7 (999) 820-44-10',
+      role: 'Front Office Manager',
+      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    },
+  },
 ];
 
 export const mockShiftHistory: ShiftHistoryItem[] = [

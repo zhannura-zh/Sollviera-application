@@ -15,6 +15,7 @@ import { SupervisorScreens } from './components/SupervisorScreens';
 import { TechnicianScreens } from './components/TechnicianScreens';
 import { WaiterScreens } from './components/WaiterScreens';
 import { ServicesScreens } from './components/ServicesScreens';
+import { ReceptionScreens } from './components/ReceptionScreens';
 import { Language, HotelRoom, RoomStatus, SupplyItem, AppNotification, MaintenanceRequest, CleanerProfile } from './types';
 import { getTranslation } from './locales';
 import { 
@@ -53,6 +54,10 @@ export default function App() {
     | 'SERVICES_TASKS'
     | 'SERVICES_HISTORY'
     | 'SERVICES_PROFILE'
+    | 'RECEPTION_BOOKINGS'
+    | 'RECEPTION_CREATE'
+    | 'RECEPTION_WAITLIST'
+    | 'RECEPTION_PROFILE'
   >('DASHBOARD');
 
   // Shared States (Lifting state up for persistence across tabs)
@@ -86,6 +91,8 @@ export default function App() {
         setActiveTab('WAITER_TODAY');
       } else if (cleanerProfile.role === 'SERVICES') {
         setActiveTab('SERVICES_HOME');
+      } else if (cleanerProfile.role === 'RECEPTION') {
+        setActiveTab('RECEPTION_BOOKINGS');
       } else {
         setActiveTab('DASHBOARD');
       }
@@ -483,6 +490,27 @@ export default function App() {
             onNavigateTab={handleTabChange as any}
           />
         );
+      case 'RECEPTION_BOOKINGS':
+      case 'RECEPTION_CREATE':
+      case 'RECEPTION_WAITLIST':
+      case 'RECEPTION_PROFILE':
+        return (
+          <ReceptionScreens
+            lang={lang}
+            cleanerProfile={cleanerProfile}
+            onUpdateCleanerProfile={setCleanerProfile}
+            onLogout={() => {
+              setIsLoggedIn(false);
+              setCleanerProfile(mockCleaners[0]);
+              setActiveTab('DASHBOARD');
+            }}
+            offlineMode={offlineMode}
+            onToggleOffline={handleToggleOffline}
+            activeTab={activeTab}
+            onLanguageChange={setLang}
+            onNavigateTab={handleTabChange as any}
+          />
+        );
       default:
         return null;
     }
@@ -735,6 +763,64 @@ export default function App() {
       );
     }
 
+    if (cleanerProfile.role === 'RECEPTION') {
+      return (
+        <div className="grid grid-cols-4 gap-0.5 text-center">
+          {/* Tab 1: Бронирования (RECEPTION_BOOKINGS) */}
+          <button
+            onClick={() => handleTabChange('RECEPTION_BOOKINGS')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'RECEPTION_BOOKINGS'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Бронирования' : 'Bookings'}</span>
+          </button>
+
+          {/* Tab 2: Создать бронь (RECEPTION_CREATE) */}
+          <button
+            onClick={() => handleTabChange('RECEPTION_CREATE')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'RECEPTION_CREATE'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <PlusCircle className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Создать бронь' : 'Create'}</span>
+          </button>
+
+          {/* Tab 3: Лист ожидания (RECEPTION_WAITLIST) */}
+          <button
+            onClick={() => handleTabChange('RECEPTION_WAITLIST')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'RECEPTION_WAITLIST'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <Clock className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Лист ожидания' : 'Waitlist'}</span>
+          </button>
+
+          {/* Tab 4: Профиль (RECEPTION_PROFILE) */}
+          <button
+            onClick={() => handleTabChange('RECEPTION_PROFILE')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'RECEPTION_PROFILE'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <User className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Профиль' : 'Profile'}</span>
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="grid grid-cols-5 gap-0.5 text-center">
         {/* Tab 1: Rooms list (DASHBOARD) */}
@@ -890,7 +976,7 @@ export default function App() {
             {/* Empty top padding spacer matching screen theme instead of status bar */}
             <div id="phone-top-spacer" className={`h-6 shrink-0 transition-colors duration-200 ${
               (!isLoggedIn) ? 'bg-[#FAF7F3]' :
-              (activeTab.startsWith('WAITER_') || activeTab.startsWith('SERVICES_')) ? 'bg-[#FAF7F3]' :
+              (activeTab.startsWith('WAITER_') || activeTab.startsWith('SERVICES_') || activeTab.startsWith('RECEPTION_')) ? 'bg-[#FAF7F3]' :
               (activeTab === 'SV_DASHBOARD' || activeTab === 'SV_INSPECTION' || activeTab === 'SV_TEAM' || activeTab === 'SV_MAINTENANCE' || activeTab === 'SV_PROFILE') ? 'bg-[#FAF7F3]' :
               (activeTab === 'TECH_ACTIVE') ? 'bg-[#241E1A]' :
               (activeTab === 'TECH_DASHBOARD' || activeTab === 'TECH_CREATE' || activeTab === 'TECH_INVENTORY' || activeTab === 'TECH_PROFILE') ? 'bg-[#FAF7F3]' :

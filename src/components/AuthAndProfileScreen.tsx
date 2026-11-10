@@ -252,6 +252,8 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
       onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'WAITER') || mockCleaners[4]);
     } else if (profileId === 'alina') {
       onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'SERVICES') || mockCleaners[5]);
+    } else if (profileId === 'dinara') {
+      onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'RECEPTION') || mockCleaners[6]);
     }
     setShowQrScanner(false);
     setShowQrAccountFound(false);
@@ -564,118 +566,107 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
 
         {/* ==================== 1.5 CHATS OVERLAY SUB-SCREEN ==================== */}
         {showChats && (
-          <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col animate-in slide-in-from-right duration-300">
-            {/* Header */}
-            <div className="bg-[#FAF7F3] px-5 pt-7 pb-4 space-y-1 shrink-0 text-left">
-              <div className="flex items-center gap-2 -ml-1">
-                <button 
-                  onClick={() => {
-                    if (activeChatContactId) {
-                      setActiveChatContactId(null);
-                    } else {
-                      setShowChats(false);
-                    }
-                  }}
-                  className="flex items-center justify-center text-[#241E1A] hover:opacity-75 transition-opacity cursor-pointer"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                <h2 className="text-2xl font-serif font-medium text-[#241E1A] pt-0.5 select-none">
-                  {activeChatContactId 
-                    ? (lang === 'RU' 
-                        ? chatContacts.find(c => c.id === activeChatContactId)?.nameRu 
-                        : chatContacts.find(c => c.id === activeChatContactId)?.name)
-                    : (lang === 'RU' ? 'Чаты' : 'Chats')}
-                </h2>
-              </div>
-            </div>
-
-            {/* Content Switcher */}
+          <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col animate-in slide-in-from-right duration-200 select-none font-sans">
             {activeChatContactId === null ? (
               /* Chat List View */
-              <div className="flex-1 flex flex-col min-h-0">
-                {/* Search contact */}
-                <div className="px-5 pb-4 shrink-0">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder={lang === 'RU' ? 'Поиск по имени' : 'Search by name'}
-                      value={chatSearchQuery}
-                      onChange={(e) => setChatSearchQuery(e.target.value)}
-                      className="w-full bg-white border border-[#E5E2DD] rounded-xl pl-9 pr-3 py-2 text-xs text-[#241E1A] placeholder-[#8A8177]/80 focus:outline-none focus:ring-1 focus:ring-[#C2410C] font-sans font-normal h-10 shadow-2xs"
-                    />
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-[#8A8177]" />
-                  </div>
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4.5 space-y-4">
+                {/* Header */}
+                <div className="pt-2 pb-1 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowChats(false)}
+                    className="text-[#241E1A] hover:text-black cursor-pointer"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
+                    {lang === 'RU' ? 'Чаты' : 'Chats'}
+                  </h1>
                 </div>
 
-                {/* Contacts Scroller */}
-                <div className="flex-1 px-5 pb-5 overflow-y-auto no-scrollbar">
-                  <div className="bg-white rounded-[14px] border border-[#E5E2DD] overflow-hidden divide-y divide-[#E5E2DD]/50 shadow-2xs">
-                    {chatContacts
-                      .filter(c => {
-                        const q = chatSearchQuery.toLowerCase().trim();
-                        if (!q) return true;
-                        return (
-                          c.name.toLowerCase().includes(q) ||
-                          c.nameRu.toLowerCase().includes(q) ||
-                          c.role.toLowerCase().includes(q) ||
-                          c.roleRu.toLowerCase().includes(q)
-                        );
-                      })
-                      .map(contact => {
-                        const getInitials = (nameStr: string) => {
-                          return nameStr.split(' ').map(n => n[0]).join('').toUpperCase();
-                        };
-                        const initials = getInitials(lang === 'RU' ? contact.nameRu : contact.name);
+                {/* Search contact */}
+                <div className="bg-white rounded-2xl border border-[#E5E2DD] px-3.5 py-2.5 flex items-center gap-2.5 shadow-2xs">
+                  <Search className="h-4 w-4 text-[#8A8177] shrink-0" />
+                  <input
+                    type="text"
+                    placeholder={lang === 'RU' ? 'Поиск по имени' : 'Search by name'}
+                    value={chatSearchQuery}
+                    onChange={(e) => setChatSearchQuery(e.target.value)}
+                    className="w-full bg-transparent text-xs text-[#241E1A] placeholder-[#8A8177] focus:outline-none font-sans font-normal"
+                  />
+                </div>
 
-                        return (
-                          <div
-                            key={contact.id}
-                            onClick={() => {
-                              setActiveChatContactId(contact.id);
-                              setChatContacts(prev => prev.map(item => item.id === contact.id ? { ...item, unreadCount: 0 } : item));
-                            }}
-                            className="p-4 hover:bg-[#FAF7F3]/40 transition-colors flex items-center gap-3.5 cursor-pointer"
-                          >
-                            {/* Initials Avatar */}
-                            <div className="h-10 w-10 rounded-full bg-[#FAF2E6] text-[#241E1A] font-sans font-normal text-xs flex items-center justify-center shrink-0 border border-[#E5E2DD]">
-                              {initials}
-                            </div>
+                {/* Contacts Card Container */}
+                <div className="bg-white rounded-[24px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
+                  {chatContacts
+                    .filter(c => {
+                      const q = chatSearchQuery.toLowerCase().trim();
+                      if (!q) return true;
+                      return (
+                        c.name.toLowerCase().includes(q) ||
+                        c.nameRu.toLowerCase().includes(q) ||
+                        c.role.toLowerCase().includes(q) ||
+                        c.roleRu.toLowerCase().includes(q)
+                      );
+                    })
+                    .map(contact => {
+                      const getInitials = (nameStr: string) => {
+                        return nameStr.split(' ').map(n => n[0]).join('').toUpperCase();
+                      };
+                      const initials = getInitials(lang === 'RU' ? contact.nameRu : contact.name);
 
-                            {/* Middle Text */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <div className="flex items-center gap-1.5 w-full">
-                                <span className="text-xs font-sans font-medium text-[#241E1A] truncate whitespace-nowrap">
+                      return (
+                        <div
+                          key={contact.id}
+                          onClick={() => {
+                            setActiveChatContactId(contact.id);
+                            setChatContacts(prev => prev.map(item => item.id === contact.id ? { ...item, unreadCount: 0 } : item));
+                          }}
+                          className="p-4 hover:bg-slate-50/70 transition-colors flex items-center gap-3 cursor-pointer"
+                        >
+                          {/* Initials Avatar */}
+                          <div className="h-10 w-10 rounded-full bg-[#E5E0D8] text-[#8A8177] font-sans font-medium text-xs flex items-center justify-center shrink-0">
+                            {initials}
+                          </div>
+
+                          {/* Middle Text */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <h4 className="text-xs font-sans font-medium text-[#241E1A] truncate">
                                   {lang === 'RU' ? contact.nameRu : contact.name}
-                                </span>
+                                </h4>
                                 {(contact.id === 'super-anna' || contact.id === 'senior-svetlana') && (
-                                  <span className="text-[#8A8177] text-[10px]">📌</span>
+                                  <span className="text-[#8A8177] text-[10px] shrink-0">📌</span>
                                 )}
                                 <span className="text-[10px] font-sans font-normal text-[#8A8177] truncate">
                                   {lang === 'RU' ? contact.roleRu.toLowerCase() : contact.role.toLowerCase()}
                                 </span>
-                                <span className="text-[10px] font-sans font-normal text-[#8A8177] ml-auto shrink-0">
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[10px] font-sans font-normal text-[#8A8177]">
                                   {contact.lastMessageTime}
                                 </span>
                                 {contact.unreadCount > 0 && (
-                                  <span className="h-4.5 w-4.5 rounded-full bg-[#C2410C] text-[9px] font-sans font-medium text-white flex items-center justify-center ml-1 shrink-0">
+                                  <span className="h-4.5 w-4.5 rounded-full bg-[#C2410C] text-[10px] font-sans font-medium text-white flex items-center justify-center shrink-0">
                                     {contact.unreadCount}
                                   </span>
                                 )}
                               </div>
-
-                              <p className="text-[10px] text-[#8A8177] font-sans font-normal truncate">
-                                {lang === 'RU' ? contact.lastMessageRu : contact.lastMessageEn}
-                              </p>
                             </div>
+
+                            <p className="text-xs text-[#8A8177] font-sans font-normal mt-0.5 truncate">
+                              {lang === 'RU' ? contact.lastMessageRu : contact.lastMessageEn}
+                            </p>
                           </div>
-                        );
-                      })}
-                  </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             ) : (
-              /* Conversation Detail View */
+              /* Active Conversation View (Matching Reference Screenshot 1) */
               (() => {
                 const contact = chatContacts.find(c => c.id === activeChatContactId)!;
                 const getInitials = (nameStr: string) => {
@@ -685,71 +676,69 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
 
                 return (
                   <div className="flex-1 flex flex-col min-h-0 bg-[#FAF7F3]">
-                    {/* Detail Banner */}
-                    <div className="bg-white border-y border-[#E5E2DD]/80 px-5 py-3.5 flex items-center justify-between shadow-2xs">
+                    {/* Active Chat Top Header */}
+                    <div className="p-4 bg-white border-b border-[#E5E2DD] flex items-center justify-between shrink-0 shadow-2xs">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-[#FAF2E6] text-[#241E1A] font-sans font-normal text-xs flex items-center justify-center shrink-0 border border-[#E5E2DD]">
+                        <button
+                          type="button"
+                          onClick={() => setActiveChatContactId(null)}
+                          className="text-[#241E1A] hover:text-black cursor-pointer"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <div className="h-9 w-9 rounded-full bg-[#E5E0D8] text-[#8A8177] font-sans font-medium text-xs flex items-center justify-center shrink-0">
                           {initials}
                         </div>
                         <div>
-                          <h4 className="text-xs font-sans font-medium text-[#241E1A] leading-tight">
+                          <h3 className="font-serif font-medium text-sm text-[#241E1A] leading-tight">
                             {lang === 'RU' ? contact.nameRu : contact.name}
-                          </h4>
-                          <p className="text-[10px] text-[#8A8177] font-sans font-normal mt-0.5">
-                            {lang === 'RU' ? contact.roleRu : contact.role} • {contact.phone}
-                          </p>
+                          </h3>
+                          <span className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5 block">
+                            {lang === 'RU' ? contact.roleRu.toLowerCase() : contact.role.toLowerCase()}
+                          </span>
                         </div>
                       </div>
-                      <a 
-                        href={`tel:${contact.phone}`}
-                        className="h-9 w-9 bg-white border border-[#E5E2DD] text-[#241E1A] rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-[#FAF7F3]/40"
-                      >
-                        <PhoneCall className="h-4 w-4 text-[#8A8177]" />
-                      </a>
                     </div>
 
-                    {/* Messages List Scroller */}
-                    <div className="flex-1 p-5 space-y-4 overflow-y-auto flex flex-col justify-end no-scrollbar">
-                      <div className="space-y-3 overflow-y-auto max-h-[380px] no-scrollbar">
-                        {contact.messages.map((msg, index) => {
-                          const isCleaner = msg.sender === 'CLEANER';
-                          return (
-                            <div key={index} className={`flex ${isCleaner ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`max-w-[85%] rounded-[14px] p-3 text-xs leading-relaxed shadow-2xs ${
-                                isCleaner 
-                                  ? 'bg-[#241E1A] text-white rounded-br-none' 
-                                  : 'bg-white text-[#241E1A] rounded-bl-none border border-[#E5E2DD]'
-                              }`}>
-                                <p className="font-sans font-normal break-words">{msg.text}</p>
-                                <span className={`text-[9px] block text-right font-sans mt-1 ${isCleaner ? 'text-white/60' : 'text-[#8A8177]'}`}>
-                                  {msg.time}
-                                </span>
-                              </div>
+                    {/* Message List */}
+                    <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
+                      {contact.messages.map((msg, index) => {
+                        const isMe = msg.sender === 'CLEANER';
+                        return (
+                          <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
+                            <div className={`max-w-[78%] rounded-[18px] p-3 shadow-2xs text-xs font-sans font-normal ${
+                              isMe 
+                                ? 'bg-[#241E1A] text-white rounded-br-xs' 
+                                : 'bg-white border border-[#E5E2DD] text-[#241E1A] rounded-bl-xs'
+                            }`}>
+                              <p className="leading-relaxed break-words">{msg.text}</p>
+                              <span className={`block text-[9px] mt-1 text-right font-sans ${isMe ? 'text-white/60' : 'text-[#8A8177]'}`}>
+                                {msg.time}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {/* Chat Text Input Bar */}
+                    {/* Chat Input Bar */}
                     <form 
                       onSubmit={(e) => {
                         e.preventDefault();
                         handleSendOverlayChatMessage(contact.id, chatInputText);
                       }} 
-                      className="p-5 bg-white border-t border-[#E5E2DD]/60 flex gap-2 shrink-0"
+                      className="p-3 border-t border-[#E5E2DD] bg-white flex items-center gap-2 shrink-0"
                     >
                       <input
                         type="text"
                         value={chatInputText}
                         onChange={(e) => setChatInputText(e.target.value)}
-                        placeholder={lang === 'RU' ? 'Напишите сообщение...' : 'Type a message...'}
-                        className="flex-1 bg-[#FAF7F3] border border-[#E5E2DD] rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#C2410C] text-[#241E1A] placeholder-[#8A8177]/80 font-sans font-normal h-10"
+                        placeholder={lang === 'RU' ? 'Сообщение...' : 'Type message...'}
+                        className="flex-1 bg-[#FAF7F3] border border-[#E5E2DD] rounded-xl px-3.5 py-2.5 text-xs text-[#241E1A] placeholder-[#8A8177] focus:outline-none focus:border-[#241E1A] font-sans font-normal"
                       />
                       <button
                         type="submit"
-                        disabled={!chatInputText.trim()}
-                        className="h-10 w-10 bg-[#C2410C] hover:bg-[#A93A0C] disabled:opacity-50 text-white rounded-xl flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0"
+                        className="bg-[#241E1A] hover:bg-black text-white p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-xs"
                       >
                         <Send className="h-4 w-4" />
                       </button>
@@ -1266,6 +1255,12 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
                         initials: lang === 'RU' ? 'АС' : 'AS',
                         name: lang === 'RU' ? 'Алина Садыкова' : 'Alina Sadykova',
                         role: lang === 'RU' ? 'Работа с услугами' : 'Hotel Services',
+                      },
+                      {
+                        id: 'dinara',
+                        initials: lang === 'RU' ? 'ДК' : 'DK',
+                        name: lang === 'RU' ? 'Динара Каримова' : 'Dinara Karimova',
+                        role: lang === 'RU' ? 'Ресепшн · Бронирование' : 'Reception · Bookings',
                       }
                     ].map((profile) => {
                       const isSelected = selectedDemoId === profile.id;
@@ -1448,6 +1443,12 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
                     name: lang === 'RU' ? 'Алина Садыкова' : 'Alina Sadykova',
                     role: lang === 'RU' ? 'Работа с услугами' : 'Hotel Services',
                     badgeId: 'SLV-6120'
+                  },
+                  dinara: {
+                    initials: lang === 'RU' ? 'ДК' : 'DK',
+                    name: lang === 'RU' ? 'Динара Каримова' : 'Dinara Karimova',
+                    role: lang === 'RU' ? 'Ресепшн · Бронирование' : 'Reception · Bookings',
+                    badgeId: 'SLV-3018'
                   }
                 };
                 const foundUser = demoAccounts[selectedDemoId] || demoAccounts.elena;

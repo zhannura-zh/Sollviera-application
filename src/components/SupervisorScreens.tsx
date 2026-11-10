@@ -4870,28 +4870,19 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
       {/* 8. CHATS OVERLAY SUB-SCREEN */}
       {showChats && (
         <div className="absolute inset-0 bg-[#FAF7F3] z-50 flex flex-col animate-in slide-in-from-right duration-200 select-none font-sans">
-          {/* Header */}
-          <div className="p-4 flex items-center justify-between shrink-0">
-            <button 
-              onClick={() => {
-                if (activeChatContactId) {
-                  setActiveChatContactId(null);
-                } else {
-                  setShowChats(false);
-                }
-              }}
-              className="h-9 w-9 rounded-full bg-white border border-[#E5E2DD] text-[#241E1A] hover:bg-slate-50 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <div className="w-9" />
-          </div>
-
           {activeChatContactId === null ? (
             /* Contact List View */
-            <div className="flex-1 flex flex-col min-h-0 px-4 space-y-4">
-              <div>
-                <h1 className="font-serif font-medium text-2xl text-[#241E1A]">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-4.5 space-y-4">
+              {/* Header with Back button & Spectral 500 Title */}
+              <div className="pt-2 pb-1 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowChats(false)}
+                  className="text-[#241E1A] hover:text-black cursor-pointer"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <h1 className="font-serif font-medium text-2xl text-[#241E1A] leading-tight">
                   {lang === 'RU' ? 'Чаты' : 'Chats'}
                 </h1>
               </div>
@@ -4909,7 +4900,7 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
               </div>
 
               {/* Contacts Card Container */}
-              <div className="flex-1 overflow-y-auto no-scrollbar bg-white rounded-[20px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs mb-4">
+              <div className="bg-white rounded-[24px] border border-[#E5E2DD] divide-y divide-[#E5E2DD]/50 shadow-2xs overflow-hidden">
                 {chatContacts
                   .filter(c => {
                     const q = chatSearchQuery.toLowerCase();
@@ -4926,42 +4917,42 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
                           setActiveChatContactId(c.id);
                           setChatContacts(prev => prev.map(item => item.id === c.id ? { ...item, unreadCount: 0 } : item));
                         }}
-                        className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                        className="p-4 flex items-center gap-3 hover:bg-slate-50/70 transition-colors cursor-pointer"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Initials Avatar */}
-                          <div className="h-10 w-10 rounded-full bg-[#FAF7F3] border border-[#E5E2DD] text-[#8A8177] font-sans font-medium text-xs flex items-center justify-center shrink-0">
-                            {c.initials}
-                          </div>
+                        {/* Initials Avatar */}
+                        <div className="h-10 w-10 rounded-full bg-[#E5E0D8] text-[#8A8177] font-sans font-medium text-xs flex items-center justify-center shrink-0">
+                          {c.initials}
+                        </div>
 
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               <h4 className="text-xs font-sans font-medium text-[#241E1A] truncate">
                                 {name}
                               </h4>
                               {c.isPinned && (
-                                <span className="text-[11px] leading-none">📌</span>
+                                <span className="text-[11px] leading-none shrink-0">📌</span>
                               )}
-                              <span className="text-[11px] font-sans font-normal text-[#8A8177] truncate">
+                              <span className="text-[10px] font-sans font-normal text-[#8A8177] truncate">
                                 {role}
                               </span>
                             </div>
 
-                            <p className="text-xs font-sans font-normal text-[#8A8177] pt-0.5 truncate leading-tight">
-                              {lastMsg}
-                            </p>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-sans font-normal text-[#8A8177]">
+                                {c.time}
+                              </span>
+                              {c.unreadCount > 0 && (
+                                <span className="h-4.5 w-4.5 rounded-full bg-[#C2410C] text-white text-[10px] font-sans font-medium flex items-center justify-center shadow-xs">
+                                  {c.unreadCount}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex flex-col items-end gap-1 shrink-0 pl-2">
-                          <span className="text-[11px] font-sans font-normal text-[#8A8177]">
-                            {c.time}
-                          </span>
-                          {c.unreadCount > 0 && (
-                            <span className="h-4.5 w-4.5 rounded-full bg-[#C2410C] text-white text-[10px] font-sans font-medium flex items-center justify-center shadow-xs">
-                              {c.unreadCount}
-                            </span>
-                          )}
+                          <p className="text-xs font-sans font-normal text-[#8A8177] mt-0.5 truncate">
+                            {lastMsg}
+                          </p>
                         </div>
                       </div>
                     );
@@ -4969,24 +4960,35 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
               </div>
             </div>
           ) : (
-            /* Active Conversation View */
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Contact Header Subtitle */}
-              {(() => {
-                const contact = chatContacts.find(c => c.id === activeChatContactId);
-                const name = contact ? (lang === 'RU' ? contact.nameRu : contact.name) : '';
-                const role = contact ? (lang === 'RU' ? contact.roleRu : contact.role) : '';
-                return (
-                  <div className="px-4 pb-3 border-b border-[#E5E2DD]/50">
-                    <h2 className="font-serif font-medium text-xl text-[#241E1A]">
-                      {name}
-                    </h2>
-                    <p className="text-xs font-sans font-normal text-[#8A8177] pt-0.5">
-                      {role}
-                    </p>
+            /* Active Conversation View (Matching Reference Screenshot 1) */
+            <div className="flex-1 flex flex-col min-h-0 bg-[#FAF7F3]">
+              {/* Active Chat Top Header */}
+              <div className="p-4 bg-white border-b border-[#E5E2DD] flex items-center justify-between shrink-0 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveChatContactId(null)}
+                    className="text-[#241E1A] hover:text-black cursor-pointer"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <div className="h-9 w-9 rounded-full bg-[#E5E0D8] text-[#8A8177] font-sans font-medium text-xs flex items-center justify-center shrink-0">
+                    {chatContacts.find(c => c.id === activeChatContactId)?.initials || 'СВ'}
                   </div>
-                );
-              })()}
+                  <div>
+                    <h3 className="font-serif font-medium text-sm text-[#241E1A] leading-tight">
+                      {lang === 'RU'
+                        ? chatContacts.find(c => c.id === activeChatContactId)?.nameRu
+                        : chatContacts.find(c => c.id === activeChatContactId)?.name}
+                    </h3>
+                    <span className="text-[10px] font-sans font-normal text-[#8A8177] mt-0.5 block">
+                      {lang === 'RU'
+                        ? chatContacts.find(c => c.id === activeChatContactId)?.roleRu
+                        : chatContacts.find(c => c.id === activeChatContactId)?.role}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               {/* Messages Scroller */}
               <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
@@ -4997,13 +4999,13 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
                       key={idx}
                       className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in duration-100`}
                     >
-                      <div className={`max-w-[80%] rounded-[18px] p-3 shadow-2xs text-xs font-sans font-normal ${
+                      <div className={`max-w-[78%] rounded-[18px] p-3 shadow-2xs text-xs font-sans font-normal ${
                         isMe 
-                          ? 'bg-[#C2410C] text-white rounded-tr-xs' 
-                          : 'bg-white border border-[#E5E2DD] text-[#241E1A] rounded-tl-xs'
+                          ? 'bg-[#241E1A] text-white rounded-br-xs' 
+                          : 'bg-white border border-[#E5E2DD] text-[#241E1A] rounded-bl-xs'
                       }`}>
                         <p className="leading-relaxed break-words">{msg.text}</p>
-                        <span className={`block text-[10px] mt-1 text-right ${isMe ? 'text-white/75' : 'text-[#8A8177]'}`}>
+                        <span className={`block text-[9px] mt-1 text-right font-sans ${isMe ? 'text-white/60' : 'text-[#8A8177]'}`}>
                           {msg.time}
                         </span>
                       </div>
@@ -5013,10 +5015,10 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
               </div>
 
               {/* Chat Input Bar */}
-              <div className="p-3 bg-white border-t border-[#E5E2DD] flex items-center gap-2">
+              <div className="p-3 bg-white border-t border-[#E5E2DD] flex items-center gap-2 shrink-0">
                 <input
                   type="text"
-                  placeholder={lang === 'RU' ? 'Ваше сообщение..' : 'Type message..'}
+                  placeholder={lang === 'RU' ? 'Сообщение...' : 'Type message...'}
                   value={typedMessage}
                   onChange={e => setTypedMessage(e.target.value)}
                   onKeyDown={e => {
@@ -5047,7 +5049,7 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
                       }, 1000);
                     }
                   }}
-                  className="flex-1 bg-[#FAF7F3] border border-[#E5E2DD] rounded-xl px-3.5 py-2.5 text-xs text-[#241E1A] font-sans font-normal placeholder-[#8A8177] focus:outline-none focus:border-[#C2410C]"
+                  className="flex-1 bg-[#FAF7F3] border border-[#E5E2DD] rounded-xl px-3.5 py-2.5 text-xs text-[#241E1A] font-sans font-normal placeholder-[#8A8177] focus:outline-none focus:border-[#241E1A]"
                 />
                 <button
                   type="button"
@@ -5079,7 +5081,7 @@ export const SupervisorScreens: React.FC<SupervisorScreensProps> = ({
                       }, 1000);
                     }
                   }}
-                  className="h-10 w-10 rounded-xl bg-[#C2410C] hover:bg-[#A93A0C] text-white flex items-center justify-center transition-colors cursor-pointer shadow-xs shrink-0"
+                  className="bg-[#241E1A] hover:bg-black text-white p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-xs"
                 >
                   <Send className="h-4 w-4" />
                 </button>
