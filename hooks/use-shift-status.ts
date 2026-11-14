@@ -31,11 +31,14 @@ export function useShiftActions() {
 
   // Puts the cleaner's running room on pause (no-op for other roles or when nothing runs).
   const pauseActiveRoom = useCallback(() => {
+    // Only a cleaner has room cleanings; other roles may still hold rooms from an earlier
+    // session (or demo data) that must not be sent to the server.
+    if (role !== 'CLEANER') return;
     const cleaning = rooms.find((r) => r.status === 'IN_PROGRESS');
     if (!cleaning) return;
     updateRoomStatus(cleaning.id, 'PENDING');
     Alert.alert('', ru ? `Уборка номера ${cleaning.roomNumber} поставлена на паузу.` : `Cleaning of room ${cleaning.roomNumber} is paused.`);
-  }, [rooms, updateRoomStatus, ru]);
+  }, [role, rooms, updateRoomStatus, ru]);
 
   const setPresence = useCallback(
     (status: 'ON_SHIFT' | 'ON_BREAK') => {

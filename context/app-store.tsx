@@ -22,12 +22,7 @@ import {
   ParkingSession,
 } from '@/types';
 import {
-  mockRooms,
   mockCleaners,
-  mockSupplyItems,
-  mockNotifications,
-  mockMaintenanceRequests,
-  mockShiftHistory,
 } from '@/data/mockData';
 import {
   ApiRequestError,
@@ -561,17 +556,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<StaffRole | null>(null);
   const [cleanerProfile, setCleanerProfile] = useState<CleanerProfile>(mockCleaners[0]);
   const initialProfile = useRef(cleanerProfile);
-  const [rooms, setRooms] = useState<HotelRoom[]>(mockRooms);
-  const [supplies, setSupplies] = useState<SupplyItem[]>(mockSupplyItems);
+  const [rooms, setRooms] = useState<HotelRoom[]>([]);
+  const [supplies, setSupplies] = useState<SupplyItem[]>([]);
   const [parts, setParts] = useState<PartItem[]>([]);
   const [partOrders, setPartOrders] = useState<PartOrder[]>([]);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [rejectedInspections, setRejectedInspections] = useState<RejectedInspection[]>([]);
   const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([]);
   const [parkingSessions, setParkingSessions] = useState<ParkingSession[]>([]);
-  const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
-  const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>(mockMaintenanceRequests);
-  const [shiftHistory, setShiftHistory] = useState<ShiftHistoryItem[]>(mockShiftHistory);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([]);
+  const [shiftHistory, setShiftHistory] = useState<ShiftHistoryItem[]>([]);
   const [hotelRoomNumbers, setHotelRoomNumbers] = useState<string[]>([]);
   // Room number → room id (GET /rooms), for photo uploads on maintenance tickets.
   const roomIdByNumber = useRef(new Map<string, string>());
@@ -612,7 +607,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshFromApiRef = useRef<(() => Promise<void>) | null>(null);
   hasOpenDeskShiftRef.current = hasOpenDeskShift;
 
+  // Every role's data lives in this one store; each sign-in loads only its own role's part.
+  // Clearing it on sign-in and sign-out keeps one account from seeing (and acting on) what
+  // the previous account loaded — e.g. a front desk pausing a cleaner's room on break.
+  const clearRoleData = useCallback(() => {
+    setRooms([]);
+    setSupplies([]);
+    setParts([]);
+    setPartOrders([]);
+    setStaffList([]);
+    setRejectedInspections([]);
+    setParkingSpots([]);
+    setParkingSessions([]);
+    setNotifications([]);
+    setMaintenanceRequests([]);
+    setShiftHistory([]);
+    setHotelRoomNumbers([]);
+    setHasOpenDeskShift(false);
+    setLastSyncedAt(null);
+    roomIdByNumber.current = new Map();
+    roomRecordIds.current = {};
+    roomPhotoUrls.current = {};
+    hasLoadedNotificationsOnce.current = false;
+  }, []);
+
   const login = useCallback((profile: CleanerProfile, sessionUser?: ApiUser) => {
+    clearRoleData();
     // No backend concept of a housekeeper "shift clock-in" exists yet, so this session's
     // start is the closest honest proxy for "on shift since" — real time, not a mock value.
     // Counters start empty (not the demo profile's numbers) until the first sync fills them.
@@ -631,14 +651,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         floorAssigned: sessionUser.department || current.floorAssigned,
       }));
     }
-  }, []);
+  }, [clearRoleData]);
 
   const logout = useCallback(() => {
     clearSession();
     setIsLoggedIn(false);
     setRole(null);
     setCleanerProfile(mockCleaners[0]);
-  }, []);
+    clearRoleData();
+  }, [clearRoleData]);
 
   const setShiftStatus = useCallback(async (status: ShiftStatusValue) => {
     let previous: ShiftStatusValue | undefined;
