@@ -71,7 +71,7 @@ export function ReceptionProfileScreen({ onLoggedOut }: ReceptionProfileScreenPr
   const router = useRouter();
   const { lang, cleanerProfile, notifications, hasOpenDeskShift, changePassword, logout } = useApp();
   const { totalUnread: unreadChats } = useChat();
-  const { bookings } = useReception();
+  const { bookings, waitlist } = useReception();
   const { setPresence, canStopWorking, pauseActiveRoom } = useShiftActions();
   const ru = lang === 'RU';
 
@@ -248,7 +248,7 @@ export function ReceptionProfileScreen({ onLoggedOut }: ReceptionProfileScreenPr
                   <Text className="text-[10px] font-jost text-text-secondary text-center">заезды / выезды</Text>
                 </View>
                 <View className="flex-1 px-1 items-center border-l border-border/60">
-                  <Text className="text-base font-jost-medium text-text-primary">—</Text>
+                  <Text className="text-base font-jost-medium text-text-primary">{waitlist.filter((w) => w.status === 'WAITING').length}</Text>
                   <Text className="text-[10px] font-jost text-text-secondary text-center">лист ожидания</Text>
                 </View>
               </View>
