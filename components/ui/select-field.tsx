@@ -12,6 +12,8 @@ interface SelectFieldProps<T extends string | number> {
   options: SelectOption<T>[];
   onChange: (value: T) => void;
   className?: string;
+  // 'soft': the beige full-width field used inside filter panels (web design's <select>).
+  variant?: 'pill' | 'soft';
 }
 
 interface Anchor {
@@ -28,7 +30,9 @@ export function SelectField<T extends string | number>({
   options,
   onChange,
   className,
+  variant = 'pill',
 }: SelectFieldProps<T>) {
+  const soft = variant === 'soft';
   const triggerRef = useRef<View>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const current = options.find((o) => o.value === value);
@@ -57,12 +61,14 @@ export function SelectField<T extends string | number>({
       <View ref={triggerRef} collapsable={false} className={className}>
         <Pressable
           onPress={openDropdown}
-          className="flex-row items-center justify-between gap-1 bg-white px-2.5 py-2 rounded-xl border border-border active:opacity-70"
+          className={`flex-row items-center justify-between gap-1 border border-border active:opacity-70 ${
+            soft ? 'bg-background px-3 py-2.5 rounded-[12px]' : 'bg-white px-2.5 py-2 rounded-xl'
+          }`}
         >
-          <Text className="text-text-primary font-jost text-[13px]" numberOfLines={1}>
+          <Text className={`flex-shrink text-text-primary font-jost ${soft ? 'text-[12px]' : 'text-[13px]'}`} numberOfLines={1}>
             {current?.label ?? ''}
           </Text>
-          <ChevronDown size={14} color="#8A8177" />
+          <ChevronDown size={14} color={soft ? '#241E1A' : '#8A8177'} />
         </Pressable>
       </View>
 

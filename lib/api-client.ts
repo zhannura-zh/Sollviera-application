@@ -211,6 +211,63 @@ export const updateRecord = (kind: string, id: string, payload: Json) =>
     data: payload,
   });
 
+export const deleteRecord = (kind: string, id: string) =>
+  request<Json>(`/records/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+// Front desk. Response shapes aren't in the OpenAPI spec; field names follow the web PMS.
+export const getBookingsTimeline = (from: string, to: string) =>
+  request<{ rooms?: unknown[]; bookings?: unknown[] }>(`/bookings/timeline?from=${from}&to=${to}`);
+export const getBooking = (id: string) => request<unknown>(`/bookings/${encodeURIComponent(id)}`);
+export const listRoomTypes = () => request<unknown[]>('/rooms/types');
+export const checkInBooking = (id: string, payload: { roomId?: string; earlyCheckIn?: boolean } = {}) =>
+  request<unknown>(`/bookings/${encodeURIComponent(id)}/check-in`, { method: 'POST', data: payload });
+export const checkOutBooking = (id: string, payload: Record<string, unknown> = {}) =>
+  request<unknown>(`/bookings/${encodeURIComponent(id)}/check-out`, { method: 'POST', data: payload });
+export const cancelBooking = (id: string, payload: Record<string, unknown> = {}) =>
+  request<unknown>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'POST', data: payload });
+// Booking documents (web PMS: bookings → «Документы»). An issue is a saved copy of a rendered template.
+export interface DocumentIssue {
+  id: string;
+  code: string;
+  title?: string;
+  html: string;
+  bookingId?: string | null;
+  createdAt?: string;
+  issuedByName?: string;
+}
+export const listDocumentIssues = (bookingId: string) =>
+  request<DocumentIssue[]>(`/documents/issues?bookingId=${encodeURIComponent(bookingId)}`);
+export const issueDocuments = (payload: { code?: string; codes?: string[]; bookingId: string; html?: string }) =>
+  request<DocumentIssue[]>('/documents/issue', { method: 'POST', data: payload });
+export const renderDocument = (payload: { code: string; bookingId: string }) =>
+  request<{ html: string }>('/documents/render', { method: 'POST', data: payload });
+export const updateDocumentIssue = (id: string, html: string) =>
+  request<DocumentIssue>(`/documents/issues/${encodeURIComponent(id)}`, { method: 'PATCH', data: { html } });
+export const getAvailableRoomIds = (checkIn: string, checkOut: string) =>
+  request<string[]>(`/bookings/available-rooms?checkIn=${checkIn}&checkOut=${checkOut}`);
+// { allocations: [{ roomId, roomNumber, floor, capacity, guestsCount }], guestsPlaced, guestsUnplaced }
+export const suggestGroupRooms = (checkIn: string, checkOut: string, guests: number, roomsNeeded?: number) =>
+  request<unknown>('/bookings/suggest-group-rooms', {
+    params: { checkIn, checkOut, guests: String(guests), ...(roomsNeeded ? { roomsNeeded: String(roomsNeeded) } : {}) },
+  });
+export const createBooking = (payload: Record<string, unknown>) => request<unknown>('/bookings', { method: 'POST', data: payload });
+// Body as the web PMS sends it: group fields + contact* + allocations[{ roomId, guestsCount, adults, children, guests }].
+export const createGroupBooking = (payload: Record<string, unknown>) =>
+  request<unknown>('/bookings/group', { method: 'POST', data: payload });
+export const listTariffs = () => request<unknown[]>('/catalogs/tariffs');
+export const listServicesCatalog = () => request<unknown[]>('/catalogs/services');
+export const listCompanies = () => request<unknown[]>('/companies');
+export const searchGuests = (q: string) => request<unknown[]>('/guests', { params: { q } });
+export const updateBooking = (id: string, payload: Record<string, unknown>) =>
+  request<unknown>(`/bookings/${encodeURIComponent(id)}`, { method: 'PATCH', data: payload });
+
+// Payment towards the booking balance; an amount above the balance is kept as a deposit.
+export const payBooking = (id: string, payload: { amount: number; accountId: string; recordDeposit?: boolean }) =>
+  request<unknown>(`/bookings/${encodeURIComponent(id)}/payments`, { method: 'POST', data: payload });
+
+export const updateGuestProfile = (id: string, payload: Record<string, unknown>) =>
+  request<unknown>(`/guests/${encodeURIComponent(id)}`, { method: 'PATCH', data: payload });
+
 export const listParkingSpots = () => request<unknown[]>('/parking/spots');
 
 export const listParkingTickets = (status: 'OPEN' | 'CLOSED' = 'OPEN') =>

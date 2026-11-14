@@ -10,5 +10,6 @@ export default function AppIndex() {
   if (role === 'SUPERVISOR') return <Redirect href="/(supervisor)" />;
   if (role === 'WAITER') return <Redirect href="/(waiter)" />;
   if (role === 'PARKING') return <Redirect href="/(parking)" />;
+  if (role === 'RECEPTION') return <Redirect href="/(app)/(reception)" />;
   return <Redirect href="/(tabs)" />;
 }

@@ -11,7 +11,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "kz.hyperdevelopment.sollviera",
-      "appleTeamId": "28YC4WB6VR"
+      "appleTeamId": "28YC4WB6VR",
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "ru",
+        "CFBundleLocalizations": [
+          "ru",
+          "en"
+        ],
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -58,7 +66,8 @@
           "cameraPermission": "Разрешите Sollviera использовать камеру для фотоотчётов и сканирования QR-кода смены.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

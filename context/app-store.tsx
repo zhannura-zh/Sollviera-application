@@ -171,7 +171,7 @@ function timeNow() {
   return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
-export type StaffRole = 'CLEANER' | 'TECHNICIAN' | 'SUPERVISOR' | 'WAITER' | 'PARKING';
+export type StaffRole = 'CLEANER' | 'TECHNICIAN' | 'SUPERVISOR' | 'WAITER' | 'PARKING' | 'RECEPTION';
 
 // Classifies an API user into one of the roles this app supports, from the free-text
 // role/roleCode the backend returns. Returns null when neither matches, so callers can
@@ -187,6 +187,10 @@ function classifyRole(user: Pick<ApiUser, 'role' | 'roleCode'>): StaffRole | nul
   if (role.includes('waiter') || role.includes('host') || role.includes('maitre')) return 'WAITER';
   if (role.includes('parking') || role.includes('valet')) return 'PARKING';
   if (role.includes('cleaner') || role.includes('housekeeper') || role.includes('housekeeping')) return 'CLEANER';
+  // The hotel admin is the front-desk administrator; a bare RECEPTION role is not enough
+  // (porters and parking share it), only the admin or an explicit receptionist code.
+  if (/hotel_admin|admin|owner|receptionist|reception\b/.test(`${user.role || ''}`.toLowerCase()) && !user.roleCode) return 'RECEPTION';
+  if (/admin|receptionist|^reception$/.test(`${user.roleCode || ''}`.toLowerCase())) return 'RECEPTION';
   return null;
 }
 
@@ -669,6 +673,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       || String(result?.shiftStatus ?? '').toUpperCase() === 'ON_SHIFT'
       || (!result?.action && !result?.shiftStatus && action === 'open');
     setHasOpenDeskShift(opened);
+    // Keep the coarse staff flag in step (the web PMS and /staff/me read it); best effort.
+    if (!opened) await updateMe({ shiftStatus: 'SHIFT_ENDED' }).catch(() => undefined);
     setCleanerProfile((current) => ({
       ...current,
       currentShift: {
@@ -906,16 +912,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (attendanceRaw !== undefined) {
       const att = mapMyAttendance(attendanceRaw);
       setHasOpenDeskShift(att.open);
-      if (att.status || att.openedAt) {
-        setCleanerProfile((current) => ({
-          ...current,
-          currentShift: {
-            ...current.currentShift,
-            status: att.status ?? current.currentShift.status,
-            startTime: att.openedAt ?? current.currentShift.startTime,
-          },
-        }));
-      }
+      // Shifts are opened and closed with the desk QR, so the attendance shift decides: no
+      // open shift means the shift is over, whatever the staff.shiftStatus flag (/staff/me,
+      // read above) still says — it can lag behind and is ON_SHIFT by default.
+      setCleanerProfile((current) => ({
+        ...current,
+        currentShift: {
+          ...current.currentShift,
+          status: att.open ? att.status ?? 'ON_SHIFT' : 'SHIFT_ENDED',
+          startTime: att.openedAt ?? current.currentShift.startTime,
+        },
+      }));
     }
     if (bookingsRaw !== undefined) {
       const bookings = asList<any>(bookingsRaw);
@@ -1081,7 +1088,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return updated;
         })
       );
-      if (getStoredSession()) {
+      const requestSession = getStoredSession();
+      if (requestSession) {
         // A started room going back to PENDING is a pause: the API has its own PAUSED status
         // for that ("started task on hold"), distinct from PENDING ("not started"). The
         // assignee stays — pausing doesn't hand the room back.
@@ -1099,6 +1107,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             // rejected with CLEANING_END_BEFORE_START. The local timer keeps its own times.
             ...(apiStatus === 'IN_PROGRESS' ? { assignedTo: cleanerProfile.fullName || cleanerProfile.email } : {}),
           }).catch((error) => {
+            // The user signed out or into another account meanwhile: this answer is about
+            // the previous session, so there is nothing to tell the current one.
+            if (getStoredSession() !== requestSession) return;
             // Don't silently snap back to the server state — say what didn't go through
             // (e.g. "sent for inspection" when the room was never actually marked done).
             Alert.alert(
