@@ -10,7 +10,7 @@ import {
   type CreateGroupBookingInput,
   type GuestInput,
 } from '@/context/reception-store';
-import { type BookingPrefill, addDaysIso, diffDays, dotsToIso, guestsText, isoToDots, nightsText, type Lang } from '@/components/reception/booking-utils';
+import { type BookingPrefill, addDaysIso, bookingErrorText, diffDays, dotsToIso, guestsText, isoToDots, nightsText, type Lang } from '@/components/reception/booking-utils';
 import { IconInput, PickerField, SectionTitle, TextField, digitsOnly, money, type PickerOption } from './group-ui';
 import {
   EMPTY_GUEST,
@@ -456,7 +456,7 @@ export function GroupBookingWizard({
         cancelable: false,
       });
     } catch (error) {
-      Alert.alert(ru ? 'Ошибка' : 'Error', error instanceof Error ? error.message : String(error));
+      Alert.alert(ru ? 'Ошибка' : 'Error', bookingErrorText(error, lang));
     } finally {
       setSaving(false);
     }

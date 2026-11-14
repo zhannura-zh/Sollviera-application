@@ -16,7 +16,7 @@ import {
   toIsoDate,
   useReception,
 } from '@/context/reception-store';
-import { type BookingPrefill, addDaysIso, dotsToIso, guestsText, isoToDots, nightsText } from '@/components/reception/booking-utils';
+import { type BookingPrefill, addDaysIso, bookingErrorText, dotsToIso, guestsText, isoToDots, nightsText } from '@/components/reception/booking-utils';
 import { C, Chip, DateInput, Divider, FieldLabel, Input, SectionTitle, Select, SoonBadge, TimeInput, isTime, money, type PickOption } from './individual-ui';
 import {
   GuestCard,
@@ -420,7 +420,7 @@ export function IndividualBookingWizard({
         if (prepayment > 0 && accountId) await payBooking(edit.id, { amount: prepayment, accountId });
         Alert.alert(L('Бронь сохранена', 'Booking saved'), undefined, [{ text: 'OK', onPress: onCreated }], { cancelable: false });
       } catch (error) {
-        Alert.alert(L('Ошибка', 'Error'), error instanceof Error ? error.message : String(error));
+        Alert.alert(L('Ошибка', 'Error'), bookingErrorText(error, lang));
       } finally {
         setSaving(false);
       }
@@ -470,7 +470,7 @@ export function IndividualBookingWizard({
       await createBooking(input);
       Alert.alert(L('Бронь создана', 'Booking created'), undefined, [{ text: 'OK', onPress: onCreated }], { cancelable: false });
     } catch (error) {
-      Alert.alert(L('Ошибка', 'Error'), error instanceof Error ? error.message : String(error));
+      Alert.alert(L('Ошибка', 'Error'), bookingErrorText(error, lang));
     } finally {
       setSaving(false);
     }

@@ -180,3 +180,16 @@ export function sourceLabel(source: string, lang: Lang) {
   if (known) return lang === 'RU' ? known.ru : known.en;
   return source;
 }
+
+// Server booking errors come as codes ("ROOM_CAPACITY_EXCEEDED:315:6:2"); known ones get a readable text.
+export function bookingErrorText(error: unknown, lang: Lang): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const capacity = /ROOM_CAPACITY_EXCEEDED:([^:]+):(\d+):(\d+)/.exec(message);
+  if (capacity) {
+    const [, room, guests, cap] = capacity;
+    return lang === 'RU'
+      ? `В номере №${room} помещается ${guestsText(Number(cap), lang)}, а в брони ${guestsText(Number(guests), lang)}. Уменьшите число гостей или выберите другой номер.`
+      : `Room #${room} fits ${guestsText(Number(cap), lang)}, the booking has ${guestsText(Number(guests), lang)}. Reduce the guests or pick another room.`;
+  }
+  return message;
+}

@@ -16,7 +16,17 @@ import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } fro
 import { DatePickerOverlay, type DateRangeLink } from '@/components/ui/date-picker';
 import { useApp } from '@/context/app-store';
 import { BOOKING_SOURCES, type GuestInput, type ReceptionRoom, nightsBetween, toIsoDate, useReception } from '@/context/reception-store';
-import { type BookingPrefill, type Lang, addDaysIso, dotsToIso, isoToDots, nightsText, pluralRu } from '@/components/reception/booking-utils';
+import {
+  type BookingPrefill,
+  type Lang,
+  addDaysIso,
+  bookingErrorText,
+  dotsToIso,
+  guestsText,
+  isoToDots,
+  nightsText,
+  pluralRu,
+} from '@/components/reception/booking-utils';
 
 // Reception "Быстрая бронь" wizard, 3 steps (web design: ReceptionScreens.tsx →
 // RECEPTION_CREATE → createBookingType === 'QUICK'). Walk-in guest, one room.
@@ -401,6 +411,11 @@ export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookin
       if (!room) return ru ? 'Выберите номер' : 'Select a room';
       if (isRoomOccupied) return ru ? `№${room.number} занят — выберите свободный номер` : `#${room.number} is occupied — pick a free room`;
       if (adultsNum < 1) return ru ? 'Взрослых должно быть не меньше 1' : 'At least 1 adult is required';
+      if (adultsNum + childrenNum > room.capacity) {
+        return ru
+          ? `В номере №${room.number} помещается ${guestsText(room.capacity, lang)}, а указано ${guestsText(adultsNum + childrenNum, lang)}`
+          : `Room #${room.number} fits ${guestsText(room.capacity, lang)}, the booking has ${guestsText(adultsNum + childrenNum, lang)}`;
+      }
       return null;
     }
     if (s === 2) {
@@ -484,7 +499,7 @@ export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookin
         onDismiss: onCreated,
       });
     } catch (error) {
-      Alert.alert(ru ? 'Ошибка' : 'Error', error instanceof Error ? error.message : String(error));
+      Alert.alert(ru ? 'Ошибка' : 'Error', bookingErrorText(error, lang));
     } finally {
       setSaving(false);
     }
