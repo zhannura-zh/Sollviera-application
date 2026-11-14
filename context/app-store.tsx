@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState as RNAppState } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
 import {
@@ -547,6 +548,106 @@ function mapParkingSession(item: any): ParkingSession {
   };
 }
 
+// Dashboard notifications read the way the web header does: the text is built from `kind`
+// (web: header.notif*), the message and room/dates go below it.
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const fmtDate = (v: unknown) => {
+  const d = new Date(String(v ?? ''));
+  return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+};
+const fmtDateTime = (v: unknown) => {
+  const d = new Date(String(v ?? ''));
+  return Number.isNaN(d.getTime()) ? '' : `${fmtDate(v)}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+const CHANNEL_TEXT: Record<string, { ru: string; en: string }> = {
+  booking_failed: { ru: '{channel}: бронь {name} не загрузилась в PMS — проверьте входящие брони', en: '{channel}: booking {name} was not loaded into the PMS — check the reservation inbox' },
+  booking_warning: { ru: '{channel}: бронь {name} требует внимания', en: '{channel}: booking {name} needs attention' },
+  auth_error: { ru: '{channel}: канал не принимает доступы, синхронизация на паузе', en: '{channel}: credentials rejected, sync is paused' },
+  secret_expiring: { ru: '{channel}: Client Secret истекает {date} — сгенерируйте новый и введите его', en: '{channel}: Client Secret expires on {date} — generate a new one and enter it' },
+  secret_unreadable: { ru: '{channel}: не удаётся расшифровать доступы — введите Client Secret заново', en: '{channel}: stored credentials cannot be decrypted — enter the Client Secret again' },
+};
+function dashboardNotificationText(item: any): { ru: string; en: string; subRu?: string; subEn?: string } | null {
+  const kind = String(item?.kind || '');
+  const name = String(item?.guest_name || '');
+  const room = item?.room_number ? String(item.room_number) : '';
+  const msg = item?.message ? String(item.message) : '';
+  const roomLine = (ru: boolean) => [room ? (ru ? `№ комнаты ${room}` : `Room ${room}`) : '', item?.guest_phone ? String(item.guest_phone) : ''].filter(Boolean).join(' · ');
+  const join = (...parts: string[]) => parts.filter(Boolean).join('\n') || undefined;
+  switch (kind) {
+    case 'channel_alert': {
+      const t = CHANNEL_TEXT[String(item?.event)];
+      if (!t) return null;
+      const fill = (s: string) =>
+        s.replace('{channel}', String(item?.channel_name || '')).replace('{name}', name).replace('{date}', fmtDate(item?.expires_at));
+      return { ru: fill(t.ru), en: fill(t.en), subRu: msg || undefined, subEn: msg || undefined };
+    }
+    case 'waitlist_room_released': {
+      const dates = item?.check_in && item?.check_out ? `${fmtDate(item.check_in)} – ${fmtDate(item.check_out)}` : '';
+      const count = Number(item?.waitlist_count) || 0;
+      const meta = (ru: boolean) =>
+        [item?.category ? String(item.category) : '', dates, count ? (ru ? `Заявок: ${count}` : `Requests: ${count}`) : ''].filter(Boolean).join(' · ');
+      return {
+        ru: `Освободился номер № ${room}, есть заявки в листе ожидания`,
+        en: `Room ${room} is free and matches waitlist requests`,
+        subRu: join(msg, meta(true)),
+        subEn: join(msg, meta(false)),
+      };
+    }
+    case 'guest_call':
+      return {
+        ru: `Позвонить гостю ${name} в ${fmtDateTime(item?.guest_notify_at)}`,
+        en: `Call guest ${name} at ${fmtDateTime(item?.guest_notify_at)}`,
+        subRu: join(msg, roomLine(true)),
+        subEn: join(msg, roomLine(false)),
+      };
+    case 'lunchbox_kitchen':
+    case 'lunchbox_kitchen_reminder':
+    case 'lunchbox_staff': {
+      const time = fmtDateTime(item?.ready_at);
+      const ru = kind === 'lunchbox_kitchen' ? 'Ланчбокс · кухня' : kind === 'lunchbox_staff' ? 'Ланчбокс · выдать' : 'Ланчбокс · готовить';
+      const en = kind === 'lunchbox_kitchen' ? 'Lunchbox · kitchen' : kind === 'lunchbox_staff' ? 'Lunchbox · deliver' : 'Lunchbox · prepare';
+      const qty = Number(item?.quantity) > 1 ? Number(item.quantity) : 0;
+      return {
+        ru: `${ru}: ${name}, ${time}`,
+        en: `${en}: ${name}, ${time}`,
+        subRu: join(qty ? `Количество: ${qty}` : '', msg, roomLine(true)),
+        subEn: join(qty ? `Quantity: ${qty}` : '', msg, roomLine(false)),
+      };
+    }
+    case 'room_move':
+      return {
+        ru: `Переселение: ${name} · № ${item?.from_room_number || '—'} → № ${room || '—'}`,
+        en: `Room move: ${name} · № ${item?.from_room_number || '—'} → № ${room || '—'}`,
+        subRu: join(msg, roomLine(true)),
+        subEn: join(msg, roomLine(false)),
+      };
+    case 'stay_overdue':
+      return {
+        ru: `Просроченный выезд: ${name}, № ${room || '—'}. Дата выезда ${fmtDate(item?.check_out)} — выселите гостя или продлите проживание`,
+        en: `Overdue checkout: ${name}, room ${room || '—'}. Departure was ${fmtDate(item?.check_out)} — check the guest out or extend the stay`,
+      };
+    case 'staff_credentials':
+      return {
+        ru: `Доступ сотрудника: ${String(item?.user_name || name)}`,
+        en: `Staff access: ${String(item?.user_name || name)}`,
+        subRu: 'Письмо не отправлено — передайте данные сотруднику',
+        subEn: 'Email was not sent — share these details with the employee',
+      };
+  }
+  const who = String(item?.user_name || name);
+  const sub = room ? { subRu: `№ комнаты ${room}`, subEn: `Room ${room}` } : {};
+  if (kind === 'check_out') return { ru: `Выезд сегодня: ${name}`, en: `Check-out today: ${name}`, ...sub };
+  if (kind === 'shift_stale') return { ru: `Смена ${who} открыта больше 24 часов — закройте или передайте её`, en: `${who}'s shift has been open for over 24 hours — close or hand it over`, ...sub };
+  if (kind === 'shift_opened') return { ru: `Смена открыта: ${name}`, en: `Shift opened: ${name}`, ...sub };
+  if (kind === 'shift_closed') return { ru: `Смена закрыта: ${who}`, en: `Shift closed: ${who}`, ...sub };
+  if (kind === 'shift_transferred') {
+    const to = String(item?.to_user_name || name);
+    return { ru: `Смена передана: ${who} → ${to}`, en: `Shift handed over: ${who} → ${to}`, ...sub };
+  }
+  if (kind === 'check_in') return { ru: `Заезд сегодня: ${name}`, en: `Check-in today: ${name}`, ...sub };
+  return null; // other kinds (cleaning, repairs…) keep their own message
+}
+
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -600,6 +701,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [taskSoundPlayer]);
   const hasLoadedNotificationsOnce = useRef(false);
+  // Ids of notifications read on this phone, per account. The API has no read flag, so this
+  // is kept in storage — otherwise every app restart shows them all as new again.
+  const readIdsRef = useRef<{ userId: string; ids: Set<string> } | null>(null);
+  const loadReadIds = useCallback(async () => {
+    const userId = getStoredSession()?.user.id ?? '';
+    if (readIdsRef.current?.userId === userId) return readIdsRef.current.ids;
+    let ids = new Set<string>();
+    try {
+      const raw = await AsyncStorage.getItem(`sollviera.notifRead.${userId}`);
+      if (raw) ids = new Set(JSON.parse(raw) as string[]);
+    } catch {
+      // unreadable storage — start with nothing read
+    }
+    readIdsRef.current = { userId, ids };
+    return ids;
+  }, []);
+  const rememberRead = useCallback((newIds: string[]) => {
+    const entry = readIdsRef.current;
+    if (!entry || newIds.length === 0) return;
+    newIds.forEach((id) => entry.ids.add(id));
+    // Keep the newest few hundred; old ids drop off the server list anyway.
+    const list = [...entry.ids].slice(-500);
+    entry.ids = new Set(list);
+    void AsyncStorage.setItem(`sollviera.notifRead.${entry.userId}`, JSON.stringify(list)).catch(() => undefined);
+  }, []);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [hasOpenDeskShift, setHasOpenDeskShift] = useState(false);
   const hasOpenDeskShiftRef = useRef(false);
@@ -629,6 +755,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     roomRecordIds.current = {};
     roomPhotoUrls.current = {};
     hasLoadedNotificationsOnce.current = false;
+    readIdsRef.current = null;
   }, []);
 
   const login = useCallback((profile: CleanerProfile, sessionUser?: ApiUser) => {
@@ -861,6 +988,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setMaintenanceRequests(asList<any>(maintenanceRecords).map((item) => mapMaintenance(item, roomsByNumber.get(String(item.room_number || item.roomNumber)))));
     if (dashboard && typeof dashboard === 'object') {
+      const storedReadIds = await loadReadIds();
       const notifications = asList<any>((dashboard as any).notifications).map((item) => {
         const kind = String(item.kind || '').toLowerCase();
         const category: AppNotification['category'] = kind.includes('overdue') || kind.includes('urgent')
@@ -871,16 +999,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               ? 'NEW_ROOM'
               : 'SYSTEM';
         const message = String(item.message || [item.kind, item.room_number && `Room ${item.room_number}`, item.guest_name].filter(Boolean).join(' · ') || 'Notification');
+        const text = dashboardNotificationText(item);
         return {
           id: String(item.id),
           timestamp: item.created_at ? new Date(item.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—',
-          messageEn: message,
-          messageRu: String(item.messageRu || message),
-          subtitleEn: item.subtitle ? String(item.subtitle) : undefined,
-          subtitleRu: item.subtitle ? String(item.subtitle) : undefined,
+          messageEn: text?.en ?? message,
+          messageRu: text?.ru ?? String(item.messageRu || message),
+          subtitleEn: text ? text.subEn : item.subtitle ? String(item.subtitle) : undefined,
+          subtitleRu: text ? text.subRu : item.subtitle ? String(item.subtitle) : undefined,
           category,
-          isRead: false,
+          isRead: storedReadIds.has(String(item.id)),
           kind: kind || undefined,
+          bookingId: item.booking_id ? String(item.booking_id) : undefined,
+          opensWaitlist: kind === 'waitlist_room_released',
         } satisfies AppNotification;
       });
       // Play the "new task" chime only for genuinely new NEW_ROOM/URGENT items that
@@ -968,7 +1099,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
     setLastSyncedAt(timeNow());
-  }, [playTaskSound, role]);
+  }, [playTaskSound, role, loadReadIds]);
   useEffect(() => {
     refreshFromApiRef.current = () => refreshFromApi();
   }, [refreshFromApi]);
@@ -1440,11 +1571,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const markNotificationAsRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-  }, []);
+    rememberRead([id]);
+  }, [rememberRead]);
 
   const markAllNotificationsAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-  }, []);
+    setNotifications((prev) => {
+      rememberRead(prev.filter((n) => !n.isRead).map((n) => n.id));
+      return prev.map((n) => ({ ...n, isRead: true }));
+    });
+  }, [rememberRead]);
 
   const addMaintenanceRequest = useCallback(
     (req: Omit<MaintenanceRequest, 'id' | 'timestamp' | 'status'>) => {

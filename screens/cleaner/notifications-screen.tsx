@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Bell, Clock, Wrench, MessageSquare, Package, CheckCircle2 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useApp } from '@/context/app-store';
 import { AppNotification } from '@/types';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
@@ -17,7 +18,10 @@ function isMessageNotification(item: AppNotification) {
 }
 
 export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
-  const { lang, notifications, markNotificationAsRead, markAllNotificationsAsRead } = useApp();
+  const { lang, role, notifications, markNotificationAsRead, markAllNotificationsAsRead } = useApp();
+  const router = useRouter();
+  // As on the web: front-desk notifications open their booking or the waitlist.
+  const isFrontDesk = role === 'RECEPTION';
   const refreshControl = usePullRefresh();
   const [selectedFilter, setSelectedFilter] = useState<Filter>('ALL');
 
@@ -52,6 +56,8 @@ export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
         onPress={() => {
           markNotificationAsRead(item.id);
           if (isMessageNotification(item)) onOpenChats();
+          else if (isFrontDesk && item.opensWaitlist) router.navigate('/(app)/(reception)/waitlist');
+          else if (isFrontDesk && item.bookingId) router.push(`/booking/${item.bookingId}`);
         }}
         className={`bg-white border border-border rounded-[14px] p-4 flex-row gap-3 active:bg-background ${
           hasLeftRedBorder ? 'border-l-2 border-l-error' : ''

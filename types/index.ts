@@ -256,4 +256,7 @@ export interface AppNotification {
   subtitleRu?: string;
   // Raw `kind` from the API (e.g. a chat message), when the notification came from there.
   kind?: string;
+  // Where a tap leads, as on the web: the booking, or the waitlist.
+  bookingId?: string;
+  opensWaitlist?: boolean;
 }
