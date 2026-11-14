@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronRight, User, Users, X, Zap, type LucideIcon } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { useReception } from '@/context/reception-store';
+import { type WaitlistEntry, useReception } from '@/context/reception-store';
 import { type BookingPrefill, bookingRangeText, diffDays, nightsText } from '@/components/reception/booking-utils';
 import { QuickBookingWizard } from '@/components/reception/create/quick-wizard';
 import { IndividualBookingWizard } from '@/components/reception/create/individual-wizard';
@@ -39,27 +39,47 @@ export function ReceptionCreateBookingScreen() {
   const { lang } = useApp();
   const ru = lang === 'RU';
   const router = useRouter();
-  const { rooms } = useReception();
+  const { rooms, waitlist } = useReception();
   const [type, setType] = useState<CreateBookingType>('NONE');
 
   // Room + dates picked on the chessboard arrive as route params; `at` makes every pick a
   // new value even when the same cell is picked twice.
-  const params = useLocalSearchParams<{ roomId?: string; checkIn?: string; checkOut?: string; at?: string }>();
+  const params = useLocalSearchParams<{ roomId?: string; checkIn?: string; checkOut?: string; waitlistId?: string; at?: string }>();
   const [prefill, setPrefill] = useState<BookingPrefill | null>(null);
+  const [fromWaitlist, setFromWaitlist] = useState<WaitlistEntry | null>(null);
   useEffect(() => {
+    // As in the design: «Создать бронь» on a waitlist request opens the individual booking
+    // filled from the request.
+    const entry = params.waitlistId ? waitlist.find((w) => w.id === params.waitlistId) : undefined;
+    if (entry) {
+      setPrefill(null);
+      setFromWaitlist(entry);
+      setType('INDIVIDUAL');
+      // Drop an earlier chessboard pick so it can't win over this one later.
+      if (params.roomId) router.setParams({ roomId: undefined, checkIn: undefined, checkOut: undefined });
+      return;
+    }
     if (params.roomId && params.checkIn && params.checkOut) {
+      setFromWaitlist(null);
+      if (params.waitlistId) router.setParams({ waitlistId: undefined });
       setPrefill({ roomId: params.roomId, checkIn: params.checkIn, checkOut: params.checkOut });
       // As in the design: a pick on the chessboard goes straight to the individual booking.
       setType('INDIVIDUAL');
     }
-  }, [params.roomId, params.checkIn, params.checkOut, params.at]);
+    // Only a new pick (new `at`) re-applies the params; later waitlist reloads don't.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.roomId, params.checkIn, params.checkOut, params.waitlistId, params.at]);
   const prefillRoom = prefill ? rooms.find((r) => r.id === prefill.roomId) : undefined;
 
-  const cancel = () => setType('NONE');
+  const cancel = () => {
+    setType('NONE');
+    setFromWaitlist(null);
+  };
   const created = () => {
     setType('NONE');
     setPrefill(null);
-    router.setParams({ roomId: undefined, checkIn: undefined, checkOut: undefined, at: undefined });
+    setFromWaitlist(null);
+    router.setParams({ roomId: undefined, checkIn: undefined, checkOut: undefined, waitlistId: undefined, at: undefined });
     router.navigate('/(app)/(reception)');
   };
 
@@ -70,7 +90,14 @@ export function ReceptionCreateBookingScreen() {
       {type === 'QUICK' ? (
         <QuickBookingWizard onCancel={cancel} onCreated={created} prefill={prefill} />
       ) : type === 'INDIVIDUAL' ? (
-        <IndividualBookingWizard onCancel={cancel} onCreated={created} prefill={prefill} insideTabs />
+        <IndividualBookingWizard
+          key={params.at ?? 'new'}
+          onCancel={cancel}
+          onCreated={created}
+          prefill={prefill}
+          fromWaitlist={fromWaitlist}
+          insideTabs
+        />
       ) : type === 'GROUP' ? (
         <GroupBookingWizard onCancel={cancel} onCreated={created} prefill={prefill} insideTabs />
       ) : (

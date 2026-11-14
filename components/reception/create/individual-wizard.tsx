@@ -11,6 +11,7 @@ import {
   type CatalogItem,
   type CreateBookingInput,
   type FoundGuest,
+  type WaitlistEntry,
   guestPayload,
   nightsBetween,
   toIsoDate,
@@ -77,12 +78,15 @@ export function IndividualBookingWizard({
   onCancel,
   onCreated,
   prefill,
+  fromWaitlist,
   edit,
   insideTabs,
 }: {
   onCancel: () => void;
   onCreated: () => void;
   prefill?: BookingPrefill | null;
+  // Waitlist request turned into a booking (design: guest, phone, category, guests, dates, notes).
+  fromWaitlist?: WaitlistEntry | null;
   edit?: EditSource;
   insideTabs?: boolean; // the tab bar below already covers the bottom safe area
 }) {
@@ -132,9 +136,9 @@ export function IndividualBookingWizard({
   const [saving, setSaving] = useState(false);
 
   // Step 1 — stay
-  const [checkInText, setCheckInText] = useState(isoToDots(original?.checkIn || prefill?.checkIn || todayIso));
+  const [checkInText, setCheckInText] = useState(isoToDots(original?.checkIn || prefill?.checkIn || fromWaitlist?.checkIn || todayIso));
   const [checkInTime, setCheckInTime] = useState(s(raw?.checkInTime) || '14:00');
-  const [checkOutText, setCheckOutText] = useState(isoToDots(original?.checkOut || prefill?.checkOut || addDaysIso(todayIso, 1)));
+  const [checkOutText, setCheckOutText] = useState(isoToDots(original?.checkOut || prefill?.checkOut || fromWaitlist?.checkOut || addDaysIso(todayIso, 1)));
   // Check-in / check-out are picked together in one calendar.
   const stayRange = {
     start: checkInText,
@@ -145,11 +149,13 @@ export function IndividualBookingWizard({
     },
   };
   const [checkOutTime, setCheckOutTime] = useState(s(raw?.checkOutTime) || '12:00');
-  const [category, setCategory] = useState(() => rooms.find((r) => r.id === (original?.roomId || prefill?.roomId))?.category ?? '');
+  const [category, setCategory] = useState(
+    () => rooms.find((r) => r.id === (original?.roomId || prefill?.roomId))?.category ?? (fromWaitlist?.category || '')
+  );
   const [roomId, setRoomId] = useState(original?.roomId || prefill?.roomId || '');
   const [tariffCode, setTariffCode] = useState(s(raw?.tariffCode));
-  const [adultsText, setAdultsText] = useState(original ? String(original.adults) : '2');
-  const [childrenText, setChildrenText] = useState(original ? String(original.children) : '0');
+  const [adultsText, setAdultsText] = useState(original ? String(original.adults) : fromWaitlist ? String(fromWaitlist.adults || 1) : '2');
+  const [childrenText, setChildrenText] = useState(original ? String(original.children) : fromWaitlist ? String(fromWaitlist.children) : '0');
   const [companyId, setCompanyId] = useState('');
   const [discountText, setDiscountText] = useState('0');
   // "roomId:guests" the extra bed was confirmed for; changes to either drop the confirmation.
@@ -157,7 +163,13 @@ export function IndividualBookingWizard({
   const [avail, setAvail] = useState<Availability>({ ids: null, loading: false, failed: false });
 
   // Step 2 — guests
-  const [mainGuest, setMainGuest] = useState<GuestDraft>(() => original?.guest ?? emptyGuest());
+  const [mainGuest, setMainGuest] = useState<GuestDraft>(() => {
+    if (original) return original.guest;
+    if (!fromWaitlist) return emptyGuest();
+    // As in the design: the first word is the first name, the rest the last name.
+    const parts = fromWaitlist.guestName.trim().split(/\s+/);
+    return { ...emptyGuest(), firstName: parts[0] ?? '', lastName: parts.slice(1).join(' '), phone: fromWaitlist.phone };
+  });
   const [guestId, setGuestId] = useState<string | undefined>(original?.guestId);
   const [source, setSource] = useState(s(raw?.source) || 'direct');
   const [companions, setCompanions] = useState<GuestDraft[]>([]);
@@ -168,7 +180,7 @@ export function IndividualBookingWizard({
   const [specialRequests, setSpecialRequests] = useState(s(raw?.specialRequests));
   const [hasPets, setHasPets] = useState(!!raw?.hasPets);
   const [tags, setTags] = useState<string>(Array.isArray(raw?.tags) ? raw.tags.map(s).join(', ') : '');
-  const [notes, setNotes] = useState(s(raw?.notes));
+  const [notes, setNotes] = useState(raw ? s(raw.notes) : (fromWaitlist?.comment ?? ''));
   const [chosenServices, setChosenServices] = useState<CatalogItem[]>([]);
 
   // Step 4 — payment

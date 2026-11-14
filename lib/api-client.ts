@@ -398,6 +398,10 @@ export const scanAttendanceQr = (token: string, action: 'open' | 'close' | 'togg
 
 export const getMyAttendance = () => request<Json | null>('/staff/attendance/mine');
 
+// Cash-desk shift history, as on the web's Finance → Shifts:
+// [{ id, userId, userName, status: 'OPEN' | 'CLOSED', openedAt, closedAt, events }].
+export const listCashShifts = () => request<unknown[]>('/shifts');
+
 export const setAttendancePresence = (status: 'ON_SHIFT' | 'ON_BREAK') =>
   request<Json>('/staff/attendance/presence', { method: 'POST', data: { status } });
 

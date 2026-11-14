@@ -529,7 +529,11 @@ function WaitlistDetails({
           <Text className="text-xs font-jost-semibold text-text-primary">{ru ? 'Изменить' : 'Edit'}</Text>
         </Pressable>
         <Pressable
-          onPress={() => router.push('/(app)/(reception)/create')}
+          onPress={() => {
+            // As in the design: the request card closes and the individual booking opens.
+            onBack();
+            router.navigate({ pathname: '/(app)/(reception)/create', params: { waitlistId: entry.id, at: String(Date.now()) } });
+          }}
           disabled={busy !== null}
           className="flex-1 py-3.5 rounded-[14px] bg-[#B93800] flex-row items-center justify-center gap-2 active:bg-[#9E3000]"
         >

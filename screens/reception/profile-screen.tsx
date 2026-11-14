@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { useReception, toIsoDate } from '@/context/reception-store';
 import { useShiftActions } from '@/hooks/use-shift-status';
 import { ShiftQrScanner } from '@/components/shift-qr-scanner';
 import { ChangePasswordModal } from '@/components/password-modals';
+import { getStoredSession, listCashShifts } from '@/lib/api-client';
 
 // Front-desk profile (web PMS design, ReceptionScreens.tsx → profile). The design's
 // notifications / chats / settings overlays are the app's shared /profile/* routes; the shift
@@ -32,6 +33,23 @@ function plural(n: number, one: string, few: string, many: string) {
   return many;
 }
 
+// One of my shifts from GET /shifts (same data as the web's Finance → Shifts).
+interface MyShift {
+  id: string;
+  open: boolean;
+  openedAt: Date;
+  closedAt: Date | null;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const shiftDateText = (d: Date) => `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const durationText = (from: Date, to: Date, ru: boolean) => {
+  const minutes = Math.max(0, Math.round((to.getTime() - from.getTime()) / 60000));
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return ru ? `${h} ч ${m} мин` : `${h} h ${m} min`;
+};
+
 function HeaderButton({ onPress, badge, children }: { onPress: () => void; badge?: number; children: React.ReactNode }) {
   return (
     <Pressable onPress={onPress} className="h-10 w-10 bg-white border border-border rounded-xl items-center justify-center relative active:bg-background">
@@ -51,7 +69,7 @@ function SectionTitle({ children }: { children: string }) {
 
 export function ReceptionProfileScreen({ onLoggedOut }: ReceptionProfileScreenProps) {
   const router = useRouter();
-  const { lang, cleanerProfile, notifications, shiftHistory, hasOpenDeskShift, changePassword, logout } = useApp();
+  const { lang, cleanerProfile, notifications, hasOpenDeskShift, changePassword, logout } = useApp();
   const { totalUnread: unreadChats } = useChat();
   const { bookings } = useReception();
   const { setPresence, canStopWorking, pauseActiveRoom } = useShiftActions();
@@ -60,6 +78,29 @@ export function ReceptionProfileScreen({ onLoggedOut }: ReceptionProfileScreenPr
   const [scan, setScan] = useState<'open' | 'close' | null>(null);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Shift history: my shifts from GET /shifts, newest first.
+  const [shiftHistory, setShiftHistory] = useState<MyShift[]>([]);
+  const loadShiftHistory = useCallback(async () => {
+    const myId = getStoredSession()?.user.id;
+    if (!myId) return;
+    const list = ((await listCashShifts().catch(() => [])) ?? []) as any[];
+    setShiftHistory(
+      list
+        .filter((x) => String(x?.userId ?? x?.user_id ?? '') === myId)
+        .map((x) => ({
+          id: String(x.id),
+          open: String(x.status).toUpperCase() === 'OPEN',
+          openedAt: new Date(x.openedAt ?? x.opened_at),
+          closedAt: x.closedAt || x.closed_at ? new Date(x.closedAt ?? x.closed_at) : null,
+        }))
+        .filter((x) => !Number.isNaN(x.openedAt.getTime()))
+        .sort((a, b) => b.openedAt.getTime() - a.openedAt.getTime())
+    );
+  }, []);
+  useEffect(() => {
+    void loadShiftHistory();
+  }, [loadShiftHistory, hasOpenDeskShift]);
 
   const unreadNotifs = notifications.filter((n) => !n.isRead).length;
   const shiftStatus = hasOpenDeskShift ? cleanerProfile.currentShift.status : 'SHIFT_ENDED';
@@ -220,7 +261,10 @@ export function ReceptionProfileScreen({ onLoggedOut }: ReceptionProfileScreenPr
           <SectionTitle>{ru ? 'РАБОТА' : 'WORK'}</SectionTitle>
           <View className="bg-white rounded-[18px] border border-border overflow-hidden">
             <Pressable
-              onPress={() => setIsHistoryExpanded((v) => !v)}
+              onPress={() => {
+                if (!isHistoryExpanded) void loadShiftHistory();
+                setIsHistoryExpanded((v) => !v);
+              }}
               className="p-4 flex-row items-center justify-between active:bg-background"
             >
               <View className="flex-row items-center gap-3">
@@ -242,12 +286,9 @@ export function ReceptionProfileScreen({ onLoggedOut }: ReceptionProfileScreenPr
                 ) : (
                   shiftHistory.slice(0, 3).map((sh) => (
                     <View key={sh.id} className="bg-white rounded-xl p-2.5 border border-border flex-row items-center justify-between">
-                      <Text className="text-xs">
-                        <Text className="font-jost-medium text-text-primary">{sh.shiftNumber}</Text>
-                        <Text className="font-jost text-text-secondary">{'  '}{sh.date}</Text>
-                      </Text>
-                      <Text className="text-xs font-jost-medium text-[#2E623C]">
-                        {sh.hoursWorked} ч · {sh.qualityScore}%
+                      <Text className="text-xs font-jost-medium text-text-primary">{shiftDateText(sh.openedAt)}</Text>
+                      <Text className="text-xs font-jost-medium" style={{ color: sh.open ? '#C2410C' : '#2E623C' }}>
+                        {sh.open ? (ru ? 'Открыта' : 'Open') : sh.closedAt ? durationText(sh.openedAt, sh.closedAt, ru) : '—'}
                       </Text>
                     </View>
                   ))
