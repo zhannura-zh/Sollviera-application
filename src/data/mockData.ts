@@ -334,6 +334,31 @@ export const mockCleaners: CleanerProfile[] = [
       avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     },
   },
+  {
+    id: 'cln-008',
+    badgeId: 'SLV-1001',
+    fullName: 'Arman Nurlanov',
+    fullNameRu: 'Арман Нурланов',
+    email: 'arman.nurlanov@sollviera-pms.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    role: 'MANAGER',
+    floorAssigned: 'Управление отелем · Все службы',
+    currentShift: {
+      shiftNumber: 'SH-5001',
+      date: new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      startTime: '08:00',
+      status: 'ON_SHIFT',
+      roomsCompleted: 24,
+      roomsTotal: 24,
+      avgTimePerRoom: '—',
+    },
+    supervisor: {
+      name: 'Sollviera Hospitality Group',
+      phone: '+7 (701) 100-00-01',
+      role: 'Управляющая компания',
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    },
+  },
 ];
 
 export const mockShiftHistory: ShiftHistoryItem[] = [

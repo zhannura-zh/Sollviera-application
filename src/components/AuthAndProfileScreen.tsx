@@ -235,6 +235,10 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
       onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'WAITER') || mockCleaners[4]);
       setIsLoggedIn(true);
       setLoginError(false);
+    } else if (cleanEmail.includes('arman') || cleanEmail.includes('manager') || cleanEmail.includes('1001')) {
+      onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'MANAGER') || mockCleaners[7]);
+      setIsLoggedIn(true);
+      setLoginError(false);
     } else {
       setLoginError(true);
     }
@@ -254,6 +258,8 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
       onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'SERVICES') || mockCleaners[5]);
     } else if (profileId === 'dinara') {
       onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'RECEPTION') || mockCleaners[6]);
+    } else if (profileId === 'arman') {
+      onUpdateCleanerProfile(mockCleaners.find(c => c.role === 'MANAGER') || mockCleaners[7]);
     }
     setShowQrScanner(false);
     setShowQrAccountFound(false);
@@ -1261,6 +1267,12 @@ export const AuthAndProfileScreen: React.FC<AuthAndProfileScreenProps> = ({
                         initials: lang === 'RU' ? 'ДК' : 'DK',
                         name: lang === 'RU' ? 'Динара Каримова' : 'Dinara Karimova',
                         role: lang === 'RU' ? 'Ресепшн · Бронирование' : 'Reception · Bookings',
+                      },
+                      {
+                        id: 'arman',
+                        initials: lang === 'RU' ? 'АН' : 'AN',
+                        name: lang === 'RU' ? 'Арман Нурланов' : 'Arman Nurlanov',
+                        role: lang === 'RU' ? 'Руководитель отеля' : 'General Manager',
                       }
                     ].map((profile) => {
                       const isSelected = selectedDemoId === profile.id;

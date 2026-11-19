@@ -16,6 +16,7 @@ import { TechnicianScreens } from './components/TechnicianScreens';
 import { WaiterScreens } from './components/WaiterScreens';
 import { ServicesScreens } from './components/ServicesScreens';
 import { ReceptionScreens } from './components/ReceptionScreens';
+import { ManagerScreens } from './components/ManagerScreens';
 import { Language, HotelRoom, RoomStatus, SupplyItem, AppNotification, MaintenanceRequest, CleanerProfile } from './types';
 import { getTranslation } from './locales';
 import { 
@@ -24,7 +25,7 @@ import {
 import { 
   Smartphone, Monitor, Globe, CheckSquare, User, LayoutDashboard, 
   Wrench, Package, BarChart3, Bell, WifiOff, Users, Clock, PlusCircle, Hammer,
-  ConciergeBell, Utensils, Calendar, BookOpen
+  ConciergeBell, Utensils, Calendar, BookOpen, Wallet
 } from 'lucide-react';
 
 export default function App() {
@@ -58,6 +59,11 @@ export default function App() {
     | 'RECEPTION_CREATE'
     | 'RECEPTION_WAITLIST'
     | 'RECEPTION_PROFILE'
+    | 'MANAGER_ANALYTICS'
+    | 'MANAGER_FINANCE'
+    | 'MANAGER_BOOKINGS'
+    | 'MANAGER_WAREHOUSE'
+    | 'MANAGER_PROFILE'
   >('DASHBOARD');
 
   // Shared States (Lifting state up for persistence across tabs)
@@ -93,6 +99,8 @@ export default function App() {
         setActiveTab('SERVICES_HOME');
       } else if (cleanerProfile.role === 'RECEPTION') {
         setActiveTab('RECEPTION_BOOKINGS');
+      } else if (cleanerProfile.role === 'MANAGER') {
+        setActiveTab('MANAGER_ANALYTICS');
       } else {
         setActiveTab('DASHBOARD');
       }
@@ -511,6 +519,29 @@ export default function App() {
             onNavigateTab={handleTabChange as any}
           />
         );
+      case 'MANAGER_ANALYTICS':
+      case 'MANAGER_FINANCE':
+      case 'MANAGER_BOOKINGS':
+      case 'MANAGER_WAREHOUSE':
+      case 'MANAGER_PROFILE':
+        return (
+          <ManagerScreens
+            lang={lang}
+            cleanerProfile={cleanerProfile}
+            onUpdateCleanerProfile={setCleanerProfile}
+            onLogout={() => {
+              setIsLoggedIn(false);
+              setCleanerProfile(mockCleaners[0]);
+              setActiveTab('DASHBOARD');
+            }}
+            offlineMode={offlineMode}
+            onToggleOffline={handleToggleOffline}
+            activeTab={activeTab}
+            onNavigateTab={handleTabChange as any}
+            rooms={rooms}
+            onLanguageChange={setLang}
+          />
+        );
       default:
         return null;
     }
@@ -810,6 +841,77 @@ export default function App() {
             onClick={() => handleTabChange('RECEPTION_PROFILE')}
             className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               activeTab === 'RECEPTION_PROFILE'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <User className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Профиль' : 'Profile'}</span>
+          </button>
+        </div>
+      );
+    }
+
+    if (cleanerProfile.role === 'MANAGER') {
+      return (
+        <div className="grid grid-cols-5 gap-0.5 text-center">
+          {/* Tab 1: Аналитика (MANAGER_ANALYTICS) */}
+          <button
+            onClick={() => handleTabChange('MANAGER_ANALYTICS')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'MANAGER_ANALYTICS'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Аналитика' : 'Analytics'}</span>
+          </button>
+
+          {/* Tab 2: Финансы (MANAGER_FINANCE) */}
+          <button
+            onClick={() => handleTabChange('MANAGER_FINANCE')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'MANAGER_FINANCE'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <Wallet className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Финансы' : 'Finance'}</span>
+          </button>
+
+          {/* Tab 3: Бронирование (MANAGER_BOOKINGS) */}
+          <button
+            onClick={() => handleTabChange('MANAGER_BOOKINGS')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'MANAGER_BOOKINGS'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Бронирование' : 'Bookings'}</span>
+          </button>
+
+          {/* Tab 4: Склад (MANAGER_WAREHOUSE) */}
+          <button
+            onClick={() => handleTabChange('MANAGER_WAREHOUSE')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'MANAGER_WAREHOUSE'
+                ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
+                : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
+            }`}
+          >
+            <Package className="h-4 w-4 shrink-0" />
+            <span className="text-[8px] font-bold truncate block w-full">{lang === 'RU' ? 'Склад' : 'Warehouse'}</span>
+          </button>
+
+          {/* Tab 5: Профиль (MANAGER_PROFILE) */}
+          <button
+            onClick={() => handleTabChange('MANAGER_PROFILE')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'MANAGER_PROFILE'
                 ? 'bg-terracotta text-white font-extrabold shadow-inner border border-white/10'
                 : 'text-[#8A8177] hover:text-[#FAF7F3] hover:bg-terracotta/20'
             }`}
