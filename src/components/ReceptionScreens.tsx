@@ -5,7 +5,7 @@ import {
   MessageSquare, Bell, Settings, LogOut, QrCode, ShieldCheck, Lock,
   HelpCircle, RotateCw, BedDouble, ArrowRight, X, Check, Building2,
   CreditCard, FileText, Sparkles, Filter, ExternalLink, Eye, Edit3, Printer, Download, Info,
-  Send, PhoneCall, Wrench, RefreshCw
+  Send, PhoneCall, Wrench, RefreshCw, Upload
 } from 'lucide-react';
 import { Language, CleanerProfile } from '../types';
 import { mockShiftHistory } from '../data/mockData';
@@ -647,7 +647,40 @@ export const ReceptionScreens: React.FC<ReceptionScreensProps> = ({
   const [showGrpRoomingModal, setShowGrpRoomingModal] = useState<boolean>(false);
   const [grpExpandedRoomIdx, setGrpExpandedRoomIdx] = useState<number | null>(0);
   const [grpExpandedGuestKey, setGrpExpandedGuestKey] = useState<string | null>('0-0');
-  const [grpExpandedDocKey, setGrpExpandedDocKey] = useState<string | null>(null);
+  const [grpExpandedDocKey, setGrpExpandedDocKey] = useState<string | null>('0-0');
+  const [uploadedGuestDocs, setUploadedGuestDocs] = useState<Record<string, string>>({});
+
+  const renderGuestDocumentUploadButton = (docKey: string) => {
+    const uploadedFileName = uploadedGuestDocs[docKey];
+    return (
+      <div className="pt-1">
+        <label className="w-full bg-[#FAF7F3] hover:bg-[#F3EFE8] border border-[#E5E2DD] hover:border-[#C2410C]/40 rounded-[14px] py-3 px-4 flex items-center justify-center gap-2 text-xs font-sans font-medium text-[#C2410C] cursor-pointer transition-all shadow-2xs">
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setUploadedGuestDocs((prev) => ({
+                  ...prev,
+                  [docKey]: file.name,
+                }));
+              }
+            }}
+          />
+          <Upload className="h-4 w-4 text-[#C2410C] shrink-0" />
+          <span className="truncate">
+            {uploadedFileName
+              ? `${lang === 'RU' ? 'Документ загружен' : 'Uploaded'}: ${uploadedFileName}`
+              : lang === 'RU'
+              ? 'Загрузить документ'
+              : 'Upload document'}
+          </span>
+        </label>
+      </div>
+    );
+  };
   const [grpRoomingGuests, setGrpRoomingGuests] = useState<
     Record<
       string,
@@ -3715,6 +3748,9 @@ export const ReceptionScreens: React.FC<ReceptionScreensProps> = ({
                         <ChevronDown className="h-4 w-4 text-[#241E1A] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
+
+                    {/* Кнопка: Загрузить документ (в конце блока гостя 1) */}
+                    {renderGuestDocumentUploadButton('ind-guest-1')}
                   </div>
                 </div>
 
@@ -3934,6 +3970,9 @@ export const ReceptionScreens: React.FC<ReceptionScreensProps> = ({
                               <ChevronDown className="h-4 w-4 text-[#241E1A] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
                           </div>
+
+                          {/* Кнопка: Загрузить документ (в конце блока доп. гостя) */}
+                          {renderGuestDocumentUploadButton(`ind-guest-${idx + 2}`)}
                         </div>
                       </div>
                     );
@@ -5382,9 +5421,11 @@ export const ReceptionScreens: React.FC<ReceptionScreensProps> = ({
                               <div key={gKey} className="px-4 py-3.5">
                                 {/* Guest Header */}
                                 <div
-                                  onClick={() =>
-                                    setGrpExpandedGuestKey(isGuestExpanded ? null : gKey)
-                                  }
+                                  onClick={() => {
+                                    const nextKey = isGuestExpanded ? null : gKey;
+                                    setGrpExpandedGuestKey(nextKey);
+                                    if (nextKey) setGrpExpandedDocKey(nextKey);
+                                  }}
                                   className="flex items-center justify-between cursor-pointer"
                                 >
                                   <div>
@@ -5638,6 +5679,11 @@ export const ReceptionScreens: React.FC<ReceptionScreensProps> = ({
                                               </div>
                                             </div>
                                           </div>
+
+                                          {/* Кнопка: Загрузить документ (в конце подраздела Документ и личные данные каждого гостя) */}
+                                          {renderGuestDocumentUploadButton(
+                                            `grp-room-${rIdx}-guest-${gIdx}`
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -6598,6 +6644,9 @@ export const ReceptionScreens: React.FC<ReceptionScreensProps> = ({
                       <ChevronDown className="h-4 w-4 text-[#241E1A] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
+
+                  {/* Кнопка: Загрузить документ (в конце подраздела Документы и личные данные) */}
+                  {renderGuestDocumentUploadButton('qck-guest-1')}
                 </div>
               </>
             )}
