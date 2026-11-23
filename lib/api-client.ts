@@ -255,7 +255,12 @@ export const createBooking = (payload: Record<string, unknown>) => request<unkno
 export const createGroupBooking = (payload: Record<string, unknown>) =>
   request<unknown>('/bookings/group', { method: 'POST', data: payload });
 export const listTariffs = () => request<unknown[]>('/catalogs/tariffs');
+// Booking sources set up in the web PMS (Настройки → Источники).
+export const listBookingSources = () => request<unknown[]>('/catalogs/sources');
 export const listServicesCatalog = () => request<unknown[]>('/catalogs/services');
+export const createCatalogService = (payload: Json) => request<Json>('/catalogs/services', { method: 'POST', data: payload });
+export const updateCatalogService = (id: string, payload: Json) =>
+  request<Json>(`/catalogs/services/${encodeURIComponent(id)}`, { method: 'PATCH', data: payload });
 export const listCompanies = () => request<unknown[]>('/companies');
 export const searchGuests = (q: string) => request<unknown[]>('/guests', { params: { q } });
 export const updateBooking = (id: string, payload: Record<string, unknown>) =>
@@ -401,6 +406,29 @@ export const getMyAttendance = () => request<Json | null>('/staff/attendance/min
 // Cash-desk shift history, as on the web's Finance → Shifts:
 // [{ id, userId, userName, status: 'OPEN' | 'CLOSED', openedAt, closedAt, events }].
 export const listCashShifts = () => request<unknown[]>('/shifts');
+
+// Report builder, as on the web's Analytics → Reports. Meta: { reports: [{ code, group, range,
+// filters: [{ key, type, choices?, source? }], columns, defaultSort }], options }. Run returns
+// { code, from, to, columns, rows: [{ [column]: value }] } (a total row holds "@total").
+export const getReportsMeta = () => request<Json>('/analytics/reports/meta');
+export const runReport = (payload: {
+  code: string;
+  from: string;
+  to: string;
+  columns: string[];
+  sort: string;
+  dir: 'asc' | 'desc';
+  filters: Record<string, unknown>;
+}) => request<Json>('/analytics/reports', { method: 'POST', data: payload });
+
+// Moves a finance account out of payments and the cash total (web: Finance → Accounts → В архив).
+export const archiveFinanceAccount = (id: string) =>
+  request<Json>(`/records/finance_account/${encodeURIComponent(id)}/archive`, { method: 'POST' });
+
+// Manager dashboard: operational status, payments due and KPIs for a period. `period` is
+// day|week|month|year; from/to (YYYY-MM-DD) pin an exact range, as the web does.
+export const getAnalytics = (period: 'day' | 'week' | 'month' | 'year', from?: string, to?: string) =>
+  request<Json>('/analytics', { params: { period, ...(from && to ? { from, to } : {}) } });
 
 export const setAttendancePresence = (status: 'ON_SHIFT' | 'ON_BREAK') =>
   request<Json>('/staff/attendance/presence', { method: 'POST', data: { status } });

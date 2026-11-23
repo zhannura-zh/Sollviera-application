@@ -31,7 +31,7 @@ type ViewMode = 'CHESS' | 'LIST';
 export function ReceptionBookingsScreen() {
   const { lang } = useApp();
   const router = useRouter();
-  const { rooms, bookings, period, setPeriod, loading, error, refresh } = useReception();
+  const { rooms, bookings, bookingSources, period, setPeriod, loading, error, refresh } = useReception();
   const ru = lang === 'RU';
 
   const [viewMode, setViewMode] = useState<ViewMode>('CHESS');
@@ -110,7 +110,7 @@ export function ReceptionBookingsScreen() {
   ];
   const sourceOptions: SelectOption<string>[] = [
     { value: 'ALL', label: ru ? 'Все источники' : 'All sources' },
-    ...sources.map((s) => ({ value: s, label: sourceLabel(s, lang) })),
+    ...sources.map((s) => ({ value: s, label: sourceLabel(s, lang, bookingSources) })),
   ];
 
   // ---------- filtering ----------

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { payBooking, updateBooking, updateGuestProfile } from '@/lib/api-client';
 import {
-  BOOKING_SOURCES,
+  bookingSourceOptions,
   MEAL_PLANS,
   SPECIAL_MARKS,
   type CatalogItem,
@@ -98,6 +98,7 @@ export function IndividualBookingWizard({
     rooms,
     tariffs,
     services,
+    bookingSources,
     companies,
     paymentAccounts,
     loadCatalogs,
@@ -172,6 +173,13 @@ export function IndividualBookingWizard({
   });
   const [guestId, setGuestId] = useState<string | undefined>(original?.guestId);
   const [source, setSource] = useState(s(raw?.source) || 'direct');
+
+  // The hotel's source catalog may not have our default code: start from its first entry then.
+  useEffect(() => {
+    if (original || !bookingSources.length || bookingSources.some((x) => x.code === source)) return;
+    setSource(bookingSources[0].code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingSources]);
   const [companions, setCompanions] = useState<GuestDraft[]>([]);
 
   // Step 3 — wishes & services
@@ -215,6 +223,9 @@ export function IndividualBookingWizard({
   const discountPct = companyId ? Math.min(100, Math.max(0, toInt(discountText))) : 0;
   const roomStaySum = Math.round(nights * (room?.pricePerNight ?? 0) * (1 - discountPct / 100));
   const servicesSum = chosenServices.reduce((acc, s) => acc + s.price, 0);
+
+  // Chosen services go into the booking as `extraServices` (like the web): the server prices them
+  // into the booking total. Don't also order them as service_request — that bills them twice.
   const calculatedTotal = roomStaySum + servicesSum;
   const customNum = customSum !== null && customSum.trim() !== '' ? toInt(customSum) : null;
   const effectiveTotal = customNum ?? calculatedTotal;
@@ -511,7 +522,7 @@ export function IndividualBookingWizard({
     });
   const tariffOptions: PickOption[] = [{ value: '', label: L('Тариф номера', 'Room rate') }, ...tariffs.map((t) => ({ value: t.code, label: t.name }))];
   const companyOptions: PickOption[] = [{ value: '', label: L('Без компании', 'No company') }, ...companies.map((c) => ({ value: c.id, label: c.name }))];
-  const sourceOptions: PickOption[] = BOOKING_SOURCES.map((s) => ({ value: s.value, label: ru ? s.ru : s.en }));
+  const sourceOptions: PickOption[] = bookingSourceOptions(bookingSources, lang, original ? s(raw?.source) : undefined);
   const mealOptions: PickOption[] = MEAL_PLANS.map((m) => ({ value: m.value, label: ru ? m.ru : m.en }));
   const accountOptions: PickOption[] = paymentAccounts.map((a) => ({ value: a.id, label: a.name }));
   const stepTitles = [L('Проживание', 'Stay'), L('Гости', 'Guests'), L('Пожелания', 'Wishes'), L('Оплата', 'Payment')];
@@ -945,7 +956,12 @@ export function IndividualBookingWizard({
                   </View>
 
                   <Pressable
-                    onPress={() => setPrepaymentText(String(Math.max(0, effectiveTotal - alreadyPaid)))}
+                    // A partial prepayment typed in stays as is (only it is charged); an empty field
+                    // means the whole balance is paid now.
+                    onPress={() => {
+                      if (prepayment > 0) return;
+                      setPrepaymentText(String(Math.max(0, effectiveTotal - alreadyPaid)));
+                    }}
                     disabled={effectiveTotal - alreadyPaid <= 0}
                     className="w-full py-3.5 rounded-[14px] bg-primary items-center active:bg-primary-hover"
                     style={{ opacity: effectiveTotal - alreadyPaid <= 0 ? 0.5 : 1 }}

@@ -104,6 +104,8 @@ export function BookingServices({ booking, onOrdered }: { booking: ReceptionBook
   const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [catalog, setCatalog] = useState<CatalogService[]>([]);
+  // Full catalog (incl. paused services) to name and price the booking's own extraServices.
+  const [allServices, setAllServices] = useState<CatalogService[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOrder, setShowOrder] = useState(false);
   const closed = booking.status === 'CANCELLED' || booking.status === 'CHECKED_OUT';
@@ -123,14 +125,15 @@ export function BookingServices({ booking, onOrdered }: { booking: ReceptionBook
     Promise.all([
       loadOrders().catch(() => setOrders([])),
       listServicesCatalog()
-        .then((list) =>
+        .then((list) => {
+          setAllServices(((list ?? []) as any[]).map(mapService));
           setCatalog(
             ((list ?? []) as any[])
               .filter((x) => x?.isAvailable !== false && (x?.kind !== 'product' || num(x?.stockQty) > 0))
               .map(mapService)
               .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-          )
-        )
+          );
+        })
         .catch(() => setCatalog([])),
     ]).finally(() => setLoading(false));
   }, [loadOrders]);
@@ -141,13 +144,37 @@ export function BookingServices({ booking, onOrdered }: { booking: ReceptionBook
     return o.kind === 'product' && o.quantity > 1 ? `${name} × ${o.quantity}` : name;
   };
 
+  // Services chosen in the booking form: the server already priced them into the booking total,
+  // so they're shown as part of the room bill (not as separate service orders).
+  const extras = booking.extraServices.map((code) => {
+    const item = allServices.find((c) => c.code === code || c.id === code);
+    return { code, name: item?.name ?? code, price: item?.price ?? 0 };
+  });
+  const roomBill = PAYMENT_STYLE.bill_to_room;
+
   return (
     <>
+      {!loading &&
+        extras.map((x) => (
+          <View key={`extra-${x.code}`} className="bg-white rounded-[18px] border border-border p-4 flex-row items-start justify-between gap-3">
+            <Text className="flex-1 text-sm font-jost-medium text-text-primary" numberOfLines={1}>
+              {x.name}
+            </Text>
+            <View className="items-end gap-1">
+              {x.price > 0 && <Text className="text-sm font-jost-semibold text-text-primary">{money(x.price)}</Text>}
+              <View className="px-2 py-0.5 rounded-md" style={{ backgroundColor: roomBill.bg }}>
+                <Text className="text-[10px] font-jost-medium" style={{ color: roomBill.text }}>
+                  {roomBill.label}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))}
       {loading ? (
         <View className="bg-white rounded-[18px] border border-border p-6 items-center">
           <ActivityIndicator color="#C2410C" />
         </View>
-      ) : orders.length === 0 ? (
+      ) : orders.length === 0 && extras.length === 0 ? (
         <View className="bg-white rounded-[18px] border border-dashed border-[#DDD7CD] p-6 items-center">
           <Text className="text-xs font-jost text-text-secondary">Услуг пока нет</Text>
         </View>

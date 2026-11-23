@@ -175,7 +175,10 @@ const SOURCE_LABELS: Record<string, { ru: string; en: string }> = {
   EMAIL: { ru: 'Email', en: 'Email' },
 };
 
-export function sourceLabel(source: string, lang: Lang) {
+// `catalog` — the hotel's sources from /catalogs/sources (code → name), checked first, as on the web.
+export function sourceLabel(source: string, lang: Lang, catalog?: { code: string; name: string }[]) {
+  const own = catalog?.find((c) => c.code === source)?.name?.trim();
+  if (own) return own;
   const known = SOURCE_LABELS[source.trim().toUpperCase().replace(/[\s.-]+/g, '_')];
   if (known) return lang === 'RU' ? known.ru : known.en;
   return source;
@@ -190,6 +193,18 @@ export function bookingErrorText(error: unknown, lang: Lang): string {
     return lang === 'RU'
       ? `В номере №${room} помещается ${guestsText(Number(cap), lang)}, а в брони ${guestsText(Number(guests), lang)}. Уменьшите число гостей или выберите другой номер.`
       : `Room #${room} fits ${guestsText(Number(cap), lang)}, the booking has ${guestsText(Number(guests), lang)}. Reduce the guests or pick another room.`;
+  }
+  const checkoutDue = /CHECKOUT_PAYMENT_REQUIRED:?([\d.]+)?/.exec(message);
+  if (checkoutDue) {
+    const due = checkoutDue[1] ? `${Math.round(Number(checkoutDue[1])).toLocaleString('ru-RU')} ₸` : '';
+    return lang === 'RU'
+      ? `Нельзя выселить гостя: бронь оплачена не полностью${due ? `, осталось оплатить ${due}` : ''}. Сначала примите оплату.`
+      : `The guest can't be checked out: the booking isn't fully paid${due ? ` (${due} due)` : ''}. Take the payment first.`;
+  }
+  if (message.includes('COLLECTION_ACCOUNT_TRANSFER_ONLY')) {
+    return lang === 'RU'
+      ? 'На счёт инкассации нельзя принять оплату — он пополняется только переводом между счетами. Выберите кассу или банковский счёт.'
+      : 'A collection account only takes transfers between accounts. Pick a cash desk or a bank account.';
   }
   return message;
 }

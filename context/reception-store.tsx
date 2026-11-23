@@ -14,6 +14,7 @@ import {
   listCompanies,
   listServicesCatalog,
   listTariffs,
+  listBookingSources,
   searchGuests as apiSearchGuests,
   suggestGroupRooms as apiSuggestGroupRooms,
   listRecord,
@@ -52,10 +53,18 @@ export interface ReceptionBooking {
   paidAmount: number;
   balance: number;
   isPaid: boolean;
+  // Nightly room rate from the tariff (without the services priced into totalAmount); 0 if unknown.
+  rateAmount: number;
+  // Service codes chosen in the booking form; the server prices them into totalAmount.
+  extraServices: string[];
   tariff: string;
   mealPlan: string;
   notes: string;
+  specialRequests: string;
   specialMarks: string[];
+  // Free tags typed at creation (Теги через запятую) and the «Проживание с животными» flag.
+  tags: string[];
+  hasPets: boolean;
   groupId?: string;
   bookingType: 'INDIVIDUAL' | 'GROUP' | 'QUICK';
   birthDate?: string;
@@ -186,6 +195,16 @@ export const BOOKING_SOURCES: { value: string; ru: string; en: string }[] = [
   { value: 'walk_in', ru: 'От стойки', en: 'Walk-in' },
   { value: 'b2b', ru: 'Корпоративный', en: 'B2B' },
 ];
+// Source picker options: the hotel's own catalog from the web PMS when it has one, else the defaults.
+export function bookingSourceOptions(sources: CatalogItem[], lang: 'RU' | 'EN', current?: string) {
+  const list = sources.length
+    ? sources.map((s) => ({ value: s.code, label: s.name || s.code }))
+    : BOOKING_SOURCES.map((s) => ({ value: s.value, label: lang === 'RU' ? s.ru : s.en }));
+  // Keep an edited booking's own source selectable even if it's no longer in the catalog.
+  if (current && !list.some((o) => o.value === current)) list.push({ value: current, label: current });
+  return list;
+}
+
 export const MEAL_PLANS: { value: string; ru: string; en: string }[] = [
   { value: 'Room only', ru: 'Без питания', en: 'Room only' },
   { value: 'Breakfast', ru: 'Завтрак', en: 'Breakfast' },
@@ -400,10 +419,15 @@ export function mapReceptionBooking(raw: any, roomsById: Map<string, ReceptionRo
     paidAmount: paid,
     balance,
     isPaid: total > 0 ? balance <= 0 : false,
+    rateAmount: num(raw?.rateAmount),
+    extraServices: Array.isArray(raw?.extraServices) ? raw.extraServices.map(str).filter(Boolean) : [],
     tariff: str(raw?.tariff?.name || raw?.tariffName || raw?.tariffCode),
     mealPlan: str(raw?.mealPlan),
-    notes: str(raw?.notes || raw?.specialRequests),
+    notes: str(raw?.notes),
+    specialRequests: str(raw?.specialRequests ?? raw?.special_requests),
     specialMarks: Array.isArray(raw?.specialMarks) ? raw.specialMarks.map(str) : [],
+    tags: (Array.isArray(raw?.tags) ? raw.tags : typeof raw?.tags === 'string' ? raw.tags.split(',') : []).map(str).map((t: string) => t.trim()).filter(Boolean),
+    hasPets: !!(raw?.hasPets ?? raw?.has_pets),
     groupId: raw?.groupId ? str(raw.groupId) : undefined,
     bookingType: raw?.groupId || kind === 'GROUP' ? 'GROUP' : kind === 'QUICK' ? 'QUICK' : 'INDIVIDUAL',
     birthDate: dateOnly(guest.birthDate) || undefined,
@@ -438,6 +462,8 @@ interface ReceptionState {
   // Booking creation
   tariffs: CatalogItem[];
   services: CatalogItem[];
+  // Booking sources from the web PMS catalog; empty until loaded (or if the hotel has none).
+  bookingSources: CatalogItem[];
   companies: CatalogItem[];
   paymentAccounts: PaymentAccount[];
   loadCatalogs: () => Promise<void>;
@@ -462,7 +488,8 @@ const defaultPeriod = () => {
 // but only loads anything for the front desk.
 export function ReceptionProvider({ children }: { children: React.ReactNode }) {
   const { role, isLoggedIn } = useApp();
-  const enabled = isLoggedIn && role === 'RECEPTION';
+  // The hotel manager's «Бронирования» tab shows the same board.
+  const enabled = isLoggedIn && (role === 'RECEPTION' || role === 'MANAGER');
   const [rooms, setRooms] = useState<ReceptionRoom[]>([]);
   const [bookings, setBookings] = useState<ReceptionBooking[]>([]);
   const [roomTypes, setRoomTypes] = useState<ReceptionRoomType[]>([]);
@@ -471,6 +498,7 @@ export function ReceptionProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [tariffs, setTariffs] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
+  const [bookingSources, setBookingSources] = useState<CatalogItem[]>([]);
   const [companies, setCompanies] = useState<CatalogItem[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
@@ -569,18 +597,28 @@ export function ReceptionProvider({ children }: { children: React.ReactNode }) {
 
   const loadCatalogs = useCallback(async () => {
     const toItem = (x: any): CatalogItem => ({ id: str(x?.id), code: str(x?.code || x?.id), name: str(x?.name || x?.code), price: num(x?.price ?? x?.rate ?? x?.amount) });
-    const [t, sv, c, acc] = await Promise.all([
+    const [t, sv, c, acc, src] = await Promise.all([
       listTariffs().catch(() => []),
       listServicesCatalog().catch(() => []),
       listCompanies().catch(() => []),
       listRecord('finance_account').catch(() => []),
+      listBookingSources().catch(() => []),
     ]);
     setTariffs(asList<any>(t).filter((x) => x?.isActive !== false).map(toItem));
     setServices(asList<any>(sv).filter((x) => x?.isAvailable !== false).map(toItem));
     setCompanies(asList<any>(c).map(toItem));
+    setBookingSources(
+      asList<any>(src)
+        .filter((x) => x?.isActive !== false && x?.is_active !== false && !x?.archived)
+        .map(toItem)
+        .filter((x) => x.code)
+    );
     setPaymentAccounts(
       asList<any>(acc)
         .filter((x) => !x?.archived && !x?.is_archived && x?.status !== 'archived')
+        // A collection (инкассация) account only takes transfers between accounts — the API
+        // rejects payments to it (COLLECTION_ACCOUNT_TRANSFER_ONLY), so it isn't offered here.
+        .filter((x) => str(x?.type).toLowerCase() !== 'collection')
         .map((x) => ({ id: str(x?.id), name: str(x?.name) || '—', type: str(x?.type) }))
     );
   }, []);
@@ -732,13 +770,13 @@ export function ReceptionProvider({ children }: { children: React.ReactNode }) {
     () => ({
       rooms, bookings, roomTypes, period, setPeriod, loading, error, refresh, refreshBooking, checkIn, checkOut, cancel,
       waitlist, waitlistLoading, waitlistError, refreshWaitlist, createWaitlistEntry, updateWaitlistEntry, deleteWaitlistEntry,
-      tariffs, services, companies, paymentAccounts, loadCatalogs, availableRoomIds, suggestGroupRooms, searchGuests,
+      tariffs, services, bookingSources, companies, paymentAccounts, loadCatalogs, availableRoomIds, suggestGroupRooms, searchGuests,
       createBooking, createGroupBooking,
     }),
     [
       rooms, bookings, roomTypes, period, setPeriod, loading, error, refresh, refreshBooking, checkIn, checkOut, cancel,
       waitlist, waitlistLoading, waitlistError, refreshWaitlist, createWaitlistEntry, updateWaitlistEntry, deleteWaitlistEntry,
-      tariffs, services, companies, paymentAccounts, loadCatalogs, availableRoomIds, suggestGroupRooms, searchGuests,
+      tariffs, services, bookingSources, companies, paymentAccounts, loadCatalogs, availableRoomIds, suggestGroupRooms, searchGuests,
       createBooking, createGroupBooking,
     ]
   );

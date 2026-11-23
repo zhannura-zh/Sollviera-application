@@ -3,6 +3,7 @@ import { Pressable } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { ReceptionProvider } from '@/context/reception-store';
+import { ManagerToastProvider } from '@/components/manager/toast';
 
 // Our own back button for the screens that show the native header (notifications, reports,
 // settings, chats…). The system one stopped responding in testers' builds — e.g. on the
@@ -23,6 +24,7 @@ function HeaderBack() {
 export default function AppLayout() {
   return (
     <ReceptionProvider>
+      <ManagerToastProvider>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -31,6 +33,7 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: '#FAF7F3' },
         }}
       />
+      </ManagerToastProvider>
     </ReceptionProvider>
   );
 }

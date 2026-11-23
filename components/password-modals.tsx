@@ -106,7 +106,20 @@ function newPasswordProblem(lang: Lang, next: string, repeat: string): string | 
   return null;
 }
 
-const errorText = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
+// The API answers in English; the usual password errors get a Russian text.
+const PASSWORD_ERRORS_RU: [RegExp, string][] = [
+  [/current password is incorrect|invalid current password|wrong (current )?password/i, 'Текущий пароль указан неверно'],
+  [/at least (\d+) characters/i, 'Новый пароль слишком короткий'],
+  [/passwords? (do not|don't) match/i, 'Пароли не совпадают'],
+  [/same as (the )?(current|old) password/i, 'Новый пароль совпадает с текущим'],
+  [/too many (requests|attempts)/i, 'Слишком много попыток. Попробуйте позже'],
+];
+const errorText = (e: unknown, fallback: string, lang?: Lang) => {
+  const message = e instanceof Error && e.message ? e.message : '';
+  if (!message) return fallback;
+  if (lang === 'RU') return PASSWORD_ERRORS_RU.find(([re]) => re.test(message))?.[1] ?? message;
+  return message;
+};
 
 // Settings → "Сменить пароль" (POST /staff/me/password).
 export function ChangePasswordModal({
@@ -146,7 +159,7 @@ export function ChangePasswordModal({
       await onSubmit(current, next);
       setDone(true);
     } catch (e) {
-      setError(errorText(e, lang === 'RU' ? 'Не удалось сменить пароль' : 'Could not change password'));
+      setError(errorText(e, lang === 'RU' ? 'Не удалось сменить пароль' : 'Could not change password', lang));
     } finally {
       setBusy(false);
     }
@@ -217,7 +230,7 @@ export function ForgotPasswordModal({
       await requestPasswordReset(email.trim(), tenantSlug);
       setStep('code');
     } catch (e) {
-      setError(errorText(e, lang === 'RU' ? 'Не удалось отправить код' : 'Could not send the code'));
+      setError(errorText(e, lang === 'RU' ? 'Не удалось отправить код' : 'Could not send the code', lang));
     } finally {
       setBusy(false);
     }

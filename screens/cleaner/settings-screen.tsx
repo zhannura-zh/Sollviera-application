@@ -4,6 +4,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChevronRight, RefreshCw, User, Lock, HelpCircle, LogOut } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
 import { ChangePasswordModal } from '@/components/password-modals';
+import { ManagerPersonalDetailsModal } from '@/components/manager/personal-details-modal';
 
 function Toggle({ value, onToggle }: { value: boolean; onToggle: () => void }) {
   return (
@@ -23,8 +24,10 @@ interface SettingsScreenProps {
 export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
   const {
     lang, setLang, offlineMode, toggleOffline, cleanerProfile, saveMyProfile, changePassword, logout,
-    refreshData, lastSyncedAt, taskSoundEnabled, toggleTaskSound,
+    refreshData, lastSyncedAt, taskSoundEnabled, toggleTaskSound, role,
   } = useApp();
+  // Hotel manager: texts and the «Личные данные» modal from design ManagerScreens.
+  const isManager = role === 'MANAGER';
   const [pushNotifications, setPushNotifications] = useState(true);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -111,14 +114,18 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
             <View>
               <Text className="text-sm font-jost text-text-primary">{lang === 'RU' ? 'Push-уведомления' : 'Push Notifications'}</Text>
               <Text className="text-[12px] font-jost text-text-secondary mt-0.5">
-                {lang === 'RU' ? 'новые задачи и сообщения' : 'new tasks and messages'}
+                {isManager
+                  ? lang === 'RU' ? 'новые брони, заезды и сообщения' : 'new bookings, check-ins & messages'
+                  : lang === 'RU' ? 'новые задачи и сообщения' : 'new tasks and messages'}
               </Text>
             </View>
             <Toggle value={pushNotifications} onToggle={() => setPushNotifications((v) => !v)} />
           </View>
 
           <View className="p-4 flex-row items-center justify-between">
-            <Text className="text-sm font-jost text-text-primary">{lang === 'RU' ? 'Звук при новой задаче' : 'Sound on New Task'}</Text>
+            <Text className="text-sm font-jost text-text-primary">{isManager
+              ? lang === 'RU' ? 'Звук при новой брони' : 'Sound on New Booking'
+              : lang === 'RU' ? 'Звук при новой задаче' : 'Sound on New Task'}</Text>
             <Toggle value={taskSoundEnabled} onToggle={toggleTaskSound} />
           </View>
         </View>
@@ -196,7 +203,9 @@ export function SettingsScreen({ onLoggedOut }: SettingsScreenProps) {
         <Text className="text-sm font-jost text-text-secondary">{lang === 'RU' ? 'Выйти из аккаунта' : 'Log Out'}</Text>
       </Pressable>
 
-      <Modal visible={isEditingProfile} transparent animationType="fade" onRequestClose={() => setIsEditingProfile(false)}>
+      <ManagerPersonalDetailsModal visible={isManager && isEditingProfile} onClose={() => setIsEditingProfile(false)} />
+
+      <Modal visible={!isManager && isEditingProfile} transparent animationType="fade" onRequestClose={() => setIsEditingProfile(false)}>
         <KeyboardAvoidingView
           className="flex-1 items-center justify-center bg-dark/60 p-4"
           behavior="padding"

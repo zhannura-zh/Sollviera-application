@@ -31,6 +31,7 @@ const ROLE_LABELS: Record<StaffRole, { ru: string; en: string }> = {
   WAITER: { ru: 'Официант', en: 'Waiter' },
   PARKING: { ru: 'Сотрудник парковки', en: 'Parking attendant' },
   RECEPTION: { ru: 'Администратор ресепшена', en: 'Front desk administrator' },
+  MANAGER: { ru: 'Руководитель отеля', en: 'Hotel manager' },
 };
 
 // Login errors worth translating (the rest come from the server as readable text).

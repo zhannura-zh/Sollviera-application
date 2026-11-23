@@ -6,7 +6,7 @@ import { useApp } from '@/context/app-store';
 import { AppNotification } from '@/types';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
 
-type Filter = 'ALL' | 'TASK' | 'MAINTENANCE' | 'SHIFT';
+type Filter = 'ALL' | 'TASK' | 'MAINTENANCE' | 'SHIFT' | 'BOOKINGS' | 'ROOMS';
 
 interface NotificationsScreenProps {
   onOpenChats: () => void;
@@ -22,6 +22,13 @@ export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
   const router = useRouter();
   // As on the web: front-desk notifications open their booking or the waitlist.
   const isFrontDesk = role === 'RECEPTION';
+  // Hotel manager (design ManagerScreens): Все / Бронирования / Номера и службы / Смена.
+  const isManager = role === 'MANAGER';
+  // Notices about arrivals/departures may come without booking_id, so the kind is checked too.
+  const isBookingNotif = (item: AppNotification) =>
+    !!item.bookingId || !!item.opensWaitlist || /check_?in|check_?out|arrival|departure|booking/.test(item.kind || '');
+  // For the manager «Смена» is shift notices only (category SYSTEM also holds trolley, lunchbox, etc.).
+  const isShiftNotif = (item: AppNotification) => /shift/.test(item.kind || '') || /смен/i.test(item.messageRu);
   const refreshControl = usePullRefresh();
   const [selectedFilter, setSelectedFilter] = useState<Filter>('ALL');
 
@@ -31,7 +38,9 @@ export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
     if (selectedFilter === 'ALL') return true;
     if (selectedFilter === 'TASK') return item.category === 'NEW_ROOM' || item.category === 'URGENT';
     if (selectedFilter === 'MAINTENANCE') return item.category === 'SUPERVISOR';
-    if (selectedFilter === 'SHIFT') return item.category === 'SYSTEM';
+    if (selectedFilter === 'SHIFT') return isManager ? isShiftNotif(item) : item.category === 'SYSTEM';
+    if (selectedFilter === 'BOOKINGS') return isBookingNotif(item);
+    if (selectedFilter === 'ROOMS') return !isBookingNotif(item) && !isShiftNotif(item) && !isMessageNotification(item);
     return true;
   });
 
@@ -90,12 +99,14 @@ export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-5 pb-3.5 grow-0" contentContainerStyle={{ gap: 6 }}>
-        {(['ALL', 'TASK', 'MAINTENANCE', 'SHIFT'] as const).map((filterType) => {
+        {(isManager ? (['ALL', 'BOOKINGS', 'ROOMS', 'SHIFT'] as const) : (['ALL', 'TASK', 'MAINTENANCE', 'SHIFT'] as const)).map((filterType: Filter) => {
           const isSelected = selectedFilter === filterType;
           const label =
             filterType === 'ALL' ? (lang === 'RU' ? 'Все' : 'All') :
             filterType === 'TASK' ? (lang === 'RU' ? 'Задачи' : 'Tasks') :
             filterType === 'MAINTENANCE' ? (lang === 'RU' ? 'Техслужба' : 'Maintenance') :
+            filterType === 'BOOKINGS' ? (lang === 'RU' ? 'Бронирования' : 'Bookings') :
+            filterType === 'ROOMS' ? (lang === 'RU' ? 'Номера и службы' : 'Rooms & Services') :
             (lang === 'RU' ? 'Смена' : 'Shift');
           return (
             <Pressable
@@ -113,7 +124,9 @@ export function NotificationsScreen({ onOpenChats }: NotificationsScreenProps) {
         {filtered.length === 0 ? (
           <View className="items-center py-12 gap-1 bg-white rounded-[14px] border border-border">
             <Bell size={22} color="#8A8177" />
-            <Text className="text-sm font-jost text-text-secondary">{lang === 'RU' ? 'Уведомлений пока нет' : 'No notifications yet'}</Text>
+            <Text className="text-sm font-jost text-text-secondary">{isManager
+                ? lang === 'RU' ? 'Уведомлений по данному фильтру нет' : 'No notifications for this filter'
+                : lang === 'RU' ? 'Уведомлений пока нет' : 'No notifications yet'}</Text>
           </View>
         ) : (
           <>

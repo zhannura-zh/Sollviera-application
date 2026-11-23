@@ -167,7 +167,7 @@ function timeNow() {
   return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
-export type StaffRole = 'CLEANER' | 'TECHNICIAN' | 'SUPERVISOR' | 'WAITER' | 'PARKING' | 'RECEPTION';
+export type StaffRole = 'CLEANER' | 'TECHNICIAN' | 'SUPERVISOR' | 'WAITER' | 'PARKING' | 'RECEPTION' | 'MANAGER';
 
 // Classifies an API user into one of the roles this app supports, from the free-text
 // role/roleCode the backend returns. Returns null when neither matches, so callers can
@@ -183,10 +183,13 @@ function classifyRole(user: Pick<ApiUser, 'role' | 'roleCode'>): StaffRole | nul
   if (role.includes('waiter') || role.includes('host') || role.includes('maitre')) return 'WAITER';
   if (role.includes('parking') || role.includes('valet')) return 'PARKING';
   if (role.includes('cleaner') || role.includes('housekeeper') || role.includes('housekeeping')) return 'CLEANER';
-  // The hotel admin is the front-desk administrator; a bare RECEPTION role is not enough
-  // (porters and parking share it), only the admin or an explicit receptionist code.
-  if (/hotel_admin|admin|owner|receptionist|reception\b/.test(`${user.role || ''}`.toLowerCase()) && !user.roleCode) return 'RECEPTION';
-  if (/admin|receptionist|^reception$/.test(`${user.roleCode || ''}`.toLowerCase())) return 'RECEPTION';
+  // Front desk: «Ресепшен» (reception) and «Портье» (porter). A bare RECEPTION system role is
+  // not enough — every staff account without a known roleCode carries it.
+  if (/^(porter|reception|receptionist)$/.test(`${user.roleCode || ''}`.toLowerCase())) return 'RECEPTION';
+  // Hotel manager: owner, manager, hotel_admin, super_admin (the web saves them as system role
+  // HOTEL_ADMIN / SUPER_ADMIN), the seeded admin account, or HOTEL_ADMIN without a position.
+  if (/^(manager|owner|hotel_admin|super_admin|admin)$/.test(`${user.roleCode || ''}`.toLowerCase())) return 'MANAGER';
+  if (/hotel_admin|super_admin/.test(`${user.role || ''}`.toLowerCase())) return 'MANAGER';
   return null;
 }
 

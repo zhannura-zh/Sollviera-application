@@ -885,6 +885,9 @@ export function GroupBookingWizard({
 
                 <Pressable
                   onPress={() => {
+                    // A partial prepayment typed in stays as is (only it is charged); an empty
+                    // field means the whole sum is paid now.
+                    if (prepaymentNum > 0 && prepaymentNum < effectiveTotal) return;
                     setIsPaid(true);
                     setPrepayment(String(effectiveTotal));
                   }}

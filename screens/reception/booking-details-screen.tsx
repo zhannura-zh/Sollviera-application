@@ -9,11 +9,12 @@ import {
   X,
 } from 'lucide-react-native';
 import { useApp } from '@/context/app-store';
-import { useReception, type ReceptionBooking, type ReceptionBookingStatus } from '@/context/reception-store';
+import { useReception, MEAL_PLANS, SPECIAL_MARKS, type ReceptionBooking, type ReceptionBookingStatus } from '@/context/reception-store';
 import { BookingDocuments, recentlyClosedSheet } from '@/components/reception/booking-documents';
 import { BookingServices } from '@/components/reception/booking-services';
 import { IndividualBookingWizard } from '@/components/reception/create/individual-wizard';
-import { getBooking } from '@/lib/api-client';
+import { getBooking, payBooking } from '@/lib/api-client';
+import { bookingErrorText, sourceLabel } from '@/components/reception/booking-utils';
 
 // Front-desk booking card (web PMS design, ReceptionScreens.tsx → selectedBooking).
 // Check-in / check-out / cancel, editing, documents and services go to the API; taking a
@@ -123,7 +124,7 @@ function ModalRow({ label, value, accent, last }: { label: string; value: string
 
 export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBookingDetailsScreenProps) {
   const { lang } = useApp();
-  const { bookings, loading, checkIn, checkOut, cancel, refreshBooking } = useReception();
+  const { bookings, bookingSources, paymentAccounts, loading, checkIn, checkOut, cancel, refreshBooking } = useReception();
   const insets = useSafeAreaInsets();
   const booking = bookings.find((b) => b.id === bookingId);
 
@@ -132,6 +133,10 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
   const [notifyGuest, setNotifyGuest] = useState(false);
   const [editableAmount, setEditableAmount] = useState('');
   const [showFolio, setShowFolio] = useState(false);
+  // «Принять оплату»: the amount from «Сумма к оплате» to the chosen account.
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAccountId, setPayAccountId] = useState('');
+  const [paying, setPaying] = useState(false);
   const [showGuestProfile, setShowGuestProfile] = useState(false);
   // «Изменить» opens the individual booking wizard (as in the design) with the booking's raw data.
   const [editRaw, setEditRaw] = useState<unknown>(null);
@@ -172,9 +177,41 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
   const canStayAction = b.status === 'NEW' || b.status === 'CONFIRMED' || isCheckedIn;
   const canCancel = b.status === 'NEW' || b.status === 'CONFIRMED';
   const canEdit = b.status === 'NEW' || b.status === 'CONFIRMED' || isCheckedIn;
-  const ratePerNight = b.totalAmount > 0 ? b.totalAmount / Math.max(1, b.nights) : 0;
+  // Tariff nightly rate; the total can't be used — it also includes the services ordered in the form.
+  const ratePerNight = b.rateAmount > 0 ? b.rateAmount : b.totalAmount > 0 ? b.totalAmount / Math.max(1, b.nights) : 0;
   const toPay = parseInt(editableAmount.replace(/\D/g, '') || '0', 10);
-  const tags = [...b.specialMarks, ...(b.mealPlan ? [b.mealPlan] : [])];
+  const ruLabel = (list: { value: string; ru: string }[], v: string) => list.find((x) => x.value === v)?.ru ?? v;
+  const tags = [...b.specialMarks.map((m) => ruLabel(SPECIAL_MARKS, m)), ...(b.mealPlan ? [ruLabel(MEAL_PLANS, b.mealPlan)] : []), ...(b.hasPets ? ['Проживание с животными'] : []), ...b.tags];
+  const wishes = [b.specialRequests, b.notes].map((x) => x.trim()).filter(Boolean);
+
+  const openPay = () => {
+    if (recentlyClosedSheet()) return;
+    if (toPay <= 0) {
+      Alert.alert('Укажите сумму', 'Введите сумму к оплате больше нуля.');
+      return;
+    }
+    if (b.balance > 0 && toPay > Math.round(b.balance)) {
+      Alert.alert('Сумма больше долга', `По брони осталось оплатить ${money(b.balance)}.`);
+      return;
+    }
+    if (!payAccountId && paymentAccounts.length) setPayAccountId((paymentAccounts.find((a) => a.type === 'cash') ?? paymentAccounts[0]).id);
+    setPayOpen(true);
+  };
+
+  const submitPay = async () => {
+    if (!payAccountId || paying) return;
+    setPaying(true);
+    try {
+      await payBooking(b.id, { amount: toPay, accountId: payAccountId });
+      setPayOpen(false);
+      await refreshBooking(b.id);
+      Alert.alert('Оплата принята', money(toPay));
+    } catch (error) {
+      Alert.alert('Не удалось принять оплату', bookingErrorText(error, lang));
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const run = (action: Exclude<BusyAction, null>, title: string, message: string, confirmLabel: string, destructive?: boolean) => {
     Alert.alert(title, message, [
@@ -192,7 +229,7 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
               onBack();
             }
           } catch (error) {
-            Alert.alert('Ошибка', error instanceof Error ? error.message : String(error));
+            Alert.alert('Ошибка', bookingErrorText(error, lang));
           } finally {
             setBusy(null);
           }
@@ -339,7 +376,7 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
             </View>
             <View className="flex-row gap-3 pt-1 border-t border-[#F0ECE6]">
               <Field label="Менеджер" value={b.manager} />
-              <Field label="Источник" value={b.source} />
+              <Field label="Источник" value={b.source ? sourceLabel(b.source, lang, bookingSources) : '—'} />
             </View>
           </View>
           <Pressable onPress={() => setShowGuestProfile(true)} className="flex-row items-center gap-1.5 pt-0.5 self-start active:opacity-60">
@@ -377,7 +414,7 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
               </View>
               <View className="flex-1">
                 <Text className="text-xs font-jost text-text-secondary">Статус</Text>
-                <Text className="text-sm font-jost-medium text-text-primary mt-0.5">{b.isPaid ? 'Оплачено' : 'Не оплачено'}</Text>
+                <Text className="text-sm font-jost-medium text-text-primary mt-0.5">{b.isPaid ? 'Оплачено' : b.paidAmount > 0 ? 'Частично оплачено' : 'Не оплачено'}</Text>
               </View>
             </View>
             <View className="pt-2 border-t border-[#F0ECE6] flex-row items-center justify-between">
@@ -386,7 +423,7 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
             </View>
             <View className="flex-row gap-2.5 pt-1">
               <Pressable
-                onPress={later}
+                onPress={openPay}
                 className="flex-1 py-3 rounded-[12px] bg-[#B93800] items-center active:bg-[#9E3000]"
               >
                 <Text className="text-white text-xs font-jost-medium">Принять оплату</Text>
@@ -412,7 +449,7 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
         <View className="gap-2">
           <SectionTitle>ПОЖЕЛАНИЯ И ПРИМЕЧАНИЯ</SectionTitle>
           <View className="bg-white rounded-[18px] border border-border p-4 gap-3">
-            <Text className="text-xs font-jost text-text-primary leading-relaxed">{b.notes || '—'}</Text>
+            <Text className="text-xs font-jost text-text-primary leading-relaxed">{wishes.length ? wishes.join('\n') : '—'}</Text>
             {tags.length > 0 && (
               <View className="flex-row items-center gap-2 flex-wrap pt-1">
                 {tags.map((tag, i) => (
@@ -481,6 +518,62 @@ export function ReceptionBookingDetailsScreen({ bookingId, onBack }: ReceptionBo
           <ModalRow label="Категория лояльности:" value="—" accent="#C2410C" last />
         </View>
       </ModalShell>
+
+      {/* Принять оплату */}
+      <Modal visible={payOpen} transparent animationType="fade" onRequestClose={() => !paying && setPayOpen(false)}>
+        <View className="flex-1 bg-black/50 items-center justify-center p-4">
+          <View className="bg-white rounded-[20px] w-full max-w-sm p-5 gap-4">
+            <View className="flex-row items-center justify-between gap-2">
+              <Text className="flex-1 text-base font-spectral text-text-primary">Принять оплату</Text>
+              <Pressable onPress={() => !paying && setPayOpen(false)} hitSlop={10} className="active:opacity-60">
+                <X size={16} color="#8A8177" />
+              </Pressable>
+            </View>
+            <View className="gap-1">
+              <ModalRow label="Сумма:" value={money(toPay)} accent="#B93800" />
+              <ModalRow label="Остаток после оплаты:" value={money(Math.max(0, b.balance - toPay))} last />
+            </View>
+            <View className="gap-1.5">
+              <Text className="text-xs font-jost text-text-secondary">Счёт зачисления</Text>
+              {paymentAccounts.length === 0 ? (
+                <Text className="text-xs font-jost text-text-secondary">Счета не загружены</Text>
+              ) : (
+                <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ gap: 6 }}>
+                  {paymentAccounts.map((a) => {
+                    const active = a.id === payAccountId;
+                    return (
+                      <Pressable
+                        key={a.id}
+                        onPress={() => setPayAccountId(a.id)}
+                        className={`px-3.5 py-2.5 rounded-[12px] border flex-row items-center justify-between ${active ? 'border-[#B93800] bg-[#FDF0EB]' : 'border-border bg-white'}`}
+                      >
+                        <Text className={`text-xs ${active ? 'font-jost-medium text-[#B93800]' : 'font-jost text-text-primary'}`}>{a.name}</Text>
+                        {active && <Check size={14} color="#B93800" />}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+            <View className="flex-row gap-2.5">
+              <Pressable
+                onPress={() => setPayOpen(false)}
+                disabled={paying}
+                className="flex-1 py-2.5 rounded-[12px] bg-white border border-border items-center active:bg-background"
+              >
+                <Text className="text-xs font-jost text-text-secondary">Отмена</Text>
+              </Pressable>
+              <Pressable
+                onPress={submitPay}
+                disabled={paying || !payAccountId}
+                className={`flex-1 py-2.5 rounded-[12px] items-center ${paying || !payAccountId ? 'bg-border' : 'bg-[#B93800] active:bg-[#9E3000]'}`}
+              >
+                {paying ? <ActivityIndicator color="#fff" size="small" /> : <Text className="text-white text-xs font-jost-medium">Принять</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Folio */}
       <ModalShell visible={showFolio} title={`Folio брони ${b.bookingNumber}`} onClose={() => setShowFolio(false)}>
