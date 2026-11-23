@@ -1645,6 +1645,11 @@
   dependencies:
     invariant "^2.2.4"
 
+"@react-native-ml-kit/text-recognition@2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@react-native-ml-kit/text-recognition/-/text-recognition-2.0.0.tgz#b0a707f908d3e57a220cc665b6b615c8d4575bd1"
+  integrity sha512-RHefLYKndSyoDtgqHQptYQe+mftFk6/H30IQDenKX7PgMlJqoDejX+HdZ8gnP1kVNAt3iH+wyl/P6vCOkLMW9Q==
+
 "@react-native/assets-registry@0.81.5":
   version "0.81.5"
   resolved "https://registry.yarnpkg.com/@react-native/assets-registry/-/assets-registry-0.81.5.tgz#d22c924fa6f6d4a463c5af34ce91f38756c0fa7d"
@@ -3753,6 +3758,11 @@ expo-constants@~18.0.13, expo-constants@~18.0.14:
   dependencies:
     "@expo/config" "~12.0.14"
     "@expo/env" "~2.0.12"
+
+expo-document-picker@~14.0.8:
+  version "14.0.8"
+  resolved "https://registry.yarnpkg.com/expo-document-picker/-/expo-document-picker-14.0.8.tgz#ca1d99cc432c48e69a6390eb035f3301557e3699"
+  integrity sha512-3tyQKpPqWWFlI8p9RiMX1+T1Zge5mEKeBuXWp1h8PEItFMUDSiOJbQ112sfdC6Hxt8wSxreV9bCRl/NgBdt+fA==
 
 expo-file-system@~19.0.24:
   version "19.0.24"
@@ -6345,6 +6355,11 @@ react-native-keyboard-controller@1.18.5:
   integrity sha512-wbYN6Tcu3G5a05dhRYBgjgd74KqoYWuUmroLpigRg9cXy5uYo7prTMIvMgvLtARQtUF7BOtFggUnzgoBOgk0TQ==
   dependencies:
     react-native-is-edge-to-edge "^1.2.1"
+
+react-native-pdf-thumbnail@2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/react-native-pdf-thumbnail/-/react-native-pdf-thumbnail-2.0.0.tgz#03d978222659086f5f4c980263269355e8d6fb39"
+  integrity sha512-Dyri8daUPSPXST2dir83EsL2Sta6eeI9A1iWMIx82SRu0aFcPHbRImzYc/b7CEuA50I4iqfnysgxtANBeITZwA==
 
 react-native-reanimated@~4.1.1:
   version "4.1.7"

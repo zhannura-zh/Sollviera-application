@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react-native';
 import { DatePickerOverlay, type DateRangeLink } from '@/components/ui/date-picker';
+import { DocumentScanButton } from './document-scan-button';
 import { useApp } from '@/context/app-store';
-import { BOOKING_SOURCES, type GuestInput, type ReceptionRoom, nightsBetween, toIsoDate, useReception } from '@/context/reception-store';
+import { bookingSourceOptions, type GuestInput, type ReceptionRoom, nightsBetween, toIsoDate, useReception } from '@/context/reception-store';
 import {
   type BookingPrefill,
   type Lang,
@@ -234,7 +235,7 @@ function InfoMark({ small }: { small?: boolean }) {
 export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookingWizardProps) {
   const { lang } = useApp();
   const ru = lang === 'RU';
-  const { rooms, tariffs, paymentAccounts, availableRoomIds, createBooking } = useReception();
+  const { rooms, tariffs, bookingSources, paymentAccounts, availableRoomIds, createBooking } = useReception();
 
   const today = useMemo(() => toIsoDate(new Date()), []);
   const [step, setStep] = useState<Step>(1);
@@ -269,6 +270,13 @@ export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookin
   const [middleName, setMiddleName] = useState('');
   const [phone, setPhone] = useState('');
   const [source, setSource] = useState('walk_in');
+
+  // The hotel's source catalog may not have our default code: start from its first entry then.
+  useEffect(() => {
+    if (!bookingSources.length || bookingSources.some((x) => x.code === source)) return;
+    setSource(bookingSources[0].code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingSources]);
   const [docType, setDocType] = useState('');
   const [docNumber, setDocNumber] = useState('');
   const [birthText, setBirthText] = useState('');
@@ -392,7 +400,7 @@ export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookin
     { value: '', label: ru ? 'Тариф номера' : 'Room rate' },
     ...tariffs.map((t) => ({ value: t.code, label: t.name })),
   ];
-  const sourceOptions: PickerOption[] = BOOKING_SOURCES.map((s) => ({ value: s.value, label: ru ? s.ru : s.en }));
+  const sourceOptions: PickerOption[] = bookingSourceOptions(bookingSources, lang);
   const docOptions: PickerOption[] = DOC_TYPES.map((d) => ({ value: d.value, label: ru ? d.ru : d.en }));
   const genderOptions: PickerOption[] = [
     { value: 'male', label: ru ? 'Мужской' : 'Male' },
@@ -812,6 +820,17 @@ export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookin
                     onChange={(v) => setGender(v as 'male' | 'female')}
                   />
                 </View>
+                <DocumentScanButton
+                  lang={lang}
+                  onScanned={(r) => {
+                    if (r.lastName) setLastName(r.lastName);
+                    if (r.firstName) setFirstName(r.firstName);
+                    setDocType(r.kind === 'passport' ? 'Паспорт' : 'Удостоверение личности');
+                    if (r.docNumber) setDocNumber(r.docNumber);
+                    if (r.birthDate) setBirthText(r.birthDate);
+                    if (r.gender) setGender(r.gender);
+                  }}
+                />
               </View>
             </>
           )}
@@ -891,6 +910,9 @@ export function QuickBookingWizard({ onCancel, onCreated, prefill }: QuickBookin
                 {/* Marks the whole sum as paid now; the payment itself is posted with the booking. */}
                 <Pressable
                   onPress={() => {
+                    // A partial prepayment typed in stays as is (only it is charged); an empty
+                    // field means the whole sum is paid now.
+                    if (prepaymentNum > 0 && prepaymentNum < effectiveTotal) return;
                     setIsPaid(true);
                     setPrepayment(String(effectiveTotal));
                   }}

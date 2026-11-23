@@ -4,6 +4,8 @@ import { Search, UserCheck, X } from 'lucide-react-native';
 import type { FoundGuest, GuestInput } from '@/context/reception-store';
 import { dotsToIso, isoToDots, type Lang } from '@/components/reception/booking-utils';
 import { C, DateInput, Divider, FieldLabel, Input, Select, type PickOption } from './individual-ui';
+import { DocumentScanButton } from './document-scan-button';
+import { countryFromMrz, type MrzResult } from '@/lib/mrz';
 
 // One guest block of step 2 ("Основной гость" / "Гость N").
 
@@ -92,6 +94,22 @@ const COUNTRIES = [
   ['США', 'USA'],
   ['Другая', 'Other'],
 ];
+
+// Guest fields from a scanned document (MRZ has no patronymic: it is left as typed).
+export function draftPatchFromMrz(r: MrzResult, lang: Lang): Partial<GuestDraft> {
+  const ru = lang === 'RU';
+  const [countryRu, countryEn] = countryFromMrz(r.nationality);
+  const patch: Partial<GuestDraft> = {
+    docType: r.kind === 'passport' ? (ru ? 'Паспорт' : 'Passport') : ru ? 'Удостоверение личности' : 'ID card',
+    nationality: ru ? countryRu : countryEn,
+  };
+  if (r.lastName) patch.lastName = r.lastName;
+  if (r.firstName) patch.firstName = r.firstName;
+  if (r.docNumber) patch.docNumber = r.docNumber;
+  if (r.birthDate) patch.birthDate = r.birthDate;
+  if (r.gender) patch.gender = r.gender;
+  return patch;
+}
 
 function optionsFrom(pairs: string[][], lang: Lang, current: string): PickOption[] {
   const ru = lang === 'RU';
@@ -387,6 +405,8 @@ export function GuestCard({
             onChange={(v) => onChange({ nationality: v })}
           />
         </View>
+
+        <DocumentScanButton lang={lang} onScanned={(r) => onChange(draftPatchFromMrz(r, lang))} />
       </View>
     </View>
   );

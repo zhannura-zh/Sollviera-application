@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { ChevronDown, ChevronRight, LayoutGrid, List, Plus, X } from 'lucide-react-native';
 import type { ReceptionRoom } from '@/context/reception-store';
 import { type Lang, guestsText, pluralRu } from '@/components/reception/booking-utils';
+import { DocumentScanButton } from './document-scan-button';
+import { countryFromMrz } from '@/lib/mrz';
 import { FieldLabel, IconInput, PickerField, SectionTitle, TextField, digitsOnly, money, type PickerOption } from './group-ui';
 
 // Step 2 «Номера» and the rooming list of the group booking wizard (web design:
@@ -490,6 +492,19 @@ export function GroupRoomingList({ lang, rooms, roomById, guests, filledCount, o
                                     onChange={set('nationality')}
                                   />
                                 </View>
+                                <DocumentScanButton
+                                  lang={lang}
+                                  onScanned={(r) => {
+                                    if (r.lastName) set('lastName')(r.lastName);
+                                    if (r.firstName) set('firstName')(r.firstName);
+                                    set('docType')(r.kind === 'passport' ? 'Паспорт' : 'Удостоверение личности');
+                                    if (r.docNumber) set('docNumber')(r.docNumber);
+                                    if (r.birthDate) set('birthDate')(r.birthDate);
+                                    if (r.gender) set('gender')(r.gender);
+                                    const country = countryFromMrz(r.nationality)[0];
+                                    set('nationality')(NATIONALITIES.some((n) => n.value === country) ? country : 'Другая');
+                                  }}
+                                />
                               </View>
                             )}
                           </View>
